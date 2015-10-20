@@ -1,0 +1,108 @@
+;; http://en.wikipedia.org/wiki/Luhn_algorithm
+;; for checking credit card numbers
+
+(ns miner.luhn
+  (:require [clojure.edn :as edn]))
+
+;; official definition, just for testing
+(defn x2calc [n]
+  {:pre [(<= 0 n 9)]}
+  (let [n2 (* 2 n)]
+    (if (>= n2 10)
+      (+ (mod n2 10) (quot n2 10))
+      n2)))
+
+;; notice that the (mod n2 10) is always 1, but we can optimize further...
+
+;; easy enough to just look up
+(defn x2 [n]
+  {:pre [(<= 0 n 9)]}
+  (get [0 2 4 6 8 1 3 5 7 9] n))
+
+(defn digit [ch]
+  (- (int ch) (int \0)))
+
+(defn checksum-digits [digits]
+  ;; pad with a leading 0 to get even count
+  (let [digits (if (odd? (count digits)) (cons 0 digits) digits)]
+    (mod (+ (reduce + (map x2 (take-nth 2 digits)))
+            (reduce + (take-nth 2 (rest digits))))
+         10)))
+
+(defn checksum [num]
+  {:pre [(integer? num)]}
+  (checksum-digits (map digit (str num))))
+
+(defn check? [num]
+  (zero? (checksum num)))
+
+(defn amex-start? [^String s]
+  (and (or (.startsWith s "37") (.startsWith s "34"))
+       (== (.length s) 15)))
+
+(defn mastercard-start? [^String s]
+  (and (.startsWith s "5") (== (.length s) 16)))
+
+(defn visa-start? [^String s]
+  (and (.startsWith s "4")
+       (or (= (.length s) 13) (= (.length s) 16))))
+
+;; more on card types and issuers
+;; http://en.wikipedia.org/wiki/Bank_card_number
+;; http://stackoverflow.com/questions/72768/how-do-you-detect-credit-card-type-based-on-number
+
+;; for now using the CS50x instructions
+(defn card-type [num]
+  (if-not (check? num)
+    :invalid
+    (let [s (str num)]
+      (cond (amex-start? s) :amex
+            (visa-start? s) :visa
+            (mastercard-start? s) :mastercard
+            :else :valid))))
+
+(defn gen-card
+  ([num-digits] (gen-card 0 num-digits))
+  ([start num-digits]
+     (let [bs (if (zero? start) () (map digit (str start)))
+           rs (repeatedly (- num-digits (count bs) 1) #(rand-int 10))
+           ds (concat bs rs '(0))
+           chk (checksum-digits ds)]
+       (reduce (fn [acc d] (+ (* 10 acc) d)) 0
+               (if (zero? chk) ds (concat bs rs (list (- 10 chk))))))))
+
+;; reduce is slightly faster than  Long/parseLong 
+
+
+;; had a bug when chk was 0  found with generative testing
+        
+;; http://www.paypalobjects.com/en_US/vhelp/paypalmanager_help/credit_card_numbers.htm
+;; but there's a typo for 76009244561 entry.  I changed it to 76009244567.
+(def test-data
+  '{6331101999990016 Switch-Solo-Paymentech,
+    38520000023237 Diners-Club,
+    378282246310005 American-Express,
+    5610591081018250 Australian-BankCard,
+    6011000990139424 Discover,
+    371449635398431 American-Express,
+    30569309025904 Diners-Club,
+    378734493671000 American-Express-Corporate,
+    4111111111111111 Visa,
+    4012888888881881 Visa,
+    76009244567 Dankort-PBS,
+    5019717010103742 Dankort-PBS,
+    5105105105105100 MasterCard,
+    5555555555554444 MasterCard,
+    6011111111111117 Discover,
+    3530111333300000 JCB,
+    3566002020360505 JCB,
+    4222222222222 Visa})
+
+
+(comment
+  (require '[miner.luhn :as lu])
+
+  (every? lu/check? (keys lu/test-data))
+
+  (map #(conj % (lu/card-type (first %))) lu/test-data)
+)  
