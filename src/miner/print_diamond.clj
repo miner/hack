@@ -1,3 +1,5 @@
+(ns miner.print-diamond)
+
 ;; https://gist.github.com/trikitrok/378a8af7d9a4295a93f5
 
 ;; http://garajeando.blogspot.com/2015/08/kata-print-diamond-in-clojure.html
@@ -43,26 +45,27 @@
         btw (dec (* 2 cnum))]
     [(nch cnum) pre btw]))
 
-(defn reflect-seq [xs]
-  (concat xs (rest (reverse xs))))
+;; let the printer routine handle the top/bottom reflection
+;; use a vector to get free rseq
 
-;; calculate top part of diamond, then use reflection for bottom half
-(defn diamond-lines [cmax]
-  (reflect-seq (map (partial diamond-line-data cmax) (range (inc cmax)))))
+;; returns [[\C n-before m-between]...]
+(defn diamond-top [cmax]
+  (mapv (partial diamond-line-data cmax) (range (inc cmax))))
+
+(defn print-diamond-line [c pre btw]
+  (dotimes [i pre] (print "."))
+  (print c)
+  (when (pos? btw)
+    (dotimes [i btw] (print "+"))
+    (print c))
+  (dotimes [i pre] (print "."))
+  (println))
 
 (defn print-diamond [ch]
-  (doseq [[c pre btw] (diamond-lines (chnum ch))]
-    (dotimes [i pre] (print "."))
-    (print c)
-    (when (pos? btw)
-      (dotimes [i btw] (print "+"))
-      (print c))
-    (dotimes [i pre] (print "."))
-    (println)))
-
-
-#_
-(defn vreflection [xs]
-  (let [v (vec xs)]
-    (into v (rest (rseq v)))))
+  (let [top-lines (diamond-top (chnum ch))]
+    (doseq [[c pre btw] top-lines]
+      (print-diamond-line c pre btw))
+    ;; bottom is the reverse of top, except longest (middle line)
+    (doseq [[c pre btw] (rest (rseq top-lines))]
+      (print-diamond-line c pre btw))))
 
