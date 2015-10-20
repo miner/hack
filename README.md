@@ -9,4 +9,4 @@ Don't.
 ## Copyright
 
 Copyright (C) 2015 Steve Miner
-All rights reserved.
+
