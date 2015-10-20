@@ -1,7 +1,9 @@
 pom.xml
 *jar
+/target/
 /lib/
 /classes/
 .lein-*
+.nrepl-*
 TAGS
 
