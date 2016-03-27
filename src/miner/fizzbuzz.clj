@@ -89,3 +89,77 @@
             (range n)))
 
 
+
+
+
+
+;;
+
+
+(defn xfb1 [n]
+  (sequence (comp (map list) (map #(some identity %)))
+            (cycle (cons "fizzbuzz" (repeat 14 nil)))
+            (cycle ["buzz" nil nil nil nil])
+            (cycle ["fizz" nil nil])
+            (range n)))
+
+
+(defn xfb2 [n]
+  (sequence (map #(some identity %&))
+            (cycle (cons "fizzbuzz" (repeat 14 nil)))
+            (cycle ["buzz" nil nil nil nil])
+            (cycle ["fizz" nil nil])
+            (range n)))
+
+
+(defn xfb3 [n]
+  (sequence (map (fn [a b c d] (or a b c d)))
+            (cycle (cons "fizzbuzz" (repeat 14 nil)))
+            (cycle ["buzz" nil nil nil nil])
+            (cycle ["fizz" nil nil])
+            (range n)))
+
+
+(defn xfb [n]
+  (sequence (map (some-fn identity))
+            (cycle (cons "fizzbuzz" (repeat 14 nil)))
+            (cycle ["buzz" nil nil nil nil])
+            (cycle ["fizz" nil nil])
+            (range n)))
+
+
+(defn fb-natural [n]
+  (let [zmod (fn [^long m ^long d] (= 0 (rem m d)))]
+    (map (fn [i] (cond (zmod i 15) "fizzbuzz"
+                       (zmod i 3) "fizz"
+                       (zmod i 5) "buzz"
+                       :else i))           
+         (range n))))
+
+;; my best so far
+(defn best-fizzbuzz [n]
+  (let [zmod (fn [^long m ^long d] (= 0 (rem m d)))
+        ;; note: ^long on i is slower!
+        fb (fn [i] (if (zmod i 3)
+                     (if (zmod i 5)
+                       "fizzbuzz"
+                       "fizz")
+                     (if (zmod i 5)
+                       "buzz"
+                       i)))]
+    (map fb (range n))))
+
+;; hinting didn't matter much
+;; case didn't do any better
+
+
+(defn fb-fast2 [n]
+  (map (fn [^long i]
+             (if (= 0 (rem i 3))
+               (if (= 0 (rem i 5))
+                 "fizzbuzz"
+                 "fizz")
+               (if (= 0 (rem i 5))
+                 "buzz"
+                 i)))
+       (range n)))

@@ -145,6 +145,8 @@
 
 ;; http://en.literateprograms.org/Fibonacci_numbers_(Python)#Direct_computation_of_the_nth_Fibonacci_number_with_Binet.27s_formula
 
+;; also http://mathworld.wolfram.com/BinetsFibonacciNumberFormula.html
+
 ;; very fast direct calculation but wrong after n > 70 due to rounding errors
 (defn binet-fib [n]
   ; (assert (<= n 70))

@@ -88,3 +88,115 @@
 ;; my version is a bit faster than outerleave
 (defn separate-nth [n coll]
   (map #(take-nth-off n % coll) (range n)))
+
+
+;;; 02/01/16  14:22 by miner -- this was old, before transducers.  Might be worth a second
+;;; look.
+
+;; related CLJ-1764
+;; partition-by on infinite input
+;; would like more laziness on infinite input, but is that really necessary?
+
+
+(defn core-partition-by [f coll]
+  ;; original, without transducer code
+  (lazy-seq
+   (when-let [s (seq coll)]
+     (let [fst (first s)
+           fv (f fst)
+           run (cons fst (take-while #(= fv (f %)) (next s)))]
+       (cons run (core-partition-by f (seq (drop (count run) s))))))))
+
+
+;; Will still have to count potentially infinite tail!
+;; Correction:  it works because it doesn't have to count until it's really needed, which is
+;; never for the last partition.
+(defn proposed-partition-by [f coll]
+  (lazy-seq
+   (when-let [s (seq coll)]
+     (let [fst (first s)
+           fv (f fst)
+           run (cons fst (take-while #(= fv (f %)) (next s)))]
+       (cons run (proposed-partition-by f (lazy-seq (drop (count run) s))))))))
+
+
+
+;; SEM: but drop is lazy anyway so seq/lazy-seq not needed.  Right ???  Wrong!!  Infinite
+;; lazy tail will never stop on drop/count preparing for "next" partition
+;; BAD
+(defn my-partition-by [f coll]
+  (lazy-seq
+   (when-let [s (seq coll)]
+     (let [fst (first s)
+           fv (f fst)
+           run (cons fst (take-while #(= fv (f %)) (next s)))]
+       (cons run (my-partition-by f (drop (count run) s)))))))
+
+;; BAD
+(defn my2-partition-by [f coll]
+  (lazy-seq
+   (when-let [s (seq coll)]
+     (let [fst (first s)
+           fv (f fst)
+           run (cons fst (take-while #(= fv (f %)) (next s)))]
+       (cons run (lazy-seq (my-partition-by f (drop (count run) s))))))))
+
+
+;; It's lazy enough that it doesn't have to be forced
+(defn drop-seq [drops coll]
+  (lazy-seq
+   (if-let [ds (seq drops)]
+     (when-let [cs (seq coll)]
+       (drop-seq (next ds) (next cs)))
+     coll)))
+
+
+
+;; Seems a little faster than "proposed" but not a big win
+(defn sem-partition-by [f coll]
+  (lazy-seq
+   (when-let [s (seq coll)]
+     (let [fst (first s)
+           fv (f fst)
+           run (cons fst (take-while #(= fv (f %)) (next s)))]
+       (cons run (sem-partition-by f (drop-seq run s)))))))
+
+(defn sem2-partition-by [f coll]
+   (when-let [s (seq coll)]
+     (let [fst (first s)
+           fv (f fst)
+           run (cons fst (take-while #(= fv (f %)) (next s)))]
+       (cons run (sem-partition-by f (drop-seq run s))))))
+
+
+
+(defn ppby [f coll]
+  (when-let [s (seq coll)]
+    (let [fst (first s)
+          fv (f fst)
+          run (cons fst (take-while #(= fv (f %)) (next s)))]
+      (cons run (lazy-seq (ppby f (drop (count run) s)))))))
+
+
+;; Testing partitions and mapcatting back together, hoping to stress laziness
+
+#_ (dotimes [_ 20] (time (count (mapcat identity (sep/sem-partition-by #(zero? (mod % 1000))
+                                                                       (range 10000000))))))
+
+(defn stress
+  ([pby] (stress pby 5e6))
+  ([pby num]
+   (println (str pby) num)
+   (dotimes [_ 20]
+     (time (count (mapcat identity (pby #(zero? (mod % 100))
+                                        (range num))))))))
+
+
+(defn stress2
+  ([pby] (stress pby 5e6))
+  ([pby num]
+   (println (str pby) num)
+   (dotimes [_ 20]
+     (time (count (reduce into (pby #(zero? (mod % 100))
+                                    (range num))))))))
+
