@@ -4,6 +4,7 @@
 
 ;;; 10/16/12  15:57 by miner -- slightly modified
 ;;; see also sieve.clj for the best way to do primes
+;;; see also dijkstra_primes.clj for an interesting algorithm
 
 (ns miner.primes)
 
@@ -38,3 +39,5 @@
 
 (defn bprime? [n]
   (or (== n 2) (== n belphegor) (== (inc n) (sum-factors n))))
+
+

@@ -271,3 +271,6 @@
 (defn palindromic? [n]
   (let [s (str n)]
     (= s (.toString (.reverse (StringBuilder. s))))))
+
+
+;; See also dijkstra_primes.clj for another algorithm
