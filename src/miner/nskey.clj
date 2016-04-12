@@ -20,29 +20,31 @@
 
 
 
-(defn find-short-name [parent-ns qualified-name]
+(defn gen-alias [parent-ns qualified-name]
   (let [alias-names (set (map str (keys (ns-aliases parent-ns))))
         segments (clojure.string/split (str qualified-name) #"[.]")
         final (peek segments)
         fcnt (count final)
-        shorten (fn [n extra] (let [sname (and (>= fcnt n) (str (subs final 0 n) extra))]
-                                (and sname (not (get alias-names sname)) (symbol sname))))
+        shorten (fn shrt
+                  ([n] (shrt n nil))
+                  ([n extra] (let [sname (and (>= fcnt n) (str (subs final 0 n) extra))]
+                               (and sname (not (get alias-names sname)) (symbol sname)))))
         shorten+ (fn [n] (first (map #(shorten n %) (range 1 10))))]
 
-    (or (shorten 1 "") 
-        (shorten 3 "") 
-        (shorten 2 "")
+    (or (shorten 1) 
+        (shorten 3) 
+        (shorten 2)
         (and (> (count segments) 1) (not (get alias-names final)) (symbol final))
         (and (> (count segments) 1) (let [abc (apply str (map first segments))]
                                       (and (not (get alias-names abc))
                                            (symbol abc))))
         (shorten+ 1)
         (shorten+ 2)
-        (shorten+ 3)  )))
+        (shorten+ 3)
+        (gensym (subs final 0 1)))))
 
 
 (defn abbrev-ns
-  ([qualified-name]   (abbrev-ns *ns* qualified-name (find-short-name *ns* qualified-name)))
   ([qualified-name short-name]  (abbrev-ns *ns* qualified-name short-name))
   ([parent-ns qualified-name short-name]
   ;; alias qualified-name as short-name
