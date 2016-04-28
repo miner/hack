@@ -5,7 +5,7 @@
                  [com.velisco/wilkins "0.2.1"]
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/tools.macro "0.1.5"]
-                 [com.datomic/datomic-free "0.9.5350"  :exclusions [joda-time]]
+                 [com.datomic/datomic-free "0.9.5359"  :exclusions [joda-time]]
                  [instaparse "1.4.1"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "0.8.10"]
