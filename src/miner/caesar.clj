@@ -17,6 +17,7 @@
   )
 
 ;; Should take advantage of (seq "foo") returns seq of chars.  No need for (map char "foo")
+;; If you want to be explicit for pedagogical reasons, just call seq.
 ;; Should (mod offset 26) to allow more flexibilty, negatives
 ;; Should pass through non-lower-alpha chars, not just \space.  Second arg "not-found" to
 ;; map access.
@@ -28,6 +29,8 @@
    (let [lowers "abcdefghijklmnopqrstuvwxyz"
          shifted-map (zipmap lowers (drop (mod offset (count lowers)) (cycle lowers)))]
      (apply str (map #(shifted-map % %) message)))))
+
+;;;;; OTHER IDEAS and extensions
 
 
 ;; Adding Cap support, any int offset (mod 26), and pass through for non-alphas
