@@ -3,6 +3,10 @@
   ([] clojure.lang.PersistentQueue/EMPTY)
   ([coll] (reduce conj clojure.lang.PersistentQueue/EMPTY coll)))
 
+(defn queue? [x]
+  (instance? clojure.lang.PersistentQueue x))
+
+
 ;; A queue works "first in, first out."  You "conj" to the end (like a vector), and "pop"
 ;; from the head (like a list).
 
