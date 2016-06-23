@@ -28,7 +28,7 @@
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}
              :clj18 {:dependencies [   
-                                   [org.clojure/clojure "1.7.0"]
+                                   [org.clojure/clojure "1.8.0"]
                                    ]}
 
              :clj17 {:dependencies [   
