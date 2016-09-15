@@ -108,7 +108,7 @@
     (+ (basic-fib (- n 2)) (basic-fib (dec n)))))
 
 
-;; cache as a sequence and take nth when needed
+;; cache as a sequence and `take` or  `nth` when needed
 
 (defn next-terms [term-1 term-2] 
   (let [term-3 (+ term-1 term-2)] 
@@ -126,13 +126,28 @@
 (comment 
 
 (take 15 (fibonacci 0 1)) 
-
+(take 15 (infinite-fib-sequence))
 )
 
-;; from @ghoseb
+
+;;; lazy, caching versions, use `take` to get what you want
+;;; clever but never release the cached values
+
+;; from C. Grand
+(def cgfib (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
+
+;; also attributed to @ghoseb
 (def fibs (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
 
 #_ (take 15 fibs)
+
+
+;; from Alan Dipert
+(def afib (lazy-seq (cons 0 (reductions + 1 afib))))
+
+
+
+
 
 
 (comment
@@ -153,6 +168,12 @@
   (let [phi (/ (+ 1.0 (Math/sqrt 5.0)) 2.0)]
     (long (Math/round (/ (- (Math/pow phi n) (Math/pow (- 1.0 phi) n))
                          (Math/sqrt 5.0))))))
+
+
+
+
+
+
         
 
 ;; For reference
@@ -173,7 +194,7 @@
              135301852344706746049 218922995834555169026] )
 
 
-;; second more try -- fmdiff now with just -x
+
 
 (comment
   
