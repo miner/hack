@@ -1,3 +1,4 @@
+(ns miner.queue)
 
 (defn queue
   ([] clojure.lang.PersistentQueue/EMPTY)
@@ -54,4 +55,6 @@
 (defn conj-head [v x]
   ;; not good
   (into [x] v))
+
+
 

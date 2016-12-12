@@ -4,6 +4,12 @@
 ;; See also the wikipedia page for interesting facts:
 ;; http://en.wikipedia.org/wiki/Fibonacci_number
 
+
+;; See also (just moved the original)
+;; https://www.nayuki.io/page/fast-fibonacci-algorithms
+;; https://news.ycombinator.com/item?id=12871156
+
+
 (ns miner.fib
   (:refer-clojure))
 
@@ -170,7 +176,12 @@
                          (Math/sqrt 5.0))))))
 
 
-
+;; slight refactoring, not much diff
+(defn binet-fib2 [n]
+  ; (assert (<= n 70))
+  (let [phi1 (/ (Math/sqrt 5.0) 2.0)]
+    (long (Math/round (/ (- (Math/pow (+ 0.5 phi1) n) (Math/pow (- 0.5 phi1) n))
+                         (Math/sqrt 5.0))))))
 
 
 

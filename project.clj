@@ -3,13 +3,14 @@
   :dependencies [
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
-                 [org.clojure/core.async "0.2.391"]
+                 [org.clojure/data.int-map "0.2.4"]
+                 [org.clojure/core.async "0.2.395"]
                  [org.clojure/tools.macro "0.1.5"]
-                 [com.datomic/datomic-free "0.9.5404"  :exclusions [joda-time]]
+                 [com.datomic/datomic-free "0.9.5530"  :exclusions [joda-time]]
                  [instaparse "1.4.3"]
                  ;;[clj-webdriver "0.5.1"]
-                 [org.clojure/core.logic "0.8.10"]
-                 [quil "2.4.0"]
+                 [org.clojure/core.logic "0.8.11"]
+                 [quil "2.5.0"]
                  ;; [com.velisco/herbert "0.6.1"]
                   [com.velisco/herbert "0.7.0"]
                  [org.clojure/algo.monads "0.1.6"]
@@ -23,8 +24,8 @@
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
   :profiles {:dev  {:dependencies [   
-                                   [org.clojure/clojure "1.9.0-alpha13"]
-                                   [org.clojure/core.async "0.2.391"]
+                                   [org.clojure/clojure "1.9.0-alpha14"]
+                                   [org.clojure/core.async "0.2.395"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}
              :clj18 {:dependencies [   
