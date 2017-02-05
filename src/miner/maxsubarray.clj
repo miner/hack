@@ -1,6 +1,7 @@
 (ns miner.maxsubarray
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
+            [clojure.core.reducers :as r]
             [clojure.core.async :as a
              :refer [>! <! >!! <!! go chan buffer close! thread
                      alts! alts!! timeout]]))
@@ -36,6 +37,31 @@
                    6
                    2 -1 2 3 4 -5])
 
+
+;; makes slightly faster fn than using generic comp
+(defn comp1
+  "Like comp but specialize for single-arg functions"
+  ([] identity)
+  ([f] f)
+  ([f g] (fn [x] (f (g x))))
+  ([f g h] (fn [x] (f (g (h x)))))
+  ([f g h & more] (apply comp1 (comp1 f g h) more)))
+
+;; Not sure about rf-comp
+;; maybe better to use regular comp and push the x onto the state first
+;; kind of strange to pass the x arg to each one separately
+;; Transducers already do something like this???
+
+;; like comp but specialized for 2-arg `reducing` fn
+(defn rf-comp
+  ([] conj)
+  ([f] f)
+  ([f g] (fn [r x] (f (g r x) x)))
+  ([f g h] (fn [r x] (f (g (h r x) x) x)))
+  ([f g h & more] (apply rf-comp (rf-comp f g h) more)))
+
+
+;; SEM: Need to try clojure.core/reducers for speed
 
 
 ;; really big input takes too long if you create vectors and partitions
@@ -80,6 +106,12 @@
 ;; state: contig anysub running -- "car"
 ;; final result: contig anysub -- (pop car)
 
+;; Can we take that apart?
+;;  running depends on running and x
+;;  anysub depends on anysub and x
+;;  contig depends on contig and running
+
+
 ;; more convenient to order the args this way so we can pop for final result
 (defn step-red [[contig anysub running] x]
   (let [running (if (neg? running) x (+ running x))
@@ -89,6 +121,132 @@
                    :else (+ anysub x))
         contig (max contig running)]
     [contig anysub running]))
+
+
+
+(defn step-running [running x]
+  (if (neg? running) x (+ running x)))
+
+(defn step-anysub [anysub x]
+  (cond (neg? anysub) (max anysub x)
+      (neg? x) anysub
+      :else (+ anysub x)))
+
+(defn step-contig [contig running]
+  (max contig running))
+
+(defn step-combo [[contig anysub running] x]
+  (let [running (step-running running x)
+        anysub (step-anysub anysub x)
+        contig (step-contig contig running)]
+    [contig anysub running]))
+
+
+
+;; But how to comp that automatically???
+;; Use a map for the state -- keys compose
+
+(defn sm-running [mp x]
+  (update mp :running step-running x))
+
+(defn sm-anysub [mp x]
+  (update mp :anysub step-anysub x))
+
+(defn sm-contig [mp _]
+  (update mp :contig max (:running mp)))
+
+
+
+
+(defn sm1-running [mp]
+  (update mp :running step-running (:x mp)))
+
+(defn sm1-anysub [mp]
+  (update mp :anysub step-anysub (:x mp)))
+
+(defn sm1-contig [mp]
+  (update mp :contig max (:running mp)))
+
+(def sm1-step (fn [m x] ((comp1 sm1-running sm1-anysub sm1-contig) (assoc m :x x))))
+
+(defn sm1-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce sm1-step
+                {:contig Long/MIN_VALUE :anysub Long/MIN_VALUE :running Long/MIN_VALUE}
+                lazyreads)))
+
+
+
+
+(def sm-combo (rf-comp sm-contig sm-anysub sm-running))
+
+(defn sm-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce sm-combo
+                {:contig Long/MIN_VALUE :anysub Long/MIN_VALUE :running Long/MIN_VALUE}
+                lazyreads)))
+
+
+
+(defn step-combo [[contig anysub running] x]
+  (let [running (step-running running x)
+        anysub (step-anysub anysub x)
+        contig (step-contig contig running)]
+    [contig anysub running]))
+
+
+(defn step-case [cnt lazyreads]
+  (pop (reduce step-combo
+          ;; init: contig anysub running 
+          [Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE]
+          lazyreads)))
+
+
+
+
+(defn assoc-when [a k v] (if v (assoc a k v) a))
+
+
+(defn sm-running [mp x]
+  (update mp :running step-running x))
+
+(defn sm-anysub [mp x]
+  (update mp :anysub step-anysub x))
+
+(defn sm-contig [mp _]
+  (update mp :contig max (:running mp)))
+
+
+
+(defn av-running [car x]
+  (update car 2 step-running x))
+
+(defn av-anysub [car x]
+  (update car 1 step-anysub x))
+
+(defn av-contig [car _]
+  (update car 0 max (peek car)))
+
+(def av-step (rf-comp av-contig av-anysub av-running))
+
+(defn case-av [cnt lazyreads]
+  (pop (reduce av-step [Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE] lazyreads)))
+
+    
+
+(defn av1-running [carx]
+  (update carx 2 step-running (peek carx)))
+
+(defn av1-anysub [carx]
+  (update carx 1 step-anysub (peek carx)))
+
+(defn av1-contig [carx]
+  (update carx 0 max (carx 2)))
+
+(def av1-step (fn [av x] ((comp1 av1-contig av1-anysub av1-running) (conj av x))))
+
+(defn av1-case [cnt lazyreads]
+  (take 2 (reduce av1-step [Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE] lazyreads)))
 
 
 (defn read-case [in cnt]
@@ -204,3 +362,11 @@
 
 
 
+;; New idea;  how easy is it to "merge" mutliple calculations across the reduce.  Doing
+;; anysub and contig right now.  What if you wanted more state?  Like contig with starting
+;; index.
+;;
+;; Can you generalize this with transducers.  Want to comp some independent things, but they
+;; seem to share inputs ("running" in red-case).  Maybe running isn't needed.  Or maybe
+;; red-case should be decomposed.  Calc running first then pipe through to multiple anysub
+;; and contig (+ index???)
