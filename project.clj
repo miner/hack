@@ -1,4 +1,4 @@
-(defproject hack "0.2.8-SNAPSHOT" 
+(defproject hack "0.2.9-SNAPSHOT" 
   :min-lein-version "2.0.0"
   :dependencies [
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
@@ -20,6 +20,7 @@
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "0.3.8"]
                  [metrics-clojure "2.7.0"]
+                 [net.cgrand/xforms "0.9.0"]
                  [digest "1.4.5"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]

@@ -1,6 +1,10 @@
 (ns miner.maxsubarray
   (:require [clojure.edn :as edn]
+            [net.cgrand.xforms :as x]
+            [net.cgrand.xforms.rfs :as xrf]
             [clojure.java.io :as io]
+            [clojure.test.check :as ct]
+            [clojure.test.check.generators :as cg]
             [clojure.core.reducers :as r]
             [clojure.core.async :as a
              :refer [>! <! >!! <!! go chan buffer close! thread
@@ -40,7 +44,7 @@
 
 ;; makes slightly faster fn than using generic comp
 (defn comp1
-  "Like comp but specialize for single-arg functions"
+  "Like comp but specialized for single-arg functions"
   ([] identity)
   ([f] f)
   ([f g] (fn [x] (f (g x))))
@@ -62,7 +66,7 @@
 
 
 ;; SEM: Need to try clojure.core/reducers for speed
-
+;; but order is important so reducers can't parallelize
 
 ;; really big input takes too long if you create vectors and partitions
 ;; could be 100K longs in a case
@@ -80,10 +84,9 @@
         [contig anysub]
         (let [x (edn/read)
               running (if (neg? running) x (+ running x))
-              anysub (cond
-                         (neg? anysub) (max anysub x)
-                         (neg? x) anysub
-                         :else (+ anysub x))
+              anysub (cond (neg? anysub) (max anysub x)
+                           (neg? x) anysub
+                           :else (+ anysub x))
               contig (max contig running)]
           (recur (dec i) running contig anysub))))))
              
@@ -92,11 +95,6 @@
   (dotimes [_ (edn/read)]
     (let [[contiguous total] (read-case-WORKS)]
       (println contiguous total))))
-
-
-
-
-
 
 
 
@@ -112,6 +110,8 @@
 ;;  contig depends on contig and running
 
 
+;; But see step-combo for a decomplected way.
+;;
 ;; more convenient to order the args this way so we can pop for final result
 (defn step-red [[contig anysub running] x]
   (let [running (if (neg? running) x (+ running x))
@@ -143,6 +143,38 @@
 
 
 
+
+;; could re-consider step-contig as dependent on x and state [contig running]
+
+(defn step-running-contig [[running contig] x]
+  (let [running (if (neg? running) x (+ running x))
+        contig (max contig running)]
+    [running contig]))
+
+(defn step-arc [[anysub rc] x]
+  (let [rc (step-running-contig rc x)
+        anysub (step-anysub anysub x)]
+    [anysub rc]))
+
+;; a bit slower, probably due to extra destructuring
+(defn arc-case [cnt lazyreads]
+  (let [[anysub rc] (reduce step-arc
+                                    ;; init: [anysub [running contig]]
+                                    [Long/MIN_VALUE [Long/MIN_VALUE Long/MIN_VALUE]]
+                                    lazyreads)]
+    [(peek rc) anysub]))
+
+
+;; slower to run reduce twice, but simpler to understand
+(defn r2-case [cnt lazyreads]
+  (vector
+   (peek (reduce step-running-contig [Long/MIN_VALUE Long/MIN_VALUE] lazyreads))
+   (reduce step-anysub Long/MIN_VALUE lazyreads)))
+
+
+
+
+
 ;; But how to comp that automatically???
 ;; Use a map for the state -- keys compose
 
@@ -167,12 +199,156 @@
 (defn sm1-contig [mp]
   (update mp :contig max (:running mp)))
 
-(def sm1-step (fn [m x] ((comp1 sm1-running sm1-anysub sm1-contig) (assoc m :x x))))
+(def sm1-step (fn [m x] ((comp1 sm1-anysub sm1-contig sm1-running) (assoc m :x x))))
 
 (defn sm1-case [cnt lazyreads]
   ((juxt :contig :anysub)
         (reduce sm1-step
                 {:contig Long/MIN_VALUE :anysub Long/MIN_VALUE :running Long/MIN_VALUE}
+                lazyreads)))
+
+
+;; using transients
+(defn tm1-running [mp]
+  (assoc! mp :running (step-running (:running mp) (:x mp))))
+
+(defn tm1-anysub [mp]
+  (assoc! mp :anysub (step-anysub (:anysub mp) (:x mp))))
+
+(defn tm1-contig [mp]
+  (assoc! mp :contig (max (:contig mp) (:running mp))))
+
+(def tm1-step (fn [m x] ((comp1 tm1-anysub tm1-contig tm1-running) (assoc! m :x x))))
+
+
+
+(defn tm1-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce tm1-step
+                (transient {:contig Long/MIN_VALUE :anysub Long/MIN_VALUE :running Long/MIN_VALUE})
+                lazyreads)))
+
+
+
+
+;; m2-step is pretty fast, must be easy to optimize when all together vs. comp1
+(defn m2-step [{:keys [contig anysub running]} x]
+  (let [running (if (neg? running) x (+ running x))
+        anysub (cond
+                   (neg? anysub) (max anysub x)
+                   (neg? x) anysub
+                   :else (+ anysub x))
+        contig (max contig running)]
+    {:contig contig :anysub anysub :running running}))
+
+
+(defn m2-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce m2-step
+                {:contig Long/MIN_VALUE :anysub Long/MIN_VALUE :running Long/MIN_VALUE}
+                lazyreads)))
+
+
+;; RECORD is actually a bit faster than the generic map.  About same as vector approach
+;; red-case.  But it was slower with the standard map coding of m2-step.  Had to try to be
+;; more literal with the field access, rather than destructing the record as a map to get it
+;; to run faster.
+
+;; make a record to handle state
+(defrecord CAR [^long contig ^long anysub ^long running])
+
+
+(defn rec-step [^CAR car x]
+  (let [running (if (neg? (:running car)) x (+ (:running car) x))
+        anysub (cond
+                   (neg? (:anysub car)) (max (:anysub car) x)
+                   (neg? x) (:anysub car)
+                   :else (+ (:anysub car) x))
+        contig (max (:contig car) running)]
+    (->CAR contig anysub running)))
+
+
+(defn rec-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce rec-step
+                (->CAR Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE)
+                lazyreads)))
+
+(defn rec1-step [^CAR car x]
+  (let [{:keys [contig anysub running]} car
+        running (if (neg? running) x (+ running x))
+        anysub (cond
+                   (neg? anysub) (max anysub x)
+                   (neg? x) anysub
+                   :else (+ anysub x))
+        contig (max contig running)]
+    (->CAR contig anysub running)))
+
+(defn rec1-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce rec1-step
+                (->CAR Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE)
+                lazyreads)))
+
+;; Faster to explicitly grab fields than to use destructuring.
+;; Clojure destructuring does not optimize the single symbol source case.  See the macroxpand of
+;; the `{:keys ...} foo` -- does extra work to allow a seq of kw/values, uses generic get access.
+
+(defn rec2-step [^CAR car x]
+  (let [contig (:contig car)
+        anysub (:anysub car)
+        running (:running car)
+        running (if (neg? running) x (+ running x))
+        anysub (cond
+                   (neg? anysub) (max anysub x)
+                   (neg? x) anysub
+                   :else (+ anysub x))
+        contig (max contig running)]
+    (->CAR contig anysub running)))
+
+(defn rec2-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce rec2-step
+                (->CAR Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE)
+                lazyreads)))
+
+;; slightly slower to use generic get rather than kw access
+(defn rec3-step [^CAR car x]
+  (let [contig (get car :contig)
+        anysub (get car :anysub )
+        running (get car :running)
+        running (if (neg? running) x (+ running x))
+        anysub (cond
+                   (neg? anysub) (max anysub x)
+                   (neg? x) anysub
+                   :else (+ anysub x))
+        contig (max contig running)]
+    (->CAR contig anysub running)))
+
+(defn rec3-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce rec3-step
+                (->CAR Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE)
+                lazyreads)))
+
+;; just slightly faster to use field access
+(defn rec4-step [^CAR car x]
+  (let [contig (.contig car)
+        anysub (.anysub car)
+        running (.running car)
+        running (if (neg? running) x (+ running x))
+        anysub (cond
+                   (neg? anysub) (max anysub x)
+                   (neg? x) anysub
+                   :else (+ anysub x))
+        contig (max contig running)]
+    (->CAR contig anysub running)))
+
+
+(defn rec4-case [cnt lazyreads]
+  ((juxt :contig :anysub)
+        (reduce rec4-step
+                (->CAR Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE)
                 lazyreads)))
 
 
@@ -194,6 +370,9 @@
         contig (step-contig contig running)]
     [contig anysub running]))
 
+
+;; step-case looks better organized for vector state
+;; But map-state is easier to read and maintain, although slower.
 
 (defn step-case [cnt lazyreads]
   (pop (reduce step-combo
@@ -229,10 +408,10 @@
 
 (def av-step (rf-comp av-contig av-anysub av-running))
 
-(defn case-av [cnt lazyreads]
+(defn av-case [cnt lazyreads]
   (pop (reduce av-step [Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE] lazyreads)))
 
-    
+
 
 (defn av1-running [carx]
   (update carx 2 step-running (peek carx)))
@@ -247,6 +426,7 @@
 
 (defn av1-case [cnt lazyreads]
   (take 2 (reduce av1-step [Long/MIN_VALUE Long/MIN_VALUE Long/MIN_VALUE] lazyreads)))
+
 
 
 (defn read-case [in cnt]
@@ -266,6 +446,9 @@
         (let [[contiguous total] (read-case in (edn/read in))]
           (println contiguous total)))))
 
+
+;; Doesn't seem to be any advantage to the transducers here.  Need the whole state to
+;; process in order so all the action is in the reducing-fn, not the transducer.
 
 ;; trans and red cases are basically the same, and perform the same
 ;; important that the seqs are lazy since they might be 100K items
@@ -360,6 +543,17 @@
    (doseq [[contig anysub] (map #(red-case (count %) %) (read-msa filename))]
      (println contig anysub))))
 
+(defn run-edn-cases
+  ([] (run-edn-cases red-case))
+  ([case-fn]
+   (doseq [[contig anysub] (map #(case-fn (count %) %) (read-msa "msa-test1.edn"))]
+     (println contig anysub))))
+
+(defn test-edn-cases
+  ([] (test-edn-cases red-case))
+  ([case-fn]
+   (mapcat #(case-fn (count %) %) (read-msa "msa-test1.edn"))))
+
 
 
 ;; New idea;  how easy is it to "merge" mutliple calculations across the reduce.  Doing
@@ -370,3 +564,7 @@
 ;; seem to share inputs ("running" in red-case).  Maybe running isn't needed.  Or maybe
 ;; red-case should be decomposed.  Calc running first then pipe through to multiple anysub
 ;; and contig (+ index???)
+
+
+;; SEM: maybe it's better to simply run two reductions rather than try to combine rfs
+
