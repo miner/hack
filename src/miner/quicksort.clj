@@ -1,68 +1,26 @@
 ;;; 02/21/17  17:00 by miner -- First of all, this is probably a bad idea.  So don't get too
 ;;; carried away with it.
 
-;; Tweet from @puffybsd that started me on this...
-;; https://twitter.com/puffybsd/status/834089936223662082
+;; By the way, clojure has a (sort), which is what you should use in real programs.  I'm pretty
+;; sure mergesort is usually the best way to implement sorting in a functional style so
+;; don't use this quicksort code.
 ;;
-;; link to (bad) implementation of quicksort in Clojure
-;; https://gist.github.com/spencer1248/2623396
-;; which I copied into quicksort1.clj
-
-;; These are my changes.  Still not sure quicksort makes sense for functional programming.
-
-;; BTW, clojure has a (sort)
-;; mergesort is usually the best way to implement sorting in a functional style
-;; so this is just an academic exercise.
-
+;; My best version is (iqsort coll) which I ported from the Hoare partition scheme explained
+;; on Wikipedia [1].  I converted to an iterative approach to avoid the non-tail recursion.  It's
+;; faster, but not as pretty as the original.  And, of course, the built-in Clojure `sort` is
+;; still the best option.  This is purely an academic exercise.
+;;
+;; [1] https://en.wikipedia.org/wiki/Quicksort
 
 (ns miner.quicksort)
 
-(defn ceil
-  ([n] (long (Math/ceil n)))
-  ([n d]
-   (long (Math/ceil (/ (double n) (double d))))))
-
-;; Swap values in the transient vector
-(defn tswap! [transvec i j]
-  (assoc! transvec i (transvec j) j (transvec i)))
-
-(defn qsPartition [transvec, left, right, pivotIndex]
-  (let [pivotValue (transvec pivotIndex)
-        transvec  (tswap! transvec pivotIndex right)]
-    (loop [transvec transvec i left storeIndex left]
-      (cond (= i right) [(tswap! transvec storeIndex right)   storeIndex]
-
-            (< (transvec i) pivotValue) (recur (tswap! transvec i storeIndex)
-                                               (inc i) (inc storeIndex))
-
-            :else  (recur transvec (inc i) storeIndex)))))
-
-
-(defn qsort [transvec left right]
-  (if (< left right)
-    (let [pivotIndex (ceil (+ left right) 2)
-          [transvec pivotNewIndex] (qsPartition transvec left right pivotIndex)]
-      (-> transvec
-          (qsort left (dec pivotNewIndex))
-          (qsort (inc pivotNewIndex) right)))
-    transvec))
-
-(defn quicksort  [coll]
-  (let [v (vec coll)
-        transvec (transient v)]
-    (persistent! (qsort transvec 0 (dec (count v))))))
-
-
-
-;; Better examples for quicksort
+;; Other examples of quicksort:
 ;; http://eddmann.com/posts/quicksort-in-clojure/
 ;; https://rosettacode.org/wiki/Sorting_algorithms/Quicksort#Clojure
 
-
-;; SEM but this is not really quick-sort without the swapping and taking into account the
-;; physical location of the pivot.  Seems more like a selection-sort.
-;; All of these are slow and use stack because of explicit recursion.  Laziness might be
-;; nice if you only need the front end of the sort.
+;; SEM: but this is not the traditional quick-sort.  No swapping or taking into account the
+;; physical location of the pivot.  Laziness might be nice if you only need the front end of
+;; the sort.
 
 (defn naive-quick-sort [[pivot & coll]]
   (when pivot
@@ -70,102 +28,94 @@
             [pivot]
             (naive-quick-sort (filter #(>= % pivot) coll)))))
 
-(defn gb-quick-sort [[pivot & coll]]
-  (when pivot
-    (let [{lesser false greater true} (group-by #(> % pivot) coll)]
-      (lazy-cat (gb-quick-sort lesser)
-                [pivot]
-                (gb-quick-sort greater)))))
-
-
-;; My variation (not so fast, but bonus for when-first)
-(defn fqs [coll]
-  (when-first [pivot coll]
-    (concat (fqs (filter #(< % pivot) (rest coll)))
-            [pivot]
-            (fqs (filter #(>= % pivot) (rest coll))))))
-
-
-;; from Rosetta Code, lazy but very slow
-(defn qsort3 [[pivot :as coll]]
-  (when pivot
-    (lazy-cat (qsort3 (filter #(< % pivot) coll))
-              (filter #{pivot} coll)
-              (qsort3 (filter #(> % pivot) coll)))))
-
-
-
-
-;; C implementation from Rosetta Code
-;;
-;; void quicksort(int *A, int len)
-;; {
-;;   if (len < 2) return;
-;;  
-;;   int pivot = A[len / 2];
-;;  
-;;   int i, j;
-;;   for (i = 0, j = len - 1; ; i++, j--)
-;;   {
-;;     while (A[i] < pivot) i++;
-;;     while (A[j] > pivot) j--;
-;;  
-;;     if (i >= j) break;
-;;  
-;;     int temp = A[i];
-;;     A[i]     = A[j];
-;;     A[j]     = temp;
-;;   }
-;;  
-;;   quicksort(A, i);
-;;   quicksort(A + i, len - i);
-;; }
- 
-
-;; faster to inline this
-(defn tvexch! [tv i j]
-  (assoc! tv i (tv j) j (tv i)))
 
 ;; for debugging with transient vector
 (defn tseq [tv]
   (for [i (range (count tv))] (tv i)))
 
 
-
-;; trying to avoid recursion by keeping stack of bounds, taken in pairs of left and right
+;; Trying to avoid recursion by keeping stack of bounds, taken in pairs of left and right
 ;; Inline assoc! seems slightly faster than calling out to tvexch!
 ;; Testing < left right before conj-ing new bounds is a bit faster that conj-ing and later
 ;; ignoring.
 
 ;; tv is transient vector
 ;; left and right are inclusive bounds, assumes (< left right)
-;; more is stack of bounds yet to be processed
+;; stack holds inclusive bounds that still need to be processed.
 
-(defn tvqs [tv [left right & more]]
-  (let [[tv lrs] (let [pivot (tv (quot (+ left right) 2))]
-                   (loop [i left j right tv tv]
-                     (let [i (loop [i i] (if (< (tv i) pivot) (recur (inc i)) i))
-                           j (loop [j j] (if (> (tv j) pivot) (recur (dec j)) j))]
-                       ;; first test avoids infinite loop
-                       (cond (= j left i) [tv more]
-                             (>= i j) [tv (cond-> more
-                                            (< i right) (conj right i)
-                                            (< left (dec i)) (conj (dec i) left))]
-                             :else (recur (inc i) (dec j)
-                                          (assoc! tv i (tv j) j (tv i)))))))]
+;; There are a couple of variations below that specialize for numbers (comparing with > and
+;; <).  Using a mutable Java array is faster than a Clojure vector.
 
-    (if (seq lrs)
-      (recur tv lrs)
-      tv)))
+;; Ported from Hoare partition given in Wikipedia and converted to iterative stack instead
+;; of recursion.  Note, the partition is on J, not I as some other implementations give it.
 
+;; Note: we use shadowing of locals to mimic the mutable implementations, but there
+;; is no mutation going on.  The transient vector assoc! is destructive, but we always use
+;; the result and don't depend on side-effect of possible mutation.
 
-;; Reasonable fast, but not competitive with built-in sort
-(defn myqsort [coll]
+(defn iqsort [coll]
   (let [v (vec coll)
-        cnt (count v)]
-    (if (<= cnt 1)
-      v
-      (persistent! (tvqs (transient v) (list 0 (dec cnt)))))))
+        high (dec (count coll))]
+    (loop [tv (transient v)
+           stack (when (pos? high) (list 0 high))]
+      (if (seq stack)
+        (let [[left right & stack] stack
+              pivot (tv (quot (+ left right) 2))
+              [tv stack] (loop [i left j right tv tv]
+                           (let [i (loop [i i] (if (< (tv i) pivot) (recur (inc i)) i))
+                                 j (loop [j j] (if (> (tv j) pivot) (recur (dec j)) j))]
+                             (if (>= i j) [tv (cond-> stack
+                                                (< (inc j) right) (conj right (inc j))
+                                                (< left j) (conj j left))]
+                                 (recur (inc i) (dec j)
+                                        (assoc! tv i (tv j) j (tv i))))))]
+          (recur tv stack))
+        (persistent! tv)))))
+
+;; Specialized for longs. Significantly faster to use a mutable Java array of longs, but
+;; less "functional style" (although the iqsort isn't very "functional" either).  Of course,
+;; built-in (sort) is still much faster.
+(defn arrqsort [coll]
+  (let [arr (long-array coll)
+        high (dec (alength arr))]
+    (loop [stack (when (pos? high) (list 0 high))]
+      (if (seq stack)
+        (let [[left right & stack] stack
+              pivot (aget arr (quot (+ left right) 2))
+              stack (loop [i left j right]
+                      (let [i (loop [i i] (if (< (aget arr i) pivot) (recur (inc i)) i))
+                            j (loop [j j] (if (> (aget arr j) pivot) (recur (dec j)) j))]
+                        (if (>= i j)
+                          (cond-> stack
+                            (< (inc j) right) (conj right (inc j))
+                            (< left j) (conj j left))
+                          (let [ai (aget arr i)]
+                                           (aset arr i (aget arr j))
+                                           (aset arr j ai)
+                                           (recur (inc i) (dec j))))))]
+
+          (recur stack))
+        (seq arr)))))
+
+;; What about general Clojure elements, not just numbers?  Need to sort with (compare).
+(defn gqsort [coll]
+  (let [v (vec coll)
+        high (dec (count coll))]
+    (loop [tv (transient v)
+           stack (when (pos? high) (list 0 high))]
+      (if (seq stack)
+        (let [[left right & stack] stack
+              pivot (tv (quot (+ left right) 2))
+              [tv stack] (loop [i left j right tv tv]
+                           (let [i (loop [i i] (if (neg? (compare (tv i) pivot)) (recur (inc i)) i))
+                                 j (loop [j j] (if (pos? (compare (tv j) pivot)) (recur (dec j)) j))]
+                             (if (>= i j)
+                               [tv (cond-> stack
+                                     (< (inc j) right) (conj right (inc j))
+                                     (< left j) (conj j left))]
+                               (recur (inc i) (dec j) (assoc! tv i (tv j) j (tv i))))))]
+          (recur tv stack))
+        (persistent! tv)))))
 
 
 
@@ -184,12 +134,42 @@
 
 
 
-(comment
-  (qtest myqsort [4 3 2 1 4 3 2 1])
+;; Don't bother with this one:
+;; http://www.geeksforgeeks.org/iterative-quick-sort/
+;; It looks good, but it's slow!  Maybe bad pivot choice? (at high)
 
-  (qtest myqsort (concat (range 13) (range 13) (range 13) (range 13)))
+(defn itpart [tv low high]
+  (let [x (tv high)]
+    (loop [i (dec low) j low tv tv]
+      (if (< j high)
+        (if (<= (tv j) x)
+          (recur (inc i) (inc j) (assoc! tv (inc i) (tv j) j (tv (inc i))))
+          (recur i (inc j) tv))
+        ;; return
+        [(inc i) (assoc! tv (inc i) (tv high) high (tv (inc i)))] ))))
+
+(defn itqsort [coll]
+  (let [v (vec coll)
+        high (dec (count v))]
+    (loop [stack (when (pos? high) (list 0 high)) tv (transient v)]
+      (if (seq stack)
+        (let [[low high & stack] stack
+              [p tv] (itpart tv low high)
+              stack (if (> (dec p) low) (conj stack (dec p) low) stack)
+              stack (if (< (inc p) high) (conj stack high (inc p)) stack)]
+          (recur stack tv))
+        (persistent! tv)))))
+
+
+
+(comment
+  (qtest iqsort [4 3 2 1 4 3 2 1])
+
+  (qtest iqsort (concat (range 13) (range 13) (range 13) (range 13)))
   
-  (qtest myqsort (concat (range 20) (range 20) (range 20) (range 20)))
+  (qtest iqsort (concat (range 20) (range 20) (range 20) (range 20)))
+
+  (dotimes [n 1000] (rtest iqsort n))
 
   (require '[criterium.core :refer [quick-bench]])
 
@@ -199,8 +179,4 @@
 
   (quick-bench (qtest quicksort (mapcat #(list % (inc %) %) (range 1000 0 -1))))
 
-  (dotimes [n 1000] (rtest myqsort n))
-  
   )
-
-

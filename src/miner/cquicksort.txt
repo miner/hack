@@ -1,0 +1,152 @@
+
+SEM: BUT I THINK there's a bug in this.  Should partition at J, not I.  See wikipedia
+version for Hoare partition.
+
+https://en.wikipedia.org/wiki/Quicksort
+
+
+C implementation from Rosetta Code
+
+rosetta code for quicksort
+
+void quicksort(int *A, int len)
+{
+  if (len < 2) return;
+ 
+  int pivot = A[len / 2];
+ 
+  int i, j;
+  for (i = 0, j = len - 1; ; i++, j--)
+  {
+    while (A[i] < pivot) i++;
+    while (A[j] > pivot) j--;
+ 
+    if (i >= j) break;
+ 
+    int temp = A[i];
+    A[i]     = A[j];
+    A[j]     = temp;
+  }
+ 
+  quicksort(A, i);
+  quicksort(A + i, len - i);
+}
+ 
+
+Sorting in functional languages:
+
+http://stackoverflow.com/questions/4574279/sorting-in-functional-programming-languages
+
+
+----------------------------------------------------------------------
+Iterative Quicksort is better for Clojure (to avoid non-tail recursion)
+
+http://www.geeksforgeeks.org/iterative-quick-sort/
+
+But this seems slow.  Probably because the partition choice is bad.  Simpler to use [h] but
+not as good.
+
+
+/* This function is same in both iterative and recursive*/
+int partition (int arr[], int l, int h)
+{
+    int x = arr[h];
+    int i = (l - 1);
+ 
+    for (int j = l; j <= h- 1; j++)
+    {
+        if (arr[j] <= x)
+        {
+            i++;
+            swap (&arr[i], &arr[j]);
+        }
+    }
+    swap (&arr[i + 1], &arr[h]);
+    return (i + 1);
+}
+ 
+/* A[] --> Array to be sorted, 
+   l  --> Starting index, 
+   h  --> Ending index */
+void quickSortIterative (int arr[], int l, int h)
+{
+    // Create an auxiliary stack
+    int stack[ h - l + 1 ];
+ 
+    // initialize top of stack
+    int top = -1;
+ 
+    // push initial values of l and h to stack
+    stack[ ++top ] = l;
+    stack[ ++top ] = h;
+ 
+    // Keep popping from stack while is not empty
+    while ( top >= 0 )
+    {
+        // Pop h and l
+        h = stack[ top-- ];
+        l = stack[ top-- ];
+ 
+        // Set pivot element at its correct position
+        // in sorted array
+        int p = partition( arr, l, h );
+ 
+        // If there are elements on left side of pivot,
+        // then push left side to stack
+        if ( p-1 > l )
+        {
+            stack[ ++top ] = l;
+            stack[ ++top ] = p - 1;
+        }
+ 
+        // If there are elements on right side of pivot,
+        // then push right side to stack
+        if ( p+1 < h )
+        {
+            stack[ ++top ] = p + 1;
+            stack[ ++top ] = h;
+        }
+    }
+}
+ 
+
+----------------------------------------------------------------------
+
+Maybe faster, but not sure how well tested
+http://alienryderflex.com/quicksort/
+
+This is a pain to port to Clojure so I gave up after my first failure (infinite loop)
+
+//  quickSort
+//
+//  This public-domain C implementation by Darel Rex Finley.
+//
+//  * Returns YES if sort was successful, or NO if the nested
+//    pivots went too deep, in which case your array will have
+//    been re-ordered, but probably not sorted correctly.
+//
+//  * This function assumes it is called with valid parameters.
+//
+//  * Example calls:
+//    quickSort(&myArray[0],5); // sorts elements 0, 1, 2, 3, and 4
+//    quickSort(&myArray[3],5); // sorts elements 3, 4, 5, 6, and 7
+
+bool quickSort(int *arr, int elements) {
+
+  #define  MAX_LEVELS  1000
+
+  int  piv, beg[MAX_LEVELS], end[MAX_LEVELS], i=0, L, R ;
+
+  beg[0]=0; end[0]=elements;
+  while (i>=0) {
+    L=beg[i]; R=end[i]-1;
+    if (L<R) {
+      piv=arr[L]; if (i==MAX_LEVELS-1) return NO;
+      while (L<R) {
+        while (arr[R]>=piv && L<R) R--; if (L<R) arr[L++]=arr[R];
+        while (arr[L]<=piv && L<R) L++; if (L<R) arr[R--]=arr[L]; }
+      arr[L]=piv; beg[i+1]=L+1; end[i+1]=end[i]; end[i++]=L; }
+    else {
+      i--; }}
+  return YES; }
+  
