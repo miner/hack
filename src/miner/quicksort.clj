@@ -50,8 +50,9 @@
 ;; of recursion.  Note, the partition is on J, not I as some other implementations give it.
 
 ;; Note: we use shadowing of locals to mimic the mutable implementations, but there
-;; is no mutation going on.  The transient vector assoc! is destructive, but we always use
-;; the result and don't depend on side-effect of possible mutation.
+;; is no mutation going on with the Clojure data types.  The transient vector assoc! is
+;; destructive, but we always use the result and don't depend on side-effect of possible
+;; mutation.  Of course, the example using Java arrays (arrqsort) mutates with aset.
 
 (defn iqsort [coll]
   (let [v (vec coll)
@@ -90,9 +91,9 @@
                             (< (inc j) right) (conj right (inc j))
                             (< left j) (conj j left))
                           (let [ai (aget arr i)]
-                                           (aset arr i (aget arr j))
-                                           (aset arr j ai)
-                                           (recur (inc i) (dec j))))))]
+                            (aset arr i (aget arr j))
+                            (aset arr j ai)
+                            (recur (inc i) (dec j))))))]
 
           (recur stack))
         (seq arr)))))
