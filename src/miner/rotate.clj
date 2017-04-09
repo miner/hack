@@ -1,5 +1,8 @@
 (ns miner.rotate)
 
+
+;; better fix in subvec.clj
+
 ;; work-around for subvector missing protocol support
 (extend-type clojure.lang.APersistentVector$SubVector
   clojure.core.protocols/IKVReduce

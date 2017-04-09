@@ -1,6 +1,8 @@
+(ns miner.index)
+
 ;; REALLY OLD, not reliable
 
-;; SEM index-of should have coll first
+;; SEM index-of should have coll first?
 
 ;; requires vector arg, fastest
 (defn index-of [val vector]
@@ -36,4 +38,19 @@
 
 
 (def v100 (vec (range 10 110)))
+
+
+;;; 03/09/17  12:34 by miner -- new idea:  call it `whence` with a predicate
+
+;;; Note: it's wrong to expect reduce-kv to work with a seq.  It's specialized for a map and
+;;; a vector, not a general collection or seq.
+
+(defn whence [pred coll]
+  (loop [i 0 coll (seq coll)]
+    (cond (not coll) nil
+          (pred (first coll)) i
+          :else (recur (inc i) (rest coll)))))
+
+(defn whence-kv [pred2 kvs]
+  (reduce-kv (fn [_ k v] (when (pred2 k v) (reduced k))) nil kvs))
 

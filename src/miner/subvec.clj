@@ -17,7 +17,7 @@
 
 ;; works but should be faster with a native Java implementation in APersistentVector.java
 ;; only use if necessary
-(when-not (satisfies?   clojure.core.protocols/IKVReduce (subvec [1] 0))
+#_ (when-not (satisfies?   clojure.core.protocols/IKVReduce (subvec [1] 0))
   (extend-type clojure.lang.APersistentVector$SubVector
     clojure.core.protocols/IKVReduce
     (kv-reduce [subv f init]
@@ -29,6 +29,51 @@
 ;; BY THE WAY, this transduce would work with any seq so maybe it should be the generic
 ;; Sequential implementation.  Ahhh, but be careful you didn't interfere with the fast path
 ;; for other types.  Let's not do that unless it's really useful.
+
+
+;; interop should make it faster
+(when-not (satisfies?   clojure.core.protocols/IKVReduce (subvec [1] 0))
+  (extend-type clojure.lang.APersistentVector$SubVector
+    clojure.core.protocols/IKVReduce
+    (kv-reduce
+      [subv f init]
+      (let [cnt (.count subv)]
+        (loop [k 0 ret init]
+          (if (< k cnt)
+            (let [val (.nth subv k)
+                  ret (f ret k val)]
+              (if (reduced? ret)
+                @ret
+                (recur (inc k) ret)))
+            ret))))))
+
+
+;; not so bad
+(defn iter-kv-reduce
+  [subv f init]
+  (let [^java.util.Iterator iter (.iterator subv)]
+    (loop [k 0 ret init]
+      (if (.hasNext iter)
+        (let [val (.next iter)
+              ret (f ret k val)]
+          (if (reduced? ret)
+            @ret
+            (recur (inc k) ret)))
+        ret))))
+
+;; type-hint was critical for performance, now just as good as iterator
+
+(defn ikv-reduce  [^clojure.lang.APersistentVector$SubVector subv f init]
+  (let [cnt (.count subv)]
+    (loop [k 0 ret init]
+      (if (< k cnt)
+        (let [val (.nth subv k)
+              ret (f ret k val)]
+          (if (reduced? ret)
+            @ret
+            (recur (inc k) ret)))
+        ret))))
+
 
 
 (defn svrkv [f init subv]
