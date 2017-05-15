@@ -19,14 +19,14 @@
                  ;; [org.clojure/core.match "0.2.2"]
                  [org.clojure/core.match "0.3.0-alpha3"]
                  [com.velisco/halfbaked "0.2.3"]
-                 [com.velisco/clj-ftp "0.3.8"]
+                 [com.velisco/clj-ftp "0.3.9"]
                  [metrics-clojure "2.9.0"]
-                 [net.cgrand/xforms "0.9.1"]
+                 [net.cgrand/xforms "0.9.3"]
                  [digest "1.4.5"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
   :profiles {:dev  {:dependencies [   
-                                   [org.clojure/clojure "1.9.0-alpha15"]
+                                   [org.clojure/clojure "1.9.0-alpha16"]
                                    [org.clojure/core.async "0.3.442"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}
