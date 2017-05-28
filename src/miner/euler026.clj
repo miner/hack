@@ -1,6 +1,7 @@
 (ns miner.euler026
   (:require [clojure.core.reducers :as r]))
 
+
 ;; Original by mishadoff
 ;; http://mishadoff.com/blog/clojure-euler-problem-026/
 ;; https://github.com/mishadoff/project-euler/blob/master/src/project_euler/problem026.clj
@@ -27,12 +28,15 @@
 
 ;; SEM my stuff
 
+;; I renamed unit-fraction to period.
+
 ;; slightly faster to make a vector for known digits, rather than map
 ;; much faster to use transient vector
 ;; transient map doesn't help
+;; tried clojure.data.int-map but it didn't help much (transient vector was much faster)
+;; tried (vector-of :int ...) but that was slow because couldn't use transient
 
-
-(defn ufrac2 [denom]
+(defn period2 [denom]
   (loop [numer 1 i 1 known (transient (vec (repeat denom nil)))]
     (let [r (rem (* 10 numer) denom)]
       (cond (zero? r) 0
@@ -40,10 +44,8 @@
             :else (recur r (inc i) (assoc! known r i))))))
 
 
-
-
 ;; java int-array makes it much faster to bash in place
-(defn ufrac-GOOD [denom]
+(defn period-GOOD [denom]
   (let [known (int-array denom)]
     (loop [numer 1 i 1]
       (let [r (rem (* 10 numer) denom)]
@@ -52,13 +54,13 @@
               :else (- i (aget known r)))))))
 
 ;; Evil twist -- aset returns new val, not array
-(defn ufrac [denom]
-  (let [known (int-array denom)]
+(defn period [denom]
+  (let [remi (int-array denom)]
     (loop [numer 1 i 1]
       (let [r (rem (* 10 numer) denom)]
         (cond (zero? r) 0
-              (zero? (aget known r)) (recur r (inc (aset known r i)))
-              :else (- i (aget known r)))))))
+              (zero? (aget remi r)) (recur r (inc (aset remi r i)))
+              :else (- i (aget remi r)))))))
 
 
 ;; use `vector` instead of `vec [...]`
@@ -71,21 +73,24 @@
   ([] (e26 1000))
   ([n] (when (> n 1)
          (->> (range 1 n)
-              (map #(vector % (ufrac %)))
+              (map #(vector % (period %)))
               (apply max-key peek)
               (first)))))
 
 
 (defn te26
   ([] (te26 1000))
-  ([n] (transduce (map (juxt identity ufrac))
+  ([n] (transduce (map (juxt identity period))
                   (fn
-                    ([best ku] (if (> (peek ku) (peek best)) ku best))
+                    ([best ku] (if (>= (peek ku) (peek best)) ku best))
                     ([best] (first best)))
                   [nil -1]
                   (range 1 n))))
 
-;; observed but unproven theorem:  (> x (ufrac x)) for all ints
+
+
+
+;; observed but unproven theorem:  (> x (period x)) for all ints
 ;; confirmed by Wikipedia:   https://en.wikipedia.org/wiki/Repeating_decimal
 ;; "The period of 1/k for integer k is always ≤ k − 1"
 ;; SEM: that's the same as "period is always < k"
@@ -100,7 +105,7 @@
 
 ;; With this observation, it makes sense to start at the high end and cutoff if you've
 ;; already seen a period greater that the next k (descending values of k can't ever give a
-;; higher ufrac).
+;; higher period).
 
 
 (defn rf-descending-k
@@ -112,9 +117,10 @@
            :else best)))
   ([best] (first best)))
 
+;; By far, the fastest
 (defn te26r
   ([] (te26r 1000))
-  ([n] (transduce (map (juxt identity ufrac))
+  ([n] (transduce (map (juxt identity period))
                   rf-descending-k
                   [nil -1]
                   (range (dec n) 0 -1))))
@@ -131,13 +137,13 @@
 ;; not any faster (about 9.7 ms)
 (defn re26-not-so-fast []
   (first (r/fold  dcombine 
-                 (r/map #(vector % (ufrac %)) (range 1 1000)))))
+                 (r/map #(vector % (period %)) (range 1 1000)))))
 
 
 (defn red26
   ([] (red26 1000))
   ([n] (first (r/reduce  dcombine 
-                 (r/map #(vector % (ufrac %)) (range 1 n))))))
+                 (r/map #(vector % (period %)) (range 1 n))))))
 
 
 
@@ -148,7 +154,7 @@
   ([n] (when (> n 1)
          (first (reduce (fn [r d] (if (>= (peek d) (peek r)) d r))
                         [nil -1]
-                        (map #(vector % (ufrac %)) (range 1 n)))))))
+                        (map #(vector % (period %)) (range 1 n)))))))
 
 
 (defn rr26r
@@ -156,9 +162,11 @@
   ([n] (when (> n 1)
          (first (reduce rf-descending-k
                         [nil -1]
-                        (map #(vector % (ufrac %)) (range (dec n) 0 -1)))))))
+                        (map #(vector % (period %)) (range (dec n) 0 -1)))))))
 
 
 ;; SEM: If you wanted to do this for large numbers, you might need something like the
 ;; data.int-map lib.
 ;; https://github.com/clojure/data.int-map
+;; but it wasn't very fast.  int-map is supposed to be good for merging.  Not necessarily
+;; updates and gets.
