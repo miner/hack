@@ -1,6 +1,12 @@
 ;; http://en.wikipedia.org/wiki/Luhn_algorithm
 ;; for checking credit card numbers
 
+;; much later blog post, but also covers Luhn
+;; https://garajeando.blogspot.com/2017/06/kata-luhn-test-in-clojure.html
+
+;; Good candidate for a spec
+
+
 (ns miner.luhn
   (:require [clojure.edn :as edn]))
 
@@ -15,10 +21,26 @@
 ;; notice that the (mod n2 10) is always 1, but we can optimize further...
 
 ;; easy enough to just look up
-(defn x2 [n]
+(defn x2g [n]
   {:pre [(<= 0 n 9)]}
   (get [0 2 4 6 8 1 3 5 7 9] n))
 
+;; slightly faster, but not as pretty
+(defn x2 [n]
+  (case n
+    0 0
+    1 2
+    2 4
+    3 6
+    4 8
+    5 1
+    6 3
+    7 5
+    8 7
+    9 9))
+
+    
+;; using int is slightly faster than long
 (defn digit [ch]
   (- (int ch) (int \0)))
 
@@ -61,8 +83,10 @@
             (mastercard-start? s) :mastercard
             :else :valid))))
 
-(defn gen-card
-  ([num-digits] (gen-card 0 num-digits))
+
+;; first attempt, but I like the second one better
+(defn gen-card1
+  ([num-digits] (gen-card1 0 num-digits))
   ([start num-digits]
      (let [bs (if (zero? start) () (map digit (str start)))
            rs (repeatedly (- num-digits (count bs) 1) #(rand-int 10))
@@ -70,6 +94,19 @@
            chk (checksum-digits ds)]
        (reduce (fn [acc d] (+ (* 10 acc) d)) 0
                (if (zero? chk) ds (concat bs rs (list (- 10 chk))))))))
+
+;; slightly faster
+(defn gen-card
+  ([num-digits] (gen-card nil num-digits))
+  ([start num-digits]
+   (let [bv (if start (mapv digit (str start)) [])
+         dvx (into bv (repeatedly (- num-digits (inc (count bv))) #(rand-int 10)))
+         dv0 (conj dvx 0)
+         chk (checksum-digits dv0)]
+     (reduce (fn [acc d] (+ (* 10 acc) d))
+             0
+             (if (zero? chk) dv0 (conj dvx (- 10 chk)))))))
+
 
 ;; reduce is slightly faster than  Long/parseLong 
 
@@ -97,6 +134,7 @@
     3530111333300000 JCB,
     3566002020360505 JCB,
     4222222222222 Visa})
+
 
 
 (comment
