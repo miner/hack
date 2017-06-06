@@ -144,3 +144,27 @@
 
   (map #(conj % (lu/card-type (first %))) lu/test-data)
 )  
+
+
+;; https://garajeando.blogspot.com/2017/06/kata-luhn-test-in-clojure.html
+;; much slower, but useful for testing
+
+(def sum-digits #(+ (quot % 10) (mod % 10)))
+
+(defn double-when-at-even-position [position num]
+  (if (even? (inc position)) (* 2 num) num))
+
+(defn reduce-digits [digits]
+  (->> digits
+       (reverse)
+       (map #(Integer/parseInt (str %)))
+       (map-indexed double-when-at-even-position)
+       (map sum-digits)
+       (apply +)))
+
+(defn valid? [digits]
+  (zero? (mod (reduce-digits digits) 10)))
+
+;; to match my check?
+(defn gara? [n]
+  (valid? (map digit (str n))))
