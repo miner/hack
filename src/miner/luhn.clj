@@ -44,9 +44,10 @@
 (defn digit [ch]
   (- (int ch) (int \0)))
 
+;; slightly faster if digits is a vector, but any seq is OK
 (defn checksum-digits [digits]
   ;; pad with a leading 0 to get even count
-  (let [digits (if (odd? (count digits)) (cons 0 digits) digits)]
+  (let [digits (if (odd? (count digits)) (cons 0 digits) (seq digits))]
     (mod (+ (reduce + (map x2 (take-nth 2 digits)))
             (reduce + (take-nth 2 (rest digits))))
          10)))
