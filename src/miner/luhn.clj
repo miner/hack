@@ -53,7 +53,7 @@
 
 (defn checksum [num]
   {:pre [(integer? num)]}
-  (checksum-digits (map digit (str num))))
+  (checksum-digits (mapv digit (str num))))
 
 (defn check? [num]
   (zero? (checksum num)))
