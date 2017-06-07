@@ -8,7 +8,7 @@
 
 
 (ns miner.luhn
-  (:require [clojure.edn :as edn]))
+  (:require [clojure.string :as str]))
 
 ;; official definition, just for testing
 (defn x2calc [n]
@@ -52,8 +52,8 @@
             (reduce + (take-nth 2 (rest digits))))
          10)))
 
+;; "num" is an integer or a string of digits
 (defn checksum [num]
-  {:pre [(integer? num)]}
   (checksum-digits (mapv digit (str num))))
 
 (defn check? [num]
@@ -108,6 +108,15 @@
              0
              (if (zero? chk) dv0 (conj dvx (- 10 chk)))))))
 
+;; returning a string preserves any leading zeroes
+(defn gen-card2
+  ([num-digits] (gen-card nil num-digits))
+  ([start num-digits]
+   (let [bv (if start (mapv digit (str start)) [])
+         dvx (into bv (repeatedly (- num-digits (inc (count bv))) #(rand-int 10)))
+         dv0 (conj dvx 0)
+         chk (checksum-digits dv0)]
+     (apply str (if (zero? chk) dv0 (conj dvx (- 10 chk)))))))
 
 ;; reduce is slightly faster than  Long/parseLong 
 
@@ -169,3 +178,18 @@
 ;; to match my check?
 (defn gara? [n]
   (valid? (map digit (str n))))
+
+;; refactored from Gara examples
+(defn gara-test
+  ([] (gara-test gara?))
+  ([testfn]
+   (and (every? testfn ["00000000000"
+                        "00000000505"
+                        "00000000018"
+                        "00000002030"
+                        "00000000091"
+                        "49927398716"
+                        "79927398713"])
+        (not-any? testfn ["00000000001"
+                          "49927398712"
+                          "79927398715"]))))
