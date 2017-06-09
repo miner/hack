@@ -235,8 +235,20 @@
                                 0
                                 (if (zero? chk) dv0 (conj dv (- 10 chk)))))))
 
+;; about twice as fast
+(def cg2 (gen/let [cnt (g/choose 11 16)
+                   num0 (let [low (long (Math/pow 10 cnt))
+                              high (dec (* low 10))]
+                          (gen/fmap #(* 10 %) (gen/choose low high)))]
+           (let [chk (checksum num0)]
+             (if (zero? chk) num0 (+ num0 (- 10 chk))))))
+
+
 (s/def ::credit-card
   (s/with-gen check? (fn [] card-generator)))
+
+
+
 
 
 ;; not so useful
