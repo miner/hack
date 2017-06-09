@@ -8,7 +8,8 @@
 
 
 (ns miner.luhn
-  (:require [clojure.spec.alpha :as s]
+  (:require [clojure.test.check.generators :as gen]
+            [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as g]))
 
 
@@ -108,8 +109,12 @@
 
 ;; SEM never want a credit card starting with 0
 
+;; Credit cards typically are 15 or 16 digits, but they can be 13 to 19 digits.
+;; Unfortunately, 10^19 is too big for a long so we restrict to 18 digits to be safe.
+
 ;; slightly faster
 (defn gen-card
+  ([] (gen-card nil (+ 13 (rand-int 6))))
   ([num-digits] (gen-card nil num-digits))
   ([start num-digits]
    (let [bv (if start (mapv digit (str start)) [(inc (rand-int 9))])
@@ -208,7 +213,31 @@
                           "79927398715"]))))
 
 
-(s/def ::credit-card-vector (s/and (s/coll-of int? :into []) check-digits?))
 
-(s/def ::credit-card (s/with-gen check? (fn [] (g/fmap #(gen-card %) (g/elements [12 15])))))
+;; We want the credit card num to fit in a long, so we don't go more than 18 digits.
+;; Typically, they're 15 or 16.  Some foreign cards are 13 to 19.  But 10^19 is beyond Long.
 
+(s/def ::credit-card1 (s/with-gen check? (fn [] (g/fmap #(gen-card %) (g/choose 13 18)))))
+
+;; better gen is more reproducible and shrinkable, needs to combine tc generators
+;; Generate num form of AB+C
+;; A 1-9
+;; B 0-9
+;; C checksum of AB+
+
+(def card-generator (gen/let [d0 (g/choose 1 9)
+                              cnt (g/choose 11 16)
+                              d1x (g/vector (g/choose 0 9) cnt)]
+                      (let [dv (into [d0] d1x)
+                            dv0 (conj dv 0)
+                            chk (checksum-digits dv0)]
+                        (reduce (fn [acc d] (+ (* 10 acc) d))
+                                0
+                                (if (zero? chk) dv0 (conj dv (- 10 chk)))))))
+
+(s/def ::credit-card
+  (s/with-gen check? (fn [] card-generator)))
+
+
+;; not so useful
+;; (s/def ::credit-card-vector (s/and (s/vector (s/choose 1 9) :into []) check-digits?))
