@@ -8,7 +8,11 @@
 
 
 (ns miner.luhn
-  (:require [clojure.string :as str]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as g]))
+
+
+
 
 ;; official definition, just for testing
 (defn x2calc [n]
@@ -52,12 +56,18 @@
             (reduce + (take-nth 2 (rest digits))))
          10)))
 
+(defn vdigits [num-or-str]
+  (mapv digit (str num-or-str)))
+
 ;; "num" is an integer or a string of digits
 (defn checksum [num]
-  (checksum-digits (mapv digit (str num))))
+  (checksum-digits (vdigits num)))
+
+(defn check-digits? [digits]
+  (zero? (checksum-digits digits)))
 
 (defn check? [num]
-  (zero? (checksum num)))
+  (check-digits? (vdigits num)))
 
 (defn amex-start? [^String s]
   (and (or (.startsWith s "37") (.startsWith s "34"))
@@ -193,3 +203,12 @@
         (not-any? testfn ["00000000001"
                           "49927398712"
                           "79927398715"]))))
+
+
+(s/def ::credit-card-vector (s/and (s/coll-of int? :into []) check-digits?))
+
+(s/def ::credit-card (s/with-gen check? (fn [] (g/fmap #(gen-card % 15) (g/choose 1 9)))))
+
+
+
+
