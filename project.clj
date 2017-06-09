@@ -5,7 +5,7 @@
                  [com.velisco/wilkins "0.2.1"]
                  [org.clojure/math.combinatorics "0.1.4"]
                  [org.clojure/data.int-map "0.2.4"]
-                 [org.clojure/core.async "0.3.442"]
+                 [org.clojure/core.async "0.3.443"]
                  [org.clojure/tools.macro "0.1.5"]
                  [com.datomic/datomic-free "0.9.5561"  :exclusions [joda-time]]
                  [instaparse "1.4.5"]
@@ -26,8 +26,9 @@
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
   :profiles {:dev  {:dependencies [   
+                                   [org.clojure/spec.alpha "0.1.123"]
                                    [org.clojure/clojure "1.9.0-alpha16"]
-                                   [org.clojure/core.async "0.3.442"]
+                                   [org.clojure/core.async "0.3.443"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}
              :clj18 {:dependencies [   

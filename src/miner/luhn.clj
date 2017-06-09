@@ -31,7 +31,7 @@
 
 ;; slightly faster, but not as pretty
 (defn x2 [n]
-  (case n
+  (case (int n)
     0 0
     1 2
     2 4
@@ -106,11 +106,13 @@
        (reduce (fn [acc d] (+ (* 10 acc) d)) 0
                (if (zero? chk) ds (concat bs rs (list (- 10 chk))))))))
 
+;; SEM never want a credit card starting with 0
+
 ;; slightly faster
 (defn gen-card
   ([num-digits] (gen-card nil num-digits))
   ([start num-digits]
-   (let [bv (if start (mapv digit (str start)) [])
+   (let [bv (if start (mapv digit (str start)) [(inc (rand-int 9))])
          dvx (into bv (repeatedly (- num-digits (inc (count bv))) #(rand-int 10)))
          dv0 (conj dvx 0)
          chk (checksum-digits dv0)]
@@ -119,6 +121,7 @@
              (if (zero? chk) dv0 (conj dvx (- 10 chk)))))))
 
 ;; returning a string preserves any leading zeroes
+;; yes, but we don't want leading zeroes!!!
 (defn gen-card2
   ([num-digits] (gen-card nil num-digits))
   ([start num-digits]
@@ -207,8 +210,5 @@
 
 (s/def ::credit-card-vector (s/and (s/coll-of int? :into []) check-digits?))
 
-(s/def ::credit-card (s/with-gen check? (fn [] (g/fmap #(gen-card % 15) (g/choose 1 9)))))
-
-
-
+(s/def ::credit-card (s/with-gen check? (fn [] (g/fmap #(gen-card %) (g/elements [12 15])))))
 
