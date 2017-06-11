@@ -167,7 +167,7 @@
 
 (defn ordered-partitions [v & {:keys [max min]}]
  (let 
-   [s (c/subsets (range 1 (count v)))
+   [s (mc/subsets (range 1 (count v)))
     fs (cond
          (and max min) 
          (filter 

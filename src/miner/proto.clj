@@ -31,7 +31,7 @@
     (deref all-proto-vars-cache)))
 
 (defn implemented-protocols [x]
-  (map var->symbol (filter #(satisfies? (deref %) x) (all-protocols-vars))))
+  (map var->symbol (filter #(satisfies? (deref %) x) (all-protocol-vars))))
 
 
 

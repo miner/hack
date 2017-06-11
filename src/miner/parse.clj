@@ -1,5 +1,5 @@
 (ns miner.parse
-  (:require [instaparse.core :as p]))
+  (:require [instaparse.core :as insta]))
 
 (def as-and-bs
   (insta/parser

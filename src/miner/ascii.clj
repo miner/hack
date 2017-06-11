@@ -1,28 +1,26 @@
 ;; http://www.rgagnon.com/javadetails/java-0456.html
-(comment
+
   
 
-import java.text.Normalizer;
-import java.util.regex.Pattern;
+;; import java.text.Normalizer;
+;; import java.util.regex.Pattern;
+;; 
+;; public class StringUtils {
+;;   private StringUtils() {}
+;; 
+;;   public static String unAccent(String s) {
+;;       String temp = Normalizer.normalize(s, Normalizer.Form.NFD);
+;;       Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+;;       return pattern.matcher(temp).replaceAll("");
+;;   }
+;; 
+;;   public static void main(String args[]) throws Exception{
+;;       String value = "é à î _ @";
+;;       System.out.println(StringUtils.unAccent(value));
+;;       // output : e a i _ @
+;;   }
+;; }
 
-public class StringUtils {
-  private StringUtils() {}
-
-  public static String unAccent(String s) {
-      String temp = Normalizer.normalize(s, Normalizer.Form.NFD);
-      Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
-      return pattern.matcher(temp).replaceAll("");
-  }
-
-  public static void main(String args[]) throws Exception{
-      String value = "é à î _ @";
-      System.out.println(StringUtils.unAccent(value));
-      // output : e a i _ @
-  }
-}
-
-;; end of Java
-)
 
 
 (defn asciify [s]

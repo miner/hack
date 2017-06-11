@@ -58,7 +58,7 @@ if a is a 'submap' of b."
 
     (r/reduce (fn [result k v] (if result (miner5-sub= v (get b k)) (reduced false)))
               true a)
-    (= a b)))
+    (= a b))))
 
 
 

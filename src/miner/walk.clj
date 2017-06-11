@@ -1,5 +1,5 @@
 (ns miner.walk
-  :require [clojure.walk :as w])
+  (:require [clojure.walk :as w]))
 
 
 
@@ -79,18 +79,6 @@
        :else tres)))
 
 
-;; generalized to take a key to collect the values from, but structure of nested maps and
-;; vectors (collections) hard-wired.
-(defn collect-by-key
-  ([k root]
-   (collect-by-key k [] root))
-  ([k res x]
-   (cond (map? x) (if-let [foo (k x)]
-                    (recur k (conj res foo) (vals x))
-                    (recur k res (vals x)))
-         (coll? x) (into res (mapcat #(collect k %) x))
-       :else res)))
-
 ;; but the map? and coll? are hard-coded so it's like a baby walk
 ;; issue: is the f test applied to item or structure (map/coll itself)
 ;; maybe better to have key and f
@@ -109,6 +97,19 @@
        :else (if-let [foo (f x)] (conj res foo) res))))
 
 
+
+
+;; generalized to take a key to collect the values from, but structure of nested maps and
+;; vectors (collections) hard-wired.
+(defn collect-by-key
+  ([k root]
+   (collect-by-key k [] root))
+  ([k res x]
+   (cond (map? x) (if-let [foo (k x)]
+                    (recur k (conj res foo) (vals x))
+                    (recur k res (vals x)))
+         (coll? x) (into res (mapcat #(collect k %) x))
+       :else res)))
 
 ;;; 04/02/16  10:56 by miner -- 
 

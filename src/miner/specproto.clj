@@ -12,7 +12,7 @@
 ;; the var reference the right way.
 
 (ns miner.specproto
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.main :as m]))
 
 (defprotocol Game

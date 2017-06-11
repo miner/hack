@@ -1,5 +1,6 @@
 (ns miner.reduce
-  :refer-clojure)
+  (:require [clojure.reflect :as r]))
+
 
 
 ;; HOF for using (reduced x) to short-circuit reduce
