@@ -1,3 +1,5 @@
+;; SEM -- this is an old version.  Newer stuff in separate luhn project
+
 ;; http://en.wikipedia.org/wiki/Luhn_algorithm
 ;; for checking credit card numbers
 
