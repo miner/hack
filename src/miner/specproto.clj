@@ -68,7 +68,8 @@
 ;; Use only for debugging.  Very expensive at runtime.
 (defmacro current-fn-name []
   "Returns a string, the name of the current Clojure function"
-  `(-> (Throwable.) .getStackTrace first .getClassName m/demunge))
+  `(m/demunge (.getClassName ^StackTraceElement (first (.getStackTrace (Throwable.))))))
+
 
 (defmacro debug
   ([]  `(println "# Debug" (current-fn-name)))

@@ -1,4 +1,5 @@
-(ns miner.palindrome)
+(ns miner.palindrome
+  (:import java.util.StringBuilder))
 
 ;; Bad to use reverse -- linear time!
 ;; Bad to compare full reverse -- double the effort!
@@ -10,10 +11,10 @@
 
 ;; for reasonably sized strings this is fastest even with the extra compares
 ;; basically reimplements clojure.string/reverse
-(defn spalin? [s]
+(defn spalin? [^String s]
   (= s (-> (StringBuilder. s) .reverse .toString)))
 
-(defn spalin-not-worth-it? [s]
+(defn spalin-not-worth-it? [^String s]
   (let [half (quot (.length s) 2)]
   (= (subs s 0 half) (-> (StringBuilder. s) (.reverse) (.substring 0 half)))))
 

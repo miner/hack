@@ -157,7 +157,7 @@
     (f (if (nil? a) x a))))
 
 ;; Converts f to a function that takes exactly N args, ignoring extras.
-(defn fignore [f n]
+(defn fignore [f ^long n]
   (case n
     0 (fn [& _] (f))
     1 (fn [a & _] (f a))

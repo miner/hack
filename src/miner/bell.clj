@@ -48,11 +48,11 @@
 ;; mauritis-bell does too much work on the last recursion and throws it all away, only the last s
 ;; matters.
 
-(defn my-bell [n]
+(defn my-bell [^long n]
   (case n
     (0 1) [1]
     (loop [n (dec n) s [1] bs [1]]
-      (if (== n 1) 
+      (if (= n 1) 
         (conj bs (peek s))
         (recur (dec n)
                (reduce #(conj % (+ %2 (peek %))) [(peek s)] s)
@@ -61,7 +61,7 @@
 
 ;; Most of the time you probably only want the nth value (not the full sequence) so it can be
 ;; simplified like this:
-(defn bnth [n]
+(defn bnth [^long n]
   (case n
     (0 1) 1
     (loop [n (dec n) s [1]]

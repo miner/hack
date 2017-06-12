@@ -20,7 +20,7 @@
   defaults to nil."
   ([] (farg 1 nil))
   ([n] (farg n nil))
-  ([n default-value]
+  ([^long n default-value]
    (fn
      ([] default-value)
      ([a] (case n 1 a default-value))
@@ -61,7 +61,7 @@
 ;; SEM: but what about multiple arity functions?  Not so good.
 (defn arg-count [f]
   (let [m (first (.getDeclaredMethods (class f)))
-        p (.getParameterTypes m)]
+        p (.getParameterTypes ^java.lang.reflect.Method m)]
     (alength p)))
 
 
@@ -69,9 +69,9 @@
 ;; https://groups.google.com/forum/?fromgroups=#!topic/clojure/2ZU62kgGjXg
 (defn old-arities [f]
    (let [methods      (.getDeclaredMethods (class f))
-         count-params (fn [m] (map #(count (.getParameterTypes %))
-                                   (filter #(= m (.getName %))  
-                                           methods)))
+         count-params (fn [m]
+                        (map #(count (.getParameterTypes ^java.lang.reflect.Method %))
+                             (filter #(= m (.getName ^java.lang.reflect.Method %)) methods)))
          invokes      (count-params "invoke")
          do-invokes   (map dec (count-params "doInvoke"))
          arities      (sort (distinct (concat invokes do-invokes)))]

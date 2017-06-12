@@ -1,7 +1,7 @@
 (ns miner.subvec)
 
 ;; BUG: reduce-kv not supported on a subvec
-;; need to file the bug
+;; https://dev.clojure.org/jira/browse/CLJ-2065
 
 ;; best approach might be like rangedIterator, but for kvreduceRange
 ;; http://dev.clojure.org/jira/browse/CLJ-1082
@@ -51,7 +51,7 @@
 ;; not so bad
 (defn iter-kv-reduce
   [subv f init]
-  (let [^java.util.Iterator iter (.iterator subv)]
+  (let [^java.util.Iterator iter (.iterator ^clojure.lang.APersistentVector$SubVector subv)]
     (loop [k 0 ret init]
       (if (.hasNext iter)
         (let [val (.next iter)
@@ -76,7 +76,7 @@
 
 
 
-(defn svrkv [f init subv]
+(defn svrkv [f init ^clojure.lang.APersistentVector$SubVector subv]
   (reduce f init (map-indexed vector (iterator-seq (.iterator subv)))))
 
 

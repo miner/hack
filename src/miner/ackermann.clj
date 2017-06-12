@@ -44,7 +44,11 @@
 ;; Much faster!
 ;; derived from CL version, better algorithm but not obviously equivalent
 ;; and subject to overflow for m > 3
-(defn ack2a [m n]
+
+;; warning because case m not sure that m is int (or long)
+;; added hints
+
+(defn ack2a ^long [^long m ^long n]
   (case m
     0 (inc n)
     1 (+ n 2)

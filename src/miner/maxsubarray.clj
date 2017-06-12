@@ -83,11 +83,11 @@
       (if (zero? i)
         [contig anysub]
         (let [x (edn/read)
-              running (if (neg? running) x (+ running x))
-              anysub (cond (neg? anysub) (max anysub x)
-                           (neg? x) anysub
-                           :else (+ anysub x))
-              contig (max contig running)]
+              running ^long (if (neg? running) x (+ running x))
+              anysub ^long (cond (neg? anysub) (max anysub x)
+                                 (neg? x) anysub
+                                 :else (+ anysub x))
+              contig ^long (max contig running)]
           (recur (dec i) running contig anysub))))))
              
 

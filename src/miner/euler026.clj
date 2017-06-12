@@ -12,13 +12,14 @@
 
 (defn unit-fraction [denom]
   (loop [numer 1 i 1 known {}]
-    (let [r (rem (* 10 numer) denom)]
+    ;; SEM added type hint
+    (let [r (long (rem (* 10 numer) denom))]
       (cond (zero? r) 0
             (get known r) (- i (get known r))
             :else (recur r (inc i) (assoc known r i))))))
 
 ;; "Elapsed time: 312.829133 msecs"
-;; [SEM: "Elapsed time: 29.384183 msecs" on my iMac]
+;; [SEM: "Elapsed time: 25.1 msecs" on my iMac after hint]
 (defn euler-026 []
   (->> (range 1 1000)
        (map #(vec [% (unit-fraction %)]))
@@ -38,7 +39,7 @@
 
 (defn period2 [denom]
   (loop [numer 1 i 1 known (transient (vec (repeat denom nil)))]
-    (let [r (rem (* 10 numer) denom)]
+    (let [r (long (rem (* 10 numer) denom))]
       (cond (zero? r) 0
             (get known r) (- i (get known r))
             :else (recur r (inc i) (assoc! known r i))))))
@@ -48,7 +49,7 @@
 (defn period-GOOD [denom]
   (let [known (int-array denom)]
     (loop [numer 1 i 1]
-      (let [r (rem (* 10 numer) denom)]
+      (let [r (long (rem (* 10 numer) denom))]
         (cond (zero? r) 0
               (zero? (aget known r)) (do (aset known r i) (recur r (inc i)))
               :else (- i (aget known r)))))))
@@ -57,7 +58,7 @@
 (defn period [denom]
   (let [remi (int-array denom)]
     (loop [numer 1 i 1]
-      (let [r (rem (* 10 numer) denom)]
+      (let [r (long (rem (* 10 numer) denom))]
         (cond (zero? r) 0
               (zero? (aget remi r)) (recur r (inc (aset remi r i)))
               :else (- i (aget remi r)))))))
@@ -156,7 +157,7 @@
                         [nil -1]
                         (map #(vector % (period %)) (range 1 n)))))))
 
-
+;; pretty fast
 (defn rr26r
   ([] (rr26r 1000))
   ([n] (when (> n 1)

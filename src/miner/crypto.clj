@@ -10,7 +10,7 @@
   
 (defn pbkdf2
     ; Get a hash for the given string and optional salt
-    ([x salt]
+    ([^String x ^String salt]
      (let [k (PBEKeySpec. (.toCharArray x) (.getBytes salt) 1000 192)
            f (SecretKeyFactory/getInstance "PBKDF2WithHmacSHA1")]
        (format "%x"

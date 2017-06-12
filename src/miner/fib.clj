@@ -50,6 +50,7 @@
           (recur (dec i) d e (* 2 m)))))))
 
 ;; using overflow protection (might return BigInt)
+;; that means loop params have to be boxed, which is slower than primitives
 (defn fast-fib1 [n]
   (loop [i 31 a 0 b 1 m 0]
     ;; invariant:  a = F(m), b = F(m+1)
@@ -82,14 +83,14 @@
 
 
 
-(defn fibr [n]
+(defn fibr [^long n]
   ;; return vector [f(n), f(n+1)]
   (loop [a 0 b 1 n n]
     (if (zero? n)
       [a b]
-      (let [[a b] (fib2 (quot n 2))
-            c (* a (- (* b 2) a))
-            d (+ (* a a) (* b b))]
+      (let [[^long a ^long b] (fib2 (quot n 2))
+            c ^long (* a (- (* b 2) a))
+            d ^long (+ (* a a) (* b b))]
         (if (even? n)
           (recur c d (quot n 2))
           (recur d (+ c d) (quot n 2)))))))
@@ -107,7 +108,7 @@
         :else (+ (slow-fib (- n 2)) (slow-fib (dec n)))))
 
 ;; better basic definition
-(defn basic-fib [n] 
+(defn basic-fib [^long n] 
   (case n
     0 0
     1 1

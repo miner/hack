@@ -146,7 +146,7 @@
 (defn upword [word]
   (vec (seq (str/upper-case word))))
 
-(defn lower-char [ch]
+(defn lower-char [^Character ch]
   (Character/toLowerCase ch))
 
 
@@ -157,7 +157,7 @@
 
 ;; element is a vector of capital chars
 (defn cap-element [element]
-  (case [count element]
+  (case (count element)
     1 (str element)
     2 (str (first element) (lower-char (second element)))
     (str/capitalize (apply str element))))
