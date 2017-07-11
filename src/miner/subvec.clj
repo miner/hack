@@ -17,6 +17,7 @@
 
 ;; works but should be faster with a native Java implementation in APersistentVector.java
 ;; only use if necessary
+;; Note: transduce should handle a reduced ret by f so we don't have to look for that explicitly.
 #_ (when-not (satisfies?   clojure.core.protocols/IKVReduce (subvec [1] 0))
   (extend-type clojure.lang.APersistentVector$SubVector
     clojure.core.protocols/IKVReduce
