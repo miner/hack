@@ -9,12 +9,29 @@
 ;; https://www.nayuki.io/page/fast-fibonacci-algorithms
 ;; https://news.ycombinator.com/item?id=12871156
 
+;; SEM:  I like starting the Fibonacci sequence with 0
+;; [0 1 1 2 3 5 8 13 21 34 55 89 ...]
+;;
+;; Many people prefer starting with 1.  These code samples start with 0.  You can always
+;; drop the first zero to get a 1-based solution.
+;;
+;; *unchecked-math* :warn-on-boxed makes things faster and warns when Clojure has to box
+;; primitives.  However, some of the calculations will overflow longs at about (fib 93) so
+;; to be safe, don't go over 90 unless you use checked math and bignums.
 
 (ns miner.fib
   (:refer-clojure))
 
 (def save-unchecked-all *unchecked-math*)
 (set! *unchecked-math* :warn-on-boxed)
+
+
+;; Classic fib, but gets slow because recursion uses too much stack
+(defn fibc ^long [^long n]
+  ;; assumes not-neg n
+  (if (< n 2)
+    n
+    (+ (fibc (- n 2)) (fibc (- n 1)))))
 
 
 ;; literal translation
@@ -91,33 +108,35 @@
   (first (fib2 n)))
 
 
-;; revised version of fib2 to avoid recursion (but has to inc a lot)
-(defn fib2-nr [^long n]
-  ;; return vector [f(n), f(n+1)]
-  (if (zero? n)
-    [0 1]
+;; pretty good but it got a bit better below
+(defn myfib-GOOD [^long n]
+  ;; (assert (< n 93))
+  (if (pos? n)
     (loop [a 1 b 1 i 1]
-      (cond (= i n) [a b]
-            (<= (* i 2) n) (let [c ^long (* a (- (* b 2) a))
-                                 d ^long (+ (* a a) (* b b))]
-                             (recur c d (* i 2)))
-            :else (recur b (+ a b) (inc i))))))
+      (cond (= i n) a
+            (<= (* i 2) n) (recur (* a (- (* b 2) a))
+                                  (+ (* a a) (* b b))
+                                  (* i 2))
+            :else (recur b (+ a b) (inc i))))
+    0))
 
-;; fastest for (quick-bench (myfib 35))
+
+
+;; Fastest, not prettiest.  (Well, simple cache look is still faster, of course.)
 (defn myfib [^long n]
   ;; (assert (< n 93))
-  (let [fib2-nr (fn [^long n]
-                  ;; return vector [f(n), f(n+1)]
-                  ;; (assert (pos? n))
-                  (loop [a 1 b 1 i 1]
-                    (cond (= i n) [a b]
-                          (<= (* i 2) n) (recur (* a (- (* b 2) a))
-                                                (+ (* a a) (* b b))
-                                                (* i 2))
-                          :else (recur b (+ a b) (inc i)))))]
-    (if (pos? n)
-      (nth (fib2-nr n) 0)
-      0)))
+  (if (< n 2)
+    n
+    (loop [a 1 b 2 i 2]
+      (if (<= (* i 2) n)
+        (recur (* a (- (* b 2) a))
+               (+ (* a a) (* b b))
+               (* i 2))
+        (if (= n i)
+          a
+          (loop [a a b b i (inc i)]
+            (if (= n i) b (recur b (+ a b) (inc i)))))))))
+
 
 
 (defn plan2 [^long n]
@@ -137,26 +156,7 @@
           (case p
             1 (recur (rest ps) d (+ c d))
             2 (recur (rest ps) c d)))
-        [a b]))))
-
-
-;; Oops, there are some semi-mistakes in this.
-;; zero? also tests against 0.0 (unnecessary), use = 0 if guaranteed long
-;; == also tests against floating-point (unnecessary), use = if all longs
-;; (You may have been confused by Java == for numbers)
-
-;; good enough base to test against
-(defn slow-fib ^long [^long n] 
-  (cond (zero? n) 0
-        (== n 1) 1 
-        :else (+ (slow-fib (- n 2)) (slow-fib (dec n)))))
-
-;; better basic definition
-(defn basic-fib ^long [^long n] 
-  (case n
-    0 0
-    1 1
-    (+ (basic-fib (- n 2)) (basic-fib (dec n)))))
+        a))))
 
 
 ;; cache as a sequence and `take` or  `nth` when needed
@@ -206,6 +206,7 @@
           (reset! cache-fibs new-cache)
           (get new-cache n))))))
 
+;; straight vector look up, pretty fast!!!
 (let [cache-fibs (vec (take 92 cgfib))]
   (defn gfib [^long n]
     (get cache-fibs n)))
@@ -226,6 +227,8 @@
 ;; http://en.literateprograms.org/Fibonacci_numbers_(Python)#Direct_computation_of_the_nth_Fibonacci_number_with_Binet.27s_formula
 
 ;; also http://mathworld.wolfram.com/BinetsFibonacciNumberFormula.html
+
+;; But not as fast as myfib!
 
 ;; very fast direct calculation but wrong after n > 70 due to rounding errors
 (defn binet-fib [n]
@@ -262,6 +265,9 @@
              2880067194370816120 4660046610375530309 7540113804746346429 12200160415121876738
              19740274219868223167 31940434634990099905 51680708854858323072 83621143489848422977
              135301852344706746049 218922995834555169026] )
+
+;; after #92, the values are larger than long can hold so the go to bignums
+(def fib93 (subvec fib100 0 93))
 
 
 
