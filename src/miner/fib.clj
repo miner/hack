@@ -82,18 +82,17 @@
   (first (fib2 n)))
 
 
-
-(defn fibr [^long n]
+;; revised version of fib2 to avoid recursion (but has to inc a lot)
+(defn fib-nr [^long n]
   ;; return vector [f(n), f(n+1)]
-  (loop [a 0 b 1 n n]
-    (if (zero? n)
-      [a b]
-      (let [[^long a ^long b] (fib2 (quot n 2))
-            c ^long (* a (- (* b 2) a))
-            d ^long (+ (* a a) (* b b))]
-        (if (even? n)
-          (recur c d (quot n 2))
-          (recur d (+ c d) (quot n 2)))))))
+  (if (zero? n)
+    [0 1]
+    (loop [a 1 b 1 i 1]
+      (cond (= i n) [a b]
+            (<= (* i 2) n) (let [c ^long (* a (- (* b 2) a))
+                                 d ^long (+ (* a a) (* b b))]
+                             (recur c d (* i 2)))
+            :else (recur b (+ a b) (inc i))))))
 
 
 ;; Oops, there are some semi-mistakes in this.
