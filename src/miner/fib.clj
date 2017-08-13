@@ -13,11 +13,12 @@
 (ns miner.fib
   (:refer-clojure))
 
-(defn foo [x]
-  (* 3 (+ x 2)))
+(def save-unchecked-all *unchecked-math*)
+(set! *unchecked-math* :warn-on-boxed)
+
 
 ;; literal translation
-(defn fast-fib-literal-translation [n]
+(defn fast-fib-literal-translation [^long n]
   (loop [i 31 a 0 b 1 m 0]
     ;; invariant:  a = F(m), b = F(m+1)
     (if (neg? i)
@@ -37,6 +38,7 @@
 
 ;; fast-fib is correct but overflows around n=91
 ;; simplified from above
+
 (defn fast-fib [n]
   ;; (assert (<= n 90))
   (loop [i 31 a 0 b 1 m 0]
@@ -48,6 +50,11 @@
         (if (bit-test n i)
           (recur (dec i) e (+ d e) (inc (* 2 m)))
           (recur (dec i) d e (* 2 m)))))))
+
+(def save-unchecked *unchecked-math*)
+(def save-reflection *warn-on-reflection*)
+(set! *unchecked-math* false)
+(set! *warn-on-reflection* false)
 
 ;; using overflow protection (might return BigInt)
 ;; that means loop params have to be boxed, which is slower than primitives
@@ -62,15 +69,17 @@
           (recur (dec i) e (+' d e) (inc (*' 2 m)))
           (recur (dec i) d e (*' 2 m)))))))
 
+(set! *warn-on-reflection* save-reflection)
+(set! *unchecked-math* save-unchecked)
 
 ;; SEM -- you should try doing a trampoline version of fib2???
 
 ;; fast but it's recursive!
-(defn fib2 [n]
+(defn fib2 [^long n]
   ;; return vector [f(n), f(n+1)]
   (if (zero? n)
     [0 1]
-    (let [[a b] (fib2 (quot n 2))
+    (let [[^long a ^long b] (fib2 (quot n 2))
           c (* a (- (* b 2) a))
           d (+ (* a a) (* b b))]
       (if (even? n)
@@ -83,7 +92,7 @@
 
 
 ;; revised version of fib2 to avoid recursion (but has to inc a lot)
-(defn fib-nr [^long n]
+(defn fib2-nr [^long n]
   ;; return vector [f(n), f(n+1)]
   (if (zero? n)
     [0 1]
@@ -94,6 +103,42 @@
                              (recur c d (* i 2)))
             :else (recur b (+ a b) (inc i))))))
 
+;; fastest for (quick-bench (myfib 35))
+(defn myfib [^long n]
+  ;; (assert (< n 93))
+  (let [fib2-nr (fn [^long n]
+                  ;; return vector [f(n), f(n+1)]
+                  ;; (assert (pos? n))
+                  (loop [a 1 b 1 i 1]
+                    (cond (= i n) [a b]
+                          (<= (* i 2) n) (recur (* a (- (* b 2) a))
+                                                (+ (* a a) (* b b))
+                                                (* i 2))
+                          :else (recur b (+ a b) (inc i)))))]
+    (if (pos? n)
+      (nth (fib2-nr n) 0)
+      0)))
+
+
+(defn plan2 [^long n]
+  (loop [n n stack ()]
+    (cond (zero? n) stack
+          (odd? n) (recur (quot n 2) (conj stack 1))
+          :else (recur (quot n 2) (conj stack 2)))))
+
+;; works but not fast enough to be worth complexity, about 3x fib2-nr
+(defn fibp [n]
+  (let [plan (plan2 n)]
+    (loop [ps plan a 0 b 1]
+      (if (seq ps)
+        (let [c ^long (* a (- (* b 2) a))
+              d ^long (+ (* a a) (* b b))
+              p (long (first ps))]
+          (case p
+            1 (recur (rest ps) d (+ c d))
+            2 (recur (rest ps) c d)))
+        [a b]))))
+
 
 ;; Oops, there are some semi-mistakes in this.
 ;; zero? also tests against 0.0 (unnecessary), use = 0 if guaranteed long
@@ -101,13 +146,13 @@
 ;; (You may have been confused by Java == for numbers)
 
 ;; good enough base to test against
-(defn slow-fib [n] 
+(defn slow-fib ^long [^long n] 
   (cond (zero? n) 0
         (== n 1) 1 
         :else (+ (slow-fib (- n 2)) (slow-fib (dec n)))))
 
 ;; better basic definition
-(defn basic-fib [^long n] 
+(defn basic-fib ^long [^long n] 
   (case n
     0 0
     1 1
@@ -116,7 +161,7 @@
 
 ;; cache as a sequence and `take` or  `nth` when needed
 
-(defn next-terms [term-1 term-2] 
+(defn next-terms [^long term-1 ^long term-2] 
   (let [term-3 (+ term-1 term-2)] 
     (lazy-seq  
       (cons term-3  
@@ -140,16 +185,30 @@
 ;;; clever but never release the cached values
 
 ;; from C. Grand
-(def cgfib (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
+(def cgfib (map first (iterate (fn [[^long a ^long b]] [b (+ a b)]) [0 1])))
 
 ;; also attributed to @ghoseb
-(def fibs (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
+(def fibs (map first (iterate (fn [[^long a ^long b]] [b (+ a b)]) [0 1])))
 
 #_ (take 15 fibs)
 
 
 ;; from Alan Dipert
 (def afib (lazy-seq (cons 0 (reductions + 1 afib))))
+
+
+(let [cache-fibs (atom (vec (take 10 afib)))]
+  (defn acfib [^long n]
+    (let [cache @cache-fibs]
+      (if (> (count cache) n)
+        (get cache n)
+        (let [new-cache (vec (take (+ n 10) afib))]
+          (reset! cache-fibs new-cache)
+          (get new-cache n))))))
+
+(let [cache-fibs (vec (take 92 cgfib))]
+  (defn gfib [^long n]
+    (get cache-fibs n)))
 
 
 
@@ -223,3 +282,7 @@
 190392490709135)
 
 )
+
+
+
+(set! *unchecked-math* save-unchecked-all)
