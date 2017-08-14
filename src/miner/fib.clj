@@ -4,6 +4,10 @@
 ;; See also the wikipedia page for interesting facts:
 ;; http://en.wikipedia.org/wiki/Fibonacci_number
 
+;; https://lee-phillips.org/lispmath/
+;;
+
+
 
 ;; See also (just moved the original)
 ;; https://www.nayuki.io/page/fast-fibonacci-algorithms
@@ -18,6 +22,17 @@
 ;; *unchecked-math* :warn-on-boxed makes things faster and warns when Clojure has to box
 ;; primitives.  However, some of the calculations will overflow longs at about (fib 93) so
 ;; to be safe, don't go over 90 unless you use checked math and bignums.
+
+;; By definition,  F(0) = 0, F(1) = 1, F(i+2) = F(i) + F(i+1)
+;; Let, a = F(i), b = F(i+1)
+;;
+;; Key insight that makes some implementations faster, known as "fast doubling":
+;;     F(2i) = a * (2b - a)
+;;     F(2i+1) = a^2 + b^2
+;;
+;; so you can skip by powers of 2 rather than calculating each step.
+
+
 
 (ns miner.fib
   (:refer-clojure))
@@ -136,6 +151,28 @@
           a
           (loop [a a b b i (inc i)]
             (if (= n i) b (recur b (+ a b) (inc i)))))))))
+
+
+
+;; https://news.ycombinator.com/item?id=6954218
+;; https://mitpress.mit.edu/sicp/full-text/book/book-Z-H-11.html#%25_sec_1.2.4
+
+;; translated from SICP
+(defn fib-sicp [^long n]
+  (loop [a 1 b 0 p 0 q 1 count n]
+    (cond (zero? count) b
+          (even? count) (recur a
+                               b
+                               (+ (* p p) (* q q))
+                               (+ (* 2 p q) (* q q)) 
+                               (quot count 2))
+          :else (recur (+ (* b q) (* a q) (* a p))
+                       (+ (* b p) (* a q))
+                       p
+                       q
+                       (dec count)))))
+
+
 
 
 
