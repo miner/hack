@@ -32,10 +32,13 @@
 ;;
 ;; so you can skip by powers of 2 rather than calculating each step.
 
-
+;; The obvious best "engineering" implementation is at the bottom, called `lookup-fib`. 
+;; The rest of this file is mostly for fun.
 
 (ns miner.fib
-  (:refer-clojure))
+  (:refer-clojure)
+  (:require [primitive-math :as p]))
+
 
 (def save-unchecked-all *unchecked-math*)
 (set! *unchecked-math* :warn-on-boxed)
@@ -49,9 +52,32 @@
     (+ (fibc (- n 2)) (fibc (- n 1)))))
 
 
+
+;; Memoizing is a common approach to caching results that are likely to be needed again, but
+;; increases memory costs.
+(declare memo-fib)
+
+(defn mfib [^long n]
+  ;; assumes not-neg n
+  (if (< n 2)
+    n
+    (+ ^long (memo-fib (- n 2)) ^long (memo-fib (- n 1)))))
+
+(def memo-fib (memoize mfib))
+
+
+  
+;; The original algorithm was for 32-bit int N, which is more than enough for most people,
+;; but technically Clojure uses 64-bit long integers so I want to note that here.
+
+;; SEM: BUG??? What's M used for?  Did you miss something about M vs. N for termination?
+;; Seems like M is just the new I for the "doubling" and is just book-keeping in case you
+;; need to verify it.
+
 ;; literal translation
 (defn fast-fib-literal-translation [^long n]
   (loop [i 31 a 0 b 1 m 0]
+    ;;(assert (< n Integer/MAX_VALUE))
     ;; invariant:  a = F(m), b = F(m+1)
     (if (neg? i)
       a
@@ -70,36 +96,54 @@
 
 ;; fast-fib is correct but overflows around n=91
 ;; simplified from above
+;; updated to handle long n, but really i can't be more than 8 because of overflow
 
-(defn fast-fib [n]
-  ;; (assert (<= n 90))
-  (loop [i 31 a 0 b 1 m 0]
+(defn fast-fib [^long n]
+  ;; (assert (< n 93))
+  (loop [i (- 63 (Long/numberOfLeadingZeros n)) a 0 b 1]
     ;; invariant:  a = F(m), b = F(m+1)
     (if (neg? i)
       a
       (let [d (* a (- (* 2 b) a))
             e (+ (* a a) (* b b))]
         (if (bit-test n i)
-          (recur (dec i) e (+ d e) (inc (* 2 m)))
-          (recur (dec i) d e (* 2 m)))))))
+          (recur (dec i) e (+ d e))
+          (recur (dec i) d e))))))
+
+
+(defn prim-fib [^long n]
+  ;; (assert (< n 93))
+  (loop [i (p/- 63 (Long/numberOfLeadingZeros n)) a 0 b 1]
+    ;; invariant:  a = F(m), b = F(m+1)
+    (if (p/< i 0)
+      a
+      (let [d (p/* a (p/- (p/* 2 b) a))
+            e (p/+ (p/* a a) (p/* b b))]
+        ;; SEM hack to get primitive bit-test but opposite sense so if-not
+        (if-not (p/zero? (p/bit-and n (p/bit-shift-left 1 i)))
+          (recur (p/dec i) e (p/+ d e))
+          (recur (p/dec i) d e))))))
+
+
 
 (def save-unchecked *unchecked-math*)
-(def save-reflection *warn-on-reflection*)
 (set! *unchecked-math* false)
+
+(def save-reflection *warn-on-reflection*)
 (set! *warn-on-reflection* false)
 
 ;; using overflow protection (might return BigInt)
 ;; that means loop params have to be boxed, which is slower than primitives
-(defn fast-fib1 [n]
-  (loop [i 31 a 0 b 1 m 0]
+(defn big-fib [^long n]
+  (loop [i (- 63 (Long/numberOfLeadingZeros n)) a 0 b 1]
     ;; invariant:  a = F(m), b = F(m+1)
     (if (neg? i)
       a
-      (let [d (*' a (-' (* 2 b) a))
+      (let [d (*' a (-' (*' 2 b) a))
             e (+' (*' a a) (*' b b))]
         (if (bit-test n i)
-          (recur (dec i) e (+' d e) (inc (*' 2 m)))
-          (recur (dec i) d e (*' 2 m)))))))
+          (recur (dec i) e (+' d e))
+          (recur (dec i) d e))))))
 
 (set! *warn-on-reflection* save-reflection)
 (set! *unchecked-math* save-unchecked)
@@ -124,7 +168,7 @@
 
 
 ;; pretty good but it got a bit better below
-(defn myfib-GOOD [^long n]
+(defn fib-nr [^long n]
   ;; (assert (< n 93))
   (if (pos? n)
     (loop [a 1 b 1 i 1]
@@ -136,8 +180,7 @@
     0))
 
 
-
-;; Fastest, not prettiest.  (Well, simple cache look is still faster, of course.)
+;; Fastest, not prettiest.  (Well, `lookup-fib` is still faster, of course.)
 (defn myfib [^long n]
   ;; (assert (< n 93))
   (if (< n 2)
@@ -152,6 +195,20 @@
           (loop [a a b b i (inc i)]
             (if (= n i) b (recur b (+ a b) (inc i)))))))))
 
+;; prim is about the same
+(defn pmyfib [^long n]
+  ;; (assert (< n 93))
+  (if (p/< n 2)
+    n
+    (loop [a 1 b 2 i 2]
+      (if (p/<= (* i 2) n)
+        (recur (p/* a (p/- (p/* b 2) a))
+               (p/+ (p/* a a) (p/* b b))
+               (p/* i 2))
+        (if (p/== n i)
+          a
+          (loop [a a b b i (p/inc i)]
+            (if (p/== n i) b (recur b (p/+ a b) (p/inc i)))))))))
 
 
 ;; https://news.ycombinator.com/item?id=6954218
@@ -222,34 +279,16 @@
 ;;; clever but never release the cached values
 
 ;; from C. Grand
-(def cgfib (map first (iterate (fn [[^long a ^long b]] [b (+ a b)]) [0 1])))
-
 ;; also attributed to @ghoseb
-(def fibs (map first (iterate (fn [[^long a ^long b]] [b (+ a b)]) [0 1])))
+(def cgfibs (map first (iterate (fn [[^long a ^long b]] [b (+ a b)]) [0 1])))
 
-#_ (take 15 fibs)
+
+
+#_ (take 15 cgfibs)
 
 
 ;; from Alan Dipert
 (def afib (lazy-seq (cons 0 (reductions + 1 afib))))
-
-
-(let [cache-fibs (atom (vec (take 10 afib)))]
-  (defn acfib [^long n]
-    (let [cache @cache-fibs]
-      (if (> (count cache) n)
-        (get cache n)
-        (let [new-cache (vec (take (+ n 10) afib))]
-          (reset! cache-fibs new-cache)
-          (get new-cache n))))))
-
-;; straight vector look up, pretty fast!!!
-(let [cache-fibs (vec (take 92 cgfib))]
-  (defn gfib [^long n]
-    (get cache-fibs n)))
-
-
-
 
 
 
@@ -307,6 +346,18 @@
 (def fib93 (subvec fib100 0 93))
 
 
+;; The best engineering solution is to use a vector of known values.
+(defn lookup-fib ^long [^long n]
+  ;; (assert (< n 100))
+  (fib93 n))
+
+
+(defn test-fib [f]
+  (= fib93 (map f (range 93))))
+
+
+
+
 
 
 (comment
@@ -329,3 +380,14 @@
 
 
 (set! *unchecked-math* save-unchecked-all)
+
+
+;; Fibonacci numbers are related to Lucas numbers
+;; https://en.wikipedia.org/wiki/Lucas_number
+
+(defn lucas [n]
+  (case n
+    0 2
+    1 1
+    (+ (myfib (dec n)) (myfib (inc n)))))
+
