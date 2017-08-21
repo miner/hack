@@ -126,6 +126,8 @@
 
 
 
+
+
 (def save-unchecked *unchecked-math*)
 (set! *unchecked-math* false)
 
@@ -194,6 +196,26 @@
           a
           (loop [a a b b i (inc i)]
             (if (= n i) b (recur b (+ a b) (inc i)))))))))
+
+
+;; SEM: new idea, you can run down from a power of two, not just up
+(defn ufib [^long n]
+  ;; (assert (< n 93))
+  (if (< n 2)
+    n
+    (loop [a 1 b 2 i 2]
+      (cond (<= (* i 2) n) (recur (* a (- (* b 2) a))
+                                  (+ (* a a) (* b b))
+                                  (* i 2))
+            (= i n) a
+            (< (- (* i 2) n) (- n i)) (loop [c (* a (- (* b 2) a))
+                                             d (+ (* a a) (* b b))
+                                             i (* i 2)]
+                                        (if (= n i) c (recur (- d c) c (dec i))))
+            :else (loop [a a b b i (inc i)]
+                    (if (= n i) b (recur b (+ a b) (inc i))))))))
+
+
 
 ;; prim is about the same
 (defn pmyfib [^long n]
@@ -353,7 +375,13 @@
 
 
 (defn test-fib [f]
-  (= fib93 (map f (range 93))))
+  (if (= fib93 (map f (range 93)))
+    true
+    (println
+     (take 5 (partition 3 (mapcat (fn [n] (let [a (lookup-fib n) b (f n)]
+                                            (when (not= a b) [n a b])))
+                      (range 93)))))))
+
 
 
 
@@ -385,7 +413,7 @@
 ;; Fibonacci numbers are related to Lucas numbers
 ;; https://en.wikipedia.org/wiki/Lucas_number
 
-(defn lucas [n]
+(defn lucas [^long n]
   (case n
     0 2
     1 1
