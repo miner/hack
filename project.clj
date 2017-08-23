@@ -1,4 +1,4 @@
-(defproject hack "0.2.9-SNAPSHOT" 
+(defproject hack "0.2.91-SNAPSHOT" 
   :min-lein-version "2.0.0"
   :dependencies [
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
@@ -23,12 +23,12 @@
                  [com.velisco/clj-ftp "0.3.9"]
                  [metrics-clojure "2.9.0"]
                  [net.cgrand/xforms "0.9.3"]
-                 [digest "1.4.5"]
+                 [digest "1.4.6"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
   :profiles {:dev  {:dependencies [   
-                                   [org.clojure/spec.alpha "0.1.123"]
-                                   [org.clojure/clojure "1.9.0-alpha16"]
+                                   ;; [org.clojure/spec.alpha "0.1.123"]
+                                   [org.clojure/clojure "1.9.0-alpha18"]
                                    [org.clojure/core.async "0.3.443"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}
