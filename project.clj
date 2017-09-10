@@ -28,7 +28,7 @@
                  [me.raynes/fs "1.4.6"]]
   :profiles {:dev  {:dependencies [   
                                    ;; [org.clojure/spec.alpha "0.1.123"]
-                                   [org.clojure/clojure "1.9.0-alpha19"]
+                                   [org.clojure/clojure "1.9.0-alpha20"]
                                    [org.clojure/core.async "0.3.443"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}
