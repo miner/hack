@@ -22,13 +22,11 @@
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "0.3.9"]
                  [metrics-clojure "2.9.0"]
-                 [net.cgrand/xforms "0.9.3"]
+                 [net.cgrand/xforms "0.9.4"]
                  [digest "1.4.6"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
-  :profiles {:dev  {:dependencies [   
-                                   ;; [org.clojure/spec.alpha "0.1.123"]
-                                   [org.clojure/clojure "1.9.0-alpha20"]
+  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.9.0-beta1"]
                                    [org.clojure/core.async "0.3.443"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}

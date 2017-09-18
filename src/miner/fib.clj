@@ -32,6 +32,12 @@
 ;;
 ;; so you can skip by powers of 2 rather than calculating each step.
 
+;;; 09/18/17  17:20 by miner -- learned something new (to me):
+;; "A positive integer n is a Fibonacci number if and only if either (5n^2 – 4)
+;; or (5n^2 + 4) is a perfect square."  More in post:
+;; https://www.johndcook.com/blog/2017/02/11/inverse-fibonacci-numbers/
+
+
 ;; The obvious best "engineering" implementation is at the bottom, called `lookup-fib`. 
 ;; The rest of this file is mostly for fun.
 
