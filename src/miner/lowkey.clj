@@ -1,7 +1,8 @@
 ;; experiments with CLJ-99
 
 (ns miner.lowkey
-  (:require [clojure.core.reducers :as r]))
+  (:require [clojure.core.reducers :as r]
+            [criterium.core :as crit]))
 
 (defn orig-min-key
    "Returns the x for which (k x), a number, is least."
@@ -10,7 +11,7 @@
    ([k x y & more]
       (reduce #(orig-min-key k %1 %2) (orig-min-key k x y) more)))
 
-(defn patch-min-key
+(defn patch-min-key1
    "Returns the x for which (k x), a number, is least."
    ([k x] x)
    ([k x y] (if (< (k x) (k y)) x y))
@@ -26,6 +27,26 @@
              (recur v kv (next more))))
          v)))))
 
+;; patch-min-key1 changed what happened on ties.  Originally, the last won.  patch1 chose
+;; last.  Updated patch, goes back to old behavior.  None of this was documented, but some
+;; users accidentally depended on it.  I wonder what kind of spec and unit test could have
+;; caught this.  I guess you need to preserve the old code and run a generative test against it.
+
+(defn patch-min-key
+   "Returns the x for which (k x), a number, is least."
+   ([k x] x)
+   ([k x y] (if (< (k x) (k y)) x y))
+   ([k x y & more]
+   (let [kx (k x) ky (k y)
+         [v kv] (if (<= kx ky) [x kx] [y ky])]
+     (loop [v v kv kv more more]
+       (if more
+         (let [w (first more)
+               kw (k w)]
+           (if (<= kw kv)
+             (recur w kw (next more))
+             (recur v kv (next more))))
+         v)))))
 
 ;; fastest version of min-key for expensive key calculations
 ;; but hard to beat the original for keyword access
@@ -56,7 +77,7 @@
     0)))
 
 
-
+;; NO -- use criterium instead of this
 (defn mktest []
   (dotimes [_ 100]
     (let [k #(Math/tan %)
@@ -68,6 +89,24 @@
       (flush) (println 'lokey)
       (time (apply lokey k rrr))
       (println))))
+
+(defn gentest
+  ([] (gentest second))
+  ([kf] (gentest kf 10000))
+  ([kf n]
+   (let [data (map list (range n) (cycle [-1 -2 -3 -4 -5]))]
+     (println "key fn" (str kf) (take 10 data) "...")
+     (doseq [mk [orig-min-key min-key patch-min-key patch-min-key1 lokey]]
+       (println "\n" (str mk) (apply mk kf data))
+       (crit/quick-bench (apply mk kf data))))))
+
+
+(defn tantest []
+  (gentest #(Math/tan (first %)) 10000))
+
+
+(defn idtest []
+  (gentest first 10000))
 
 ;; memoize is a bad idea for this
 
