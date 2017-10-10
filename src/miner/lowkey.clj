@@ -89,25 +89,6 @@
       (flush) (println 'lokey)
       (time (apply lokey k rrr))
       (println))))
-
-(defn gentest
-  ([] (gentest second))
-  ([kf] (gentest kf 10000))
-  ([kf n]
-   (let [data (map list (range n) (cycle [-1 -2 -3 -4 -5]))]
-     (println "key fn" (str kf) (take 10 data) "...")
-     (doseq [mk [orig-min-key min-key patch-min-key patch-min-key1 lokey]]
-       (println "\n" (str mk) (apply mk kf data))
-       (crit/quick-bench (apply mk kf data))))))
-
-
-(defn tantest []
-  (gentest #(Math/tan (first %)) 10000))
-
-
-(defn idtest []
-  (gentest first 10000))
-
 ;; memoize is a bad idea for this
 
 
@@ -141,3 +122,26 @@
 
 (defn k91 [n]
   (+ n (m91 n)))
+
+
+
+
+
+(defn gentest
+  ([] (gentest second))
+  ([kf] (gentest kf 10000))
+  ([kf n]
+   (let [data (map list (range n) (cycle [-1 -2 -3 -4 -5]))]
+     (println "key fn" (str kf) (take 10 data) "...")
+     (doseq [mk [orig-min-key min-key patch-min-key lokey rkey klokey]]
+       (println "\n" (str mk) (apply mk kf data))
+       (crit/quick-bench (apply mk kf data))))))
+
+
+(defn tantest []
+  (gentest #(Math/tan (first %)) 10000))
+
+
+(defn idtest []
+  (gentest first 10000))
+
