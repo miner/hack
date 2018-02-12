@@ -5,9 +5,9 @@
                  [com.velisco/wilkins "0.2.1"]
                  [org.clojure/math.combinatorics "0.1.4"]
                  [org.clojure/data.int-map "0.2.4"]
-                 [org.clojure/core.async "0.3.443"]
+                 [org.clojure/core.async "0.3.465"]
                  [org.clojure/tools.macro "0.1.5"]
-                 [com.datomic/datomic-free "0.9.5561.62"  :exclusions [joda-time]]
+                 [com.datomic/datomic-free "0.9.5656"  :exclusions [joda-time]]
                  [instaparse "1.4.8"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "0.8.11"]
@@ -22,12 +22,12 @@
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "0.3.9"]
                  [metrics-clojure "2.10.0"]
-                 [net.cgrand/xforms "0.13.0"]
+                 [net.cgrand/xforms "0.15.0"]
                  [digest "1.4.6"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
-  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.9.0-beta4"]
-                                   [org.clojure/core.async "0.3.443"]
+  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.9.0"]
+                                   [org.clojure/core.async "0.3.465"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}
              :clj18 {:dependencies [   
