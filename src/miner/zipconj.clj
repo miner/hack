@@ -67,7 +67,7 @@
            {}
            m)))
 
-;; You can't be lazy when result has to be a map.  It has to be a sequence out.
+;; You can't be lazy when result has to be a map.  Lazy only makes sense with a sequence result.
 
 ;; What would a lazy map be?  Can't be sorted.  Seq order has to be the conj/creation order.
 ;; Keep parallel vectors of keys and values, plus map for quick access.  Not really lazy if
@@ -76,22 +76,24 @@
 
 ;; slice-by like partition-by but expects singleton items satisfying pred, then conjoins
 ;; following items after it.  If coll doesn't start with a pred item, nil is placed in the
-;; first place to mark potential junk.
+;; first place to mark potential junk.  When given an empty collection, just returns nil --
+;; no false-start segment.
 
 ;; faster and simpler to reduce, but not lazy
-(defn slice-by [pred coll]
-  (reduce (fn [res x]
-            (if (pred x)
-              (conj res [x])
-              (if (empty? res)
-                [[nil x]]
-                (conj (pop res) (conj (peek res) x)))))
-          []
-          coll))
 
+(defn slice-by
+  ([pred coll] (slice-by pred coll nil))
+  ([pred coll false-start]
+   (reduce (fn [res x]
+             (if (pred x)
+               (conj res [x])
+               (conj (pop res) (conj (peek res) x))))
+           (when-first [fst coll]
+             (if (pred fst) [[fst]] [[false-start fst]]))
+           (rest coll))))
 
-;; like partition-by but takes a predicate that indicates the start of a grouping.  Anything
-;; that fails is added to the current group.  If first thing fails, nil is used as a marker.
+;; SEM FIXME: the other attempts don't necessarily had the false-start and empty collection
+;; cases.  That would need to be fixed.
 
 (defn tslice-by
   ([pred]
@@ -133,3 +135,26 @@
               run (if (pred fst) run1 (cons nil run1))]
           (cons run (tslice-by pred (seq (drop (count run1) s)))))))))
 
+;; BAD
+(defn WAS-slice-by [pred coll]
+  (let [parts (partition-by pred coll)]
+    (map #(cons (ffirst %) (second %))
+         (partition-all 2  (if (pred (first coll)) parts (cons (list nil) parts))))))
+
+
+(comment BUGGY
+(islice-by zero? [ 0 0 1 2 3 0 4  5 6 0 7])
+[(0 1 2 3) (0 4 5 6) (0 7)]
+user=> (slice-by zero? [ 0 0 1 2 3 0 4  5 6 0 7])
+[[0] [0 1 2 3] [0 4 5 6] [0 7]]
+)
+
+;; BUGGY
+(defn islice-by [pred coll]
+  (let [false-start nil
+        false-run (take-while (complement pred) coll)]
+    (into (if (empty? false-run) [] [(concat [false-start] false-run)])
+          (comp (partition-by pred) (partition-all 2) (map #(cons (ffirst %) (second %))))
+          (drop (count false-run) coll))))
+
+;; but doesn't handle false start

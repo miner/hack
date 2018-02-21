@@ -108,3 +108,17 @@
 (defmacro arities [fname]
   {:pre [(symbol? fname)]}
   `(:arglists (meta (var ~fname))))
+
+
+;;; 02/20/18  18:19 by miner --
+;; https://stackoverflow.com/questions/48874469/clojure-partition-list-of-strings-accumulating-the-result
+
+(defn catsize [limit strs]
+  (reduce (fn [res s]
+            (let [base (peek res)]
+              (if (> (+ (.length ^String base) (.length ^String s)) limit)
+                (conj res s)
+                (conj (pop res) (str base s)))))
+          (if (seq strs) [(first strs)] [])
+          (rest strs)))
+
