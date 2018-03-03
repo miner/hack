@@ -5,6 +5,7 @@
                  [com.velisco/wilkins "0.2.1"]
                  [org.clojure/math.combinatorics "0.1.4"]
                  [org.clojure/data.int-map "0.2.4"]
+                 [org.clojure/data.avl "0.0.17"]
                  [org.clojure/core.async "0.3.465"]
                  [org.clojure/tools.macro "0.1.5"]
                  [com.datomic/datomic-free "0.9.5656"  :exclusions [joda-time]]
