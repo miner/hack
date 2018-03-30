@@ -103,3 +103,46 @@
 #_ (time (filter (fn [[k v]] (when (> v 1) [k v]))
                  (frequencies (repeatedly 1e6 #(rand-int Integer/MAX_VALUE)))))
 ;; lots of dupes
+
+
+
+;;; Unrelated except for randomness
+
+;; https://medium.com/ml-everything/nassim-taleb-absorbent-barriers-and-house-money-8b21cff2e338
+;;
+;; I had a professor in class tell us all to flip a coin 100 times and record the results,
+;; or just cheat and put down 100 random head/tail values. After we had done so, he would
+;; walk around and tell us whether we cheated or not. The way he could tell would be by
+;; looking if we have a string of 8 heads (or tails) values in a row. Such a string is
+;; likely in 100 trials is much more likely than most people give credit for.
+
+;; SEM: not exactly my results, but maybe 5 would be a better expected run number.
+
+
+(defn max-run-length [trials]
+  (transduce (comp (partition-by identity) (map (juxt first count)))
+             (completing (fn [mxv kv] (if (> (peek kv) (peek mxv)) kv mxv)))
+             [nil 0]
+             (repeatedly trials #(rand-int 2))))
+
+(defn min-result [trials]
+  (reduce (fn [mxv kv] (if (< (peek kv) (peek mxv)) kv mxv))
+          [nil Long/MAX_VALUE]
+          (repeatedly trials #(max-run-length trials))))
+
+(defn spread-results [trials]
+  (sort (keys (group-by peek (repeatedly trials #(max-run-length trials))))))
+
+
+(comment
+
+(dotimes [n 100] (println (max-run-length 100)))
+
+(dotimes [n 100] (println (spread-results 100)))
+
+;; for 100 trials:
+;; lowest run 3, commonly 4
+;; longest run 18, commonly 13
+
+)
+

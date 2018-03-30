@@ -52,7 +52,7 @@
 (defn ncz [n]
   (count (converge-seq collatz n 1000 (fn [a _] (= a 1)))))
 
-;; variant for convenient convergence to 1
+;; variant for convenient convergence to 1 (terminates instead of oscillating)
 (defn cz [n]
   (cond (<= n 1) 1
         (even? n) (/ n 2)
@@ -68,3 +68,6 @@
               11, 24, 11, 112, 19, 19, 19, 107, 6, 27, 14, 14, 22, 22, 22, 35, 9, 110, 9, 30,
               17, 17, 17, 105, 12, 25, 25, 25, 12, 12, 113, 113, 20, 33, 20, 33, 20, 20, 108,
               108, 7, 28, 28, 28, 15, 15, 15, 103])
+
+
+
