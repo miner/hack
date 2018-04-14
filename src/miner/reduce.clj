@@ -122,3 +122,22 @@
           (if (seq strs) [(first strs)] [])
           (rest strs)))
 
+
+
+;; stackoverflow.com
+
+;; for is faster than mine
+(defn repeated [coll]
+  (for [[k v] (frequencies coll) :when (not= v 1)] k))
+
+;; SEM: I like reduce-kv but it's not as fast as I thought
+(defn sem-rep1 [coll]
+  (reduce-kv (fn [r k v] (if (= v 1) r (conj r k))) nil (frequencies coll)))
+
+;; slower
+(defn sem-rep [coll]
+  (reduce-kv (fn [r k v] (if (= v 1) r (conj r k)))
+             nil
+             (reduce (fn [counts x]
+                       (assoc counts x (inc (get counts x 0))))
+                      {} coll)))
