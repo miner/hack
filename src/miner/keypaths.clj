@@ -1,7 +1,13 @@
 (ns miner.keypaths)
 
+;; See also similar function in my walk.clj
+;; slight difference in required output
+
 ;; inspired by
 ;; http://stackoverflow.com/questions/21768802/how-can-i-get-the-nested-keys-of-a-map-in-clojure
+
+
+
 
 (defn keys-in [m]
   (if (map? m)
@@ -15,7 +21,6 @@
              m))
     []))
 
-
 (def nested {:a :A, :b :B, :c {:d :D}, :e {:f {:g :G, :h :H} :x {:xx :XX :yy :YY}}})
 
 #_  (keys-in nested)
@@ -23,14 +28,37 @@
 
 
 
-(defn keypaths
-  ([m] (keypaths [] m))
+(defn keypaths1
+  ([m] (keypaths1 [] m))
   ([prev m]
    (reduce-kv (fn [res k v] (if (map? v)
-                              (into res (keypaths (conj prev k) v))
+                              (into res (keypaths1 (conj prev k) v))
                               (conj res (conj prev k))))
               []
               m)))
+
+;; FASTEST -- avoid copying
+(defn keypaths
+  ([m] (keypaths [] m ()))
+  ([prev m result]
+   (reduce-kv (fn [res k v] (if (map? v)
+                              (keypaths (conj prev k) v res)
+                              (conj res (conj prev k))))
+              result
+              m)))
+
+
+(defn keypaths2
+  ([m] (persistent! (keypaths2 [] m (transient []))))
+  ([prev m result]
+   (reduce-kv (fn [res k v] (if (map? v)
+                              (keypaths2 (conj prev k) v res)
+                              (conj! res (conj prev k))))
+              result
+              m)))
+
+
+
 
 
 ;; SEM, but maybe I want to add all the paths, not just the deepest
@@ -51,15 +79,28 @@
 ;; how about one with vector indices?  reduce-kv handles that too
 
 ;; all possible kpaths (
-(defn kvpaths-all
-  ([m] (kvpaths-all [] m))
+(defn kvpaths-all1
+  ([m] (kvpaths-all1 [] m))
   ([prev m]
    (reduce-kv (fn [res k v] (if (associative? v)
                               (let [kp (conj prev k)]
-                                (conj (into res (kvpaths-all kp v)) kp))
+                                (conj (into res (kvpaths-all1 kp v)) kp))
                               (conj res (conj prev k))))
               []
               m)))
+
+;; faster to use accumulator as I did in variant in walk.clj
+(defn kvpaths-all2
+  ([m] (kvpaths-all2 [] m ()))
+  ([prev m result]
+   (reduce-kv (fn [res k v] (if (associative? v)
+                              (let [kp (conj prev k)]
+                                (kvpaths-all2 kp v (conj res kp)))
+                              (conj res (conj prev k))))
+              result
+              m)))
+
+
 
 ;; only the leaf indices
 (defn kvpaths

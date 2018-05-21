@@ -35,6 +35,12 @@
 
 (def sample {:a {:bar 1 :foo 2} :b {:bar [3 {:foo 4} 5]}})
 
+(def nested (vec (take 100 (iterate #(hash-map :k %) {:k 0}))))
+
+(def big
+  (zipmap [:a :b :c :d :e :f :g :h :i :j :k :l :m :n :o :p :q :r :s :t :u :v :w :x :y :z]
+          (repeat [nested sample])))
+
 (defn atom-foo [coll]
   (let [state (atom [])]
     (w/prewalk
@@ -126,6 +132,76 @@
          :else [parent])))
 
 
+;; SEM eager (reduce-kv) is maybe easier to read.  Faster to conj on list.  You really don't
+;; care about the order of the generated paths.
+(defn rpaths
+  "Returns the set of paths into a nested map/vector."
+  ([root]   (rpaths [] root))
+  ([parent x]
+   (if (associative? x)
+     (reduce-kv (fn [r k v] (into r (rpaths (conj parent k) v))) () x)
+     (list parent))))
+
+;; SEM: we want empty map to return empty list, not nil.  So init return to () instead of
+;; nil.
+;;
+;; SEM: My decision that non-assoc? data should just return nil, rather than throw assertion
+;; error.
+;;
+;; SEM even faster to use an accumulator to avoid some copying.  THIS IS THE FASTEST VERSION
+
+(defn key-paths
+  ([node]
+   (when (associative? node)
+     (key-paths [] node ())))
+  ([parent node result]
+   (if (associative? node)
+     (reduce-kv (fn [r k v] (key-paths (conj parent k) v r)) result node)
+     (conj result parent))))
+
+
+
+
+;; slower to conj on to vector but gives same order as original paths (I think)
+;; BUT the order shouldn't matter
+(defn vpaths
+  "Returns the set of paths into a nested map/vector."
+  ([root]   (vpaths [] root))
+  ([parent x]
+   (if (associative? x)
+     (reduce-kv (fn [r k v] (into r (vpaths (conj parent k) v))) [] x)
+     [parent])))
+
+
+(defn rpaths2
+  "Returns the set of paths into a nested map/vector."
+  ([root]   (rpaths2 [] root))
+  ([parent x]
+   (if (associative? x)
+     (reduce-kv (fn [r k v] (into  (rpaths2 (conj parent k) v) r )) () x)
+     (list parent))))
+
+
+;; for testing
+(defn set= [coll coll2] (= (set coll) (set coll2)))
+
+
+;; As always, beware of micro-benchmarks.  Also, remember that lazy functions look fast in
+;; benchmarking but you really need to test something that is fully realized.  This smoke
+;; function does enough work, and throws if you get the wrong answer.
+(defn smoke [pathf]
+  (let [lightly-nested {:a {:aa 1, :ab {:abc 111}}, :b [:b1 :b2 :b3], :c 3}
+        solution-set (set [[:a :aa] [:a :ab :abc] [:b 0] [:b 1] [:b 2] [:c]])]
+    (assert (= (set (pathf lightly-nested)) solution-set)))
+  true)
+
+#_ (quick-bench (smoke paths))
+
+(defn txben [pathf]
+  (transduce (map count) + 0 (pathf big)))
+
+#_ (quick-bench (txben key-paths))
+
 
 ;; slower
 (defn mpaths
@@ -144,8 +220,8 @@
 (defn mvals [x]
   (if (map? x) (vals x) x))
 
-;; SEM not sure about this one.
-(defn mpsXX
+;; SEM BUGGY
+#_ (defn mpsXX
   "Returns the set of paths into a nested map/vector."
   ([root]   (mpsXX [] [] [] (list root) []))
   ([parent ks vs q results]
@@ -176,7 +252,6 @@
                        (when (branch? node)
                          (mapcat (partial walk new-path) (children node)))))))]
     (walk [] root)))
-
 
 
 
