@@ -2,7 +2,7 @@
   (:require [clojure.walk :as w]))
 
 
-
+;; SEM: I moved the good keypath stuff to ../keypaths.clj
 
 
 ;; SEM: I don't like this style with an atom for side-effects.  Should do the walk with in
@@ -33,7 +33,7 @@
 ;; with-local-vars over the atom.  But still, it's better to be functional without having
 ;; the state.
 
-(def sample {:a {:bar 1 :foo 2} :b {:bar [3 {:foo 4} 5]}})
+(def sample {:c 42 :a {:bar 1 :foo 2} :b {:bar [3 {:foo 4} 5]}})
 
 (def nested (vec (take 100 (iterate #(hash-map :k %) {:k 0}))))
 
@@ -115,7 +115,7 @@
                     (recur k (conj res foo) (vals x))
                     (recur k res (vals x)))
          (coll? x) (into res (mapcat #(collect k %) x))
-       :else res)))
+         :else res)))
 
 ;;; 04/02/16  10:56 by miner -- 
 
@@ -150,7 +150,7 @@
 ;;
 ;; SEM even faster to use an accumulator to avoid some copying.  THIS IS THE FASTEST VERSION
 
-(defn key-paths
+(defn key-paths3
   ([node]
    (when (associative? node)
      (key-paths [] node ())))
@@ -160,6 +160,19 @@
      (conj result parent))))
 
 
+(defn key-paths
+  ([root]
+   (when (associative? root)
+     (key-paths [] root ())))
+  ([parent as result]
+   #_ {:pre [(associative? as)]}
+   ;; essentially, vector or map
+   (reduce-kv (fn [r k v]
+                (if (associative? v)
+                  (key-paths (conj parent k) v r)
+                  (conj r (conj parent k))))
+              result
+              as)))
 
 
 ;; slower to conj on to vector but gives same order as original paths (I think)

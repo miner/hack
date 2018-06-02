@@ -71,6 +71,21 @@
 (defn rflatten [coll]
   (into [] (r/flatten coll)))
 
+;; recursive version derived from my keypaths
+;; As fast as rlatten!  pretty good
+(defn fltt
+  ([coll]
+   (if (coll? coll)
+     (persistent! (fltt coll (transient [])))
+     (if (nil? coll) [] (vector coll))))
+  ([coll result]
+   (reduce (fn [r x]
+             (if (coll? x)
+               (fltt x r)
+               (conj! r x)))
+           result
+           coll)))
+
 
 (def nested [99 (reductions conj [] (range 100)) [11 [12 [13] 14 [15]]]])
 (def flatsum (reduce + 0 (flatten nested)))

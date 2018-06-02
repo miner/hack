@@ -24,7 +24,7 @@
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [metrics-clojure "2.10.0"]
-                 [net.cgrand/xforms "0.16.0"]
+                 [net.cgrand/xforms "0.17.0"]
                  [digest "1.4.8"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
