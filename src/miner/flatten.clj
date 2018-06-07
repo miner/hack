@@ -68,21 +68,41 @@
 
 
 ;; reducers is fast
+;; but it can't handle big-nest -- StackOverflow
 (defn rflatten [coll]
   (into [] (r/flatten coll)))
 
 ;; recursive version derived from my keypaths
 ;; As fast as rlatten!  pretty good
+;; and can handle big-nest, but not always???  Maybe GC issue.
 (defn fltt
   ([coll]
-   (if (coll? coll)
-     (persistent! (fltt coll (transient [])))
-     (if (nil? coll) [] (vector coll))))
+   (cond (sequential? coll) (persistent! (fltt coll (transient [])))
+         (nil? coll) nil
+         :else (vector coll)))
   ([coll result]
    (reduce (fn [r x]
-             (if (coll? x)
+             (if (sequential? x)
                (fltt x r)
                (conj! r x)))
+           result
+           coll)))
+
+
+
+;; this is only appropriate for some transformation that looks like flattening, not generic
+;; walking
+
+;; SEM what about init value?  Assume [] since you want a sequence result.
+
+(defn flatred
+  ([f coll] (persistent! (flatred f coll (transient []))))
+     
+  ([f coll result]
+   (reduce (fn [r x]
+             (if (sequential? x)
+               (flatred f x r)
+               (conj! r (f x))))
            result
            coll)))
 

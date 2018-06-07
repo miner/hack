@@ -355,3 +355,71 @@
        :else [path])))
 
 
+
+
+
+;; this is only appropriate for some transformation that looks like flattening, not generic
+;; walking
+
+;; SEM what about init value?  Assume [] since you want a sequence result.
+
+(defn flatred
+  ([f coll] (persistent! (flatred f coll (transient []))))
+     
+  ([f coll result]
+   (reduce (fn [r x]
+             (if (sequential? x)
+               (flatred f x r)
+               (conj! r (f x))))
+           result
+           coll)))
+
+;;; These args must agree -- probably some sort of Category Theory term for this
+;; init []
+;; prep = transient
+;; finish = persistent!
+;; add = conj!
+;;
+;; step = (add RES (f x))
+;; recursive? = sequential? (default)
+;; is it worth overriding?
+
+;; init could include (prep raw-init) and just have to match finish (default identity)
+;; would be nice if add/1 was implied finish, or is that too cute?
+;; and add/0 could be init
+
+;;; conj! would almost work but conj!/1 just returns the coll -- I want it to (persistent!
+;;; coll)
+;;; Note: conj/0 is (transient []) which is exactly my scheme.
+
+;; my version of conj! -- note the "finish" 1 arg calls persistent!
+(defn collect!
+  ([] (transient []))
+  ([coll] (persistent! coll))
+  ([coll x] (conj! coll x)))
+
+
+(defn recred
+  ([f coll] (recred sequential? collect! f coll))
+
+  ([recursive? collect f coll] (collect (recred recursive? collect f coll (collect))))
+     
+  ([recursive? collect f coll result]
+   (reduce (fn [r x]
+             (if (recursive? x)
+               (recred recursive? collect f x r)
+               (collect r (f x))))
+           result
+           coll)))
+
+
+
+(comment
+  ;; hack -- don't want to convert to vector
+  ;; supporting reduce-kv on (range ...)
+(extend-type clojure.lang.LongRange clojure.core.protocols/IKVReduce
+             (kv-reduce [this f init]
+               (.kvreduce (vec this) f init)))
+)
+
+
