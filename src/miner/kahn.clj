@@ -81,12 +81,16 @@
            (transient g)
            (persistent! (reduce-kv (fn [s _ v] (reduce conj! s v)) (transient #{}) g)))))
 
-;; slightly slower than norm2 but simpler
+;; slightly slower than norm2 but simpler.  Also converts seq vals to sets (for more
+;; convenient specification).  Arguably, you don't need this, but you also could require
+;; explicit empty sets if you want to skip normalization altogether.
 (defn norm3
   "Returns g with empty outgoing edges added for nodes with incoming
   edges only.  Example: {:a #{:b}} => {:a #{:b}, :b #{}}"
   [g]
-   (reduce #(if (get % %2) % (assoc % %2 #{}))
+  (reduce #(if-let [v (get % %2)]
+             (if (set? v) % (assoc % %2 (set v)))
+             (assoc % %2 #{}))
            g
            (reduce-kv (fn [s _ v] (reduce conj s v))  #{} g)))
 
