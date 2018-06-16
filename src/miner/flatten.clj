@@ -3,6 +3,48 @@
 
 
 
+(defn beep
+  ([] (beep 500))
+  ([^long delay-msec]
+   (.beep (java.awt.Toolkit/getDefaultToolkit)) (Thread/sleep delay-msec)))
+
+(defn binc [n]
+  (beep)
+  (inc n))
+
+(defn unchunk [s]
+  (when (seq s)
+    (lazy-seq
+      (cons (first s)
+            (unchunk (next s))))))
+
+#_
+(pop (reduce (fn [r x] (let [res (conj (pop r) (binc x) (inc (peek r)))]
+                    (if (>= (peek r) 5)
+                      (reduced res)
+                      res)))
+        [0]
+        (range 10 100 10)))
+
+
+;; eager, recursive version derived from my keypaths
+;; As fast as rlatten!  pretty good
+;; and can handle big-nest, but not always???  Maybe GC issue.
+(defn fltt
+  ([coll]
+   (cond (sequential? coll) (persistent! (fltt coll (transient [])))
+         (nil? coll) nil
+         :else (vector coll)))
+  ([coll result]
+   (reduce (fn [r x]
+             (if (sequential? x)
+               (fltt x r)
+               (conj! r x)))
+           result
+           coll)))
+
+
+
 ;; Usually, you want sequential? (for flattening nested sequences, lists, and vectors).
 ;; If you just want to deal with lists and lazy-seqs, use seq? (vectors will not be flattened).
 ;; If you want to flatten maps, sets, and all kinds of collections, you could use coll?, but that
@@ -71,22 +113,6 @@
 ;; but it can't handle big-nest -- StackOverflow
 (defn rflatten [coll]
   (into [] (r/flatten coll)))
-
-;; recursive version derived from my keypaths
-;; As fast as rlatten!  pretty good
-;; and can handle big-nest, but not always???  Maybe GC issue.
-(defn fltt
-  ([coll]
-   (cond (sequential? coll) (persistent! (fltt coll (transient [])))
-         (nil? coll) nil
-         :else (vector coll)))
-  ([coll result]
-   (reduce (fn [r x]
-             (if (sequential? x)
-               (fltt x r)
-               (conj! r x)))
-           result
-           coll)))
 
 
 
