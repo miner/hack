@@ -13,7 +13,7 @@
 
 (def deep (vec (take 100 (iterate #(hash-map :k %) {:k 0}))))
 
-(def big
+(def zbig
   (zipmap [:a :b :c :d :e :f :g :h :i :j :k :l :m :n :o :p :q :r :s :t :u :v :w :x :y :z]
           (repeat [deep sample])))
 
@@ -60,7 +60,8 @@
               result
               m)))
 
-
+;; transient doesn't seem to help performance.  I assume small nested + vector (instead of
+;; list) costs too much overhead
 (defn keypaths2
   ([m] (persistent! (keypaths2 [] m (transient []))))
   ([prev m result]
