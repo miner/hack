@@ -310,6 +310,9 @@
 ;; also attributed to @ghoseb
 (def cgfibs (map first (iterate (fn [[^long a ^long b]] [b (+ a b)]) [0 1])))
 
+;; project Euler #2
+(defn euler2 []
+  (transduce (comp (take-while #(< % 4000000)) (filter even?)) + 0 cgfibs))
 
 
 #_ (take 15 cgfibs)

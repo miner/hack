@@ -190,3 +190,130 @@
      (c/quick-bench (testf cs xs sorted))))))
 
 
+;; extra junk
+;; inspired by Apropos Clojure Cast #14
+;; merge of sorted collections
+
+;; my baseline, eager, pretty fast, doesn't require previously sorted
+(defn my-merge [& colls]
+  (sort (reduce into [] colls)))
+
+;; only slightly faster
+(defn trans-merge [& colls]
+  (sort (persistent! (reduce (fn [tres cs] (reduce conj! tres cs)) (transient []) colls))))
+
+;; slower, but simpler
+(defn txmerge [& colls]
+  (sort (sequence cat colls)))
+
+;; slightly better than txmerge, but still slower than trans-merge
+(defn txmerge1 [& colls]
+  (sort (transduce cat conj [] colls)))
+
+
+
+
+
+;; Similar to Eric Normand's solution, but with a few changes by SEM
+;;
+;; colls are previously sorted seqs, returns sorted merge
+(defn merge-sorted [& colls]
+  (lazy-seq
+   (when-let [colls (not-empty (remove empty? colls))]
+     (let [sorted-colls (sort-by first colls)]
+       (cons (ffirst sorted-colls)
+             (apply merge-sorted (nfirst sorted-colls) (next sorted-colls)))))))
+
+
+;; Seems like a win to avoid `apply` by having helper with one arity.
+;;
+;; Surprisingly, not-empty is slightly faster than using result of seq.  I guess there's a
+;; negative interaction with laziness around the call.  Looks like it could be chunking.
+
+(defn merge-sorted1
+  ([] ())
+  ([a] (lazy-seq a))
+  ([a & colls]
+   (let [merge-all (fn merge-all [colls]
+                     (lazy-seq
+                      (when-let [colls (not-empty (remove empty? colls))]
+                        (let [sorted-colls (sort-by first colls)]
+                          (cons (ffirst sorted-colls)
+                                (merge-all (cons (nfirst sorted-colls)
+                                                 (next sorted-colls))))))))]
+     (merge-all (cons a colls)))))
+     
+
+
+(defn merge-srt2 [a b]
+  (lazy-seq
+   (cond (empty? a) b
+         (empty? b) a
+         (neg? (compare (first a) (first b))) (cons (first a) (merge-srt2 (rest a) b))
+         :else (cons (first b) (merge-srt2 a (rest b))))))
+
+;; not lazy, not as fast as merge-srt2 (surprise)
+(defn merge-eager2
+  ([a b] (merge-eager2 [] a b))
+  ([res a b]
+   (cond (empty? a) (into res b)
+         (empty? b) (into res a)
+         (neg? (compare (first a) (first b))) (recur (conj res (first a)) (rest a) b)
+         :else (recur (conj res (first b)) a (rest b)))))
+
+
+;; slow, over mixes firsts
+(defn mxsort [& colls]
+  (lazy-seq
+   (when-let [colls (not-empty (remove empty? colls))]
+     (let [fs (sort (mapv first colls))
+           rs (mapv rest colls)]
+       (cons (first fs)
+             (apply mxsort (rest fs) rs))))))
+
+
+
+(defn msort1 [& colls]
+  (loop [res [] cs colls]
+    (let [cs (not-empty (remove empty? cs))]
+      (if-not cs
+        res
+        (let [fs (sort (mapv first cs))
+              rs (mapv rest cs)]
+          (recur (conj res (first fs)) (conj rs (rest fs))))))))
+
+;; NOT FINISHED and buggy
+#_ 
+(defn msort [& colls]
+  (let [colls (not-empty (remove empty? colls))]
+    (loop [res [] fs (sort (map first colls))  cs (map rest colls)]
+      (let [cs (not-empty (remove empty? cs))]
+        (if-not cs
+          res
+          (let [fs (sort (map first cs))]
+            (if (<= (first ss) (first fs))
+              (recur (conj res (first ss)) (rest ss) fs cs)
+              (recur (conj res (first fs)) (conj rs (rest fs))))))))))
+
+;; faster than built-in interleave
+
+(defn interlv
+  ([] ())
+  ([c] (lazy-seq c))
+  ([c & cs] (apply sequence (mapcat list) c cs)))
+
+(defn interlv2
+  ([] ())
+  ([c] (lazy-seq c))
+  ([c & cs] (apply sequence (mapcat list) c cs)))
+
+
+
+;; SEM: no benefit to unrolling arities because sequence is just going to cons them again
+#_
+(defn interlv4
+  ([] ())
+  ([c] (lazy-seq c))
+  ([c1 c2] (sequence (mapcat list) c1 c2))
+  ([c1 c2 c3] (sequence (mapcat list) c1 c2 c3))
+  ([c1 c2 c3 & cs] (apply sequence (mapcat list) c1 c2 c3 cs)))
