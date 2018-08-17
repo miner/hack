@@ -101,3 +101,34 @@
 (defn rot-test [rotf]
   (let [v10 (vec (range 10))]
     (apply = (map #(reduce + 0 %) (rotf v10)))))
+
+
+
+
+;; from Apropos Clojure #15 on YouTube
+;; They wanted a single rotation.  Most of the previous work in this file was trying to get
+;; all rotations.  For the all-rotations problem, you really have to assume a finite coll.
+;; But in general, it's better to use a lazy solution that doesn't need count.
+
+;; classic, lazy solution:
+(defn rotateAC [coll n]
+  (concat (drop n coll) (take n coll)))
+
+(defn rotateAC2 [coll n] (take (count coll) (drop n (cycle coll))))
+
+;; SEM: Issue: using count is bad for infinite lists
+;; to be safe, should check (counted? coll), or use (bounded-count ...)
+
+;; my fix is to combine both, but is that really any better than simple rotateAC???
+(defn rotateAC3 [coll n]
+  (if (counted? coll)
+    (take (count coll) (drop n (cycle coll)))
+    (concat (drop n coll) (take n coll))))
+
+(comment
+  (take 5 (rotateAC (range) 2))
+  ;;=> (2 3 4 5 6)
+  
+  (take 5 (rotateAC2 (range) 2))
+  ;; never returns
+  
