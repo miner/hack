@@ -37,7 +37,25 @@
 
 ;;; SEM -- interestingly, it's faster to use explicit loop than to recur to the function.
 ;;; Is that because primitives work better?
+;;; In my basic testing, this is as fast as Long/bitCount.  Wait a minute, that might just
+;;; be spurious microbenchmarking results.  Don't bet on the loop thing.  Needs more
+;;; testing.
+
+
+
+;; this is slower -- only difference is no explicit loop.  Not sure if this is a real result
+;; or just noise at this point.
+
 (defn bkpos3 [^long n]
+  (let [bkp (fn [^long v ^long c]
+              (if (zero? v)
+                c
+                (recur (bit-and v (dec v)) (inc c))))]
+    (if (neg? n)
+      (bkp (bit-clear n 63) 1)
+      (bkp n 0))))
+
+(defn bkpos3a [^long n]
   (let [bkp (fn [^long v ^long c]
               (loop [v v c c]
                (if (zero? v)
@@ -47,6 +65,26 @@
       (bkp (bit-clear n 63) 1)
       (bkp n 0))))
 
+;; slightly faster to bit-not than to clear one bit
+(defn bkpos5 [^long n]
+  (let [bkp (fn [^long v ^long c]
+              (if (zero? v)
+                c
+                (recur (bit-and v (dec v)) (inc c))))]
+    (if (neg? n)
+      (- 64 (bkp (bit-not n) 0))
+      (bkp n 0))))
+
+
+(defn bkpos5a [^long n]
+  (let [bkp (fn [^long v ^long c]
+              (loop [v v c c]
+              (if (zero? v)
+                c
+                (recur (bit-and v (dec v)) (inc c)))))]
+    (if (neg? n)
+      (- 64 (bkp (bit-not n) 0))
+      (bkp n 0))))
 
 ;; save this over hinted version
 ;; SEM: not sure all the casting is necessary
@@ -59,7 +97,10 @@
     (if (neg? n)
       (- (long 64) (long (bk (bit-xor (long -1) (long n)))))
       (bk (long n)))))
-      
+
+;; the correct one to use
+(defn bitc [^long n]
+  (Long/bitCount n))
 
 
 (defn bytebcnt ^long [^long n]
@@ -96,7 +137,7 @@
       (recur (+ c (bytebcnt n)) (unsigned-bit-shift-right n 8)))))
     
 (defn test-bitcount [f]
-  (assert (every? #(= (Integer/bitCount %) (f %)) (range 10000)))
+  (assert (every? #(= (Long/bitCount %) (f %)) (range -10000 10000)))
   true)
 
 

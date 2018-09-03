@@ -8,7 +8,7 @@
                  [org.clojure/data.avl "0.0.17"]
                  [org.clojure/core.async "0.4.474"]
                  [org.clojure/tools.macro "0.1.5"]
-                 [org.clojure/data.priority-map "0.0.9"]
+                 [org.clojure/data.priority-map "0.0.10"]
                  [com.datomic/datomic-free "0.9.5697"  :exclusions [joda-time]]
                  [instaparse "1.4.9"]
                  ;;[clj-webdriver "0.5.1"]
