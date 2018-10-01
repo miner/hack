@@ -232,6 +232,45 @@ infinite sequences."
   "Returns true iff `num` is a multiple of `divisor`"
   (zero? (rem num divisor)))
 
+
+;; by JUXT blog -- but sort is too slow to use like this
+(defn jgcd [a b]
+  (let [[x y] (sort [a b])
+        [q r] ((juxt quot rem) y x)]
+    (if (zero? r) x (recur x r))))
+
+(defn abs [n] (if (neg? n) (- n) n))
+
+;; version taken from math.number-tower
+(defn mgcd
+  "(gcd a b) returns the greatest common divisor of a and b"
+  [a b]
+  (if (or (not (integer? a)) (not (integer? b)))
+    (throw (IllegalArgumentException. "gcd requires two integers")) 
+    (loop [a (abs a) b (abs b)]
+      (if (zero? b)
+        a
+	    (recur b (mod a b))))))
+
+
+;; rem is faster than mod, and the same result for positive values
+;; since you're using abs, you know both are positive
+(defn gcd [a b]
+  (loop [a (abs a)
+         b (abs b)]
+    (if (zero? b)
+      a
+      (recur b (rem a b)))))
+
+
+(deftest test-66
+  (is (= (gcd 2 4) 2))
+  (is (= (gcd 10 5) 5))
+  (is (= (gcd 5 7) 1))
+  (is (= (gcd 1023 858) 33)))
+
+
+
 ;; not the best thing to use on known vectors
 (defn first= [xs y]
   (and (sequential? xs) (= (first xs) y)))

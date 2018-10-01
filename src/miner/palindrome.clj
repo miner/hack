@@ -1,5 +1,5 @@
 (ns miner.palindrome
-  (:import java.util.StringBuilder))
+  (:import java.lang.StringBuilder))
 
 ;; Bad to use reverse -- linear time!
 ;; Bad to compare full reverse -- double the effort!
@@ -78,122 +78,15 @@
 
 
 ;; ----------------------------------------------------------------------
-;; I have not tested or tried to improve these. 
-;; Ported from CL so it's not idiomatic Clojure.
-;; consider `into` instead of `concat`
-
-;; HN discussion: http://news.ycombinator.com/item?id=1016566
+;;
+;; old HN discussion from 2009: http://news.ycombinator.com/item?id=1016566
 ;; http://jng.imagine27.com/articles/2009-12-25-174540_palindromes_clojure.html
-(defn longest-pals-fast
-  "O(n) time & space complexity"
-  [text]
-
-  (letfn [(final-centers
-           [n tcenters centers]
-           (cond
-            (<= n 1)
-            centers
-            true 
-            (let [n (dec n)]
-              (recur n
-                     (rest tcenters)
-                     (concat (vector 
-                              (min (first tcenters) n))
-                             centers)))))
-          
-          (ext-centers
-           [strn n centers tcenters cdist]
-           (cond
-            (zero? cdist)
-            #(ext-tail strn (inc n) 1 centers)
-            (= (dec cdist) (first tcenters))
-            #(ext-tail strn n (first tcenters) centers)
-            true
-            #(ext-centers strn n 
-                          (concat 
-                           (vector (min (first tcenters) (dec cdist))) 
-                           centers)
-                          (rest tcenters) (dec cdist))))
-
-          (ext-tail
-           [strn n curr-tail centers]
-           (cond 
-            (> n (dec (count strn)))
-            #(final-centers curr-tail centers
-                            (concat (vector curr-tail) centers))
-            (zero? (- n curr-tail))
-            #(ext-centers strn n 
-                          (concat (vector curr-tail) centers)
-                          centers curr-tail)
-            (= (nth strn n) (nth strn (- n curr-tail 1)))
-            #(ext-tail strn (inc n) (+ 2 curr-tail) centers)
-            true
-            #(ext-centers strn n
-                          (concat (vector curr-tail) centers)
-                          centers curr-tail)))
-          
-          (pal-around-centers
-           [strn]
-           (reverse (trampoline #(ext-tail strn 0 0 []))))]
-
-    (pal-around-centers text)))
-
-
-
-;; This looks like a slightly updated version using lists instead of vectors.
-;; https://code.google.com/p/jngmisc/source/browse/clojure/palindromes/palindromes.clj
-(defn longest-pals-fast
-  "O(n) time & space complexity"
-  [text]
-
-  (letfn [(final-centers
-           [n tcenters centers]
-           (cond
-            (<= n 1)
-            centers
-            true
-            (let [n (dec n)]
-              (recur n
-                     (rest tcenters)
-                     (cons (min (first tcenters) n)
-                           centers)))))
-
-          (ext-centers
-           [strn n centers tcenters cdist]
-           (cond
-            (= 0 cdist)
-            #(ext-tail strn (inc n) 1 centers)
-            (= (dec cdist) (first tcenters))
-            #(ext-tail strn n (first tcenters) centers)
-            true
-            #(ext-centers strn n
-                          (cons (min (first tcenters) (dec cdist))
-                                centers)
-                          (rest tcenters) (dec cdist))))
-
-          (ext-tail
-           [strn n curr-tail centers]
-           (cond
-            (> n (dec (count strn)))
-            #(final-centers curr-tail centers
-                            (cons curr-tail centers))
-            (= (- n curr-tail) 0)
-            #(ext-centers strn n
-                          (cons curr-tail centers)
-                          centers curr-tail)
-            (= (nth strn n) (nth strn (- n curr-tail 1)))
-            #(ext-tail strn (inc n) (+ 2 curr-tail) centers)
-            true
-            #(ext-centers strn n
-                          (cons curr-tail centers)
-                          centers curr-tail)))
-
-          (pal-around-centers
-           [strn]
-           (reverse (trampoline #(ext-tail strn 0 0 ()))))]
-
-    (pal-around-centers text)))
-
+;; apparently moved to
+;; http://jng.imagine27.com/index.php/2009-12-25-174540_palindromes_clojure.html
+;;
+;; The author seems to be a Clojure newbie.  I used to have the code here to see what I
+;; could do with it. Not good Clojure code.  Deleted.
+;;
 ;; ----------------------------------------------------------------------
 
 
@@ -232,4 +125,174 @@
   (let [cs (seq s)
         cv (vec cs)]
     (= cs (rseq cv))))
+
+
+;; ----------------------------------------------------------------------
+
+;; An exercise from Apropos Clojure #18 video cast:
+;; https://www.youtube.com/watch?v=elF9BPa0Np4
+
+;; Their solution is something like this...
+
+(defn substrings [s]
+  (let [mx (inc (count s))]
+    (for [start (range mx)
+          end (range (inc start) mx)]
+      (subs s start end))))
+
+(defn longest-palindrome [s]
+  "Return the longest substring of s that is a palindrome"
+  (apply max-key count (filter palindrome? (substrings s))))
+
+
+
+;; SEM but it's slow to build strings and tear them apart
+;; do all your work in vectors and indices
+;; try longer stuff first
+
+;; first, build the strings in length order
+(defn substrings1 [s]
+  (let [cnt (count s)]
+    (for [len (range cnt 0 -1)
+          start (range (inc (- cnt len)))
+          :let [end (+ start len)]]
+      (subs s start end))))
+
+;; No need to max-key, the first palindrome is the longest by construction now.  Laziness
+;; lets the process terminate as soon a a palindrome substring is generated.  The smaller
+;; substrings are not realized.
+
+(defn longest-palindrome1 [s]
+  "Return the longest substring of s that is a palindrome"
+  (first (filter palindrome? (substrings1 s))))
+
+
+
+
+(defn subvec-pal1? [v start end]
+  ;; start inclusive, end exclusive
+  (let [sv (subvec v start end)]
+    (= (seq sv) (rseq sv))))
+
+
+
+(defn indices-by-length [cnt]
+  (for [len (range cnt -1 -1)
+        start (range (- cnt len))]
+    [start (+ start len 1)]))
+
+;; SEM -- much faster to just work the indices, with longest candidates first
+(defn long-pal1 [s]
+  (let [vc (vec s)
+        pairs (indices-by-length (count vc))
+        [start end] (first (filter (fn [[start end]] (subvec-pal1? vc start end)) pairs))]
+    (when start
+      (subs s start end))))
+
+
+
+
+
+(defn subvec-pal? [v start end]
+  (loop [front start back (dec end)]
+    (or (>= front back)
+        (and (= (v front) (v back))
+             (recur (inc front) (dec back))))))
+
+(defn long-pal2 [s]
+  (let [vc (vec s)
+        cnt (count vc)]
+    (first (for [len (range cnt 0 -1)
+                 start (range (inc (- cnt len)))
+                 :let [end (+ start len)]
+                 :when (subvec-pal? vc start end)]
+             (subs s start end)))))
+
+
+
+
+(when-not (satisfies?   clojure.core.protocols/IKVReduce (subvec [1] 0))
+  (extend-type clojure.lang.APersistentVector$SubVector
+    clojure.core.protocols/IKVReduce
+    (kv-reduce
+      [subv f init]
+      (let [cnt (.count subv)]
+        (loop [k 0 ret init]
+          (if (< k cnt)
+            (let [val (.nth subv k)
+                  ret (f ret k val)]
+              (if (reduced? ret)
+                @ret
+                (recur (inc k) ret)))
+            ret))))))
+
+
+
+;; slower
+(defn subvec-pal2? [v start end]
+  (let [sv (subvec v start end)
+        cnt (count sv)]
+    (reduce-kv (fn [r i c]
+                 (cond (>= i r) (reduced true)
+                       (not= (sv i) (sv r)) (reduced false)
+                       :else (dec r)))
+               (dec cnt)
+               sv)))
+
+;; not better
+(defn subvec-pal3? [v start end]
+  (let [sv (subvec v start (quot (+ start end) 2))
+        rsv (subvec v (quot (+ start end 1) 2) end)]
+    (= (seq sv) (rseq rsv))))
+
+;; not better
+(defn subvec-pal4? [v start end]
+  (let [sv (subvec v start end)]
+    (= (seq sv) (rseq sv))))
+
+(defn long-pal2f [spalfn s]
+  (let [vc (vec s)
+        cnt (count vc)]
+    (first (for [len (range cnt 0 -1)
+                 start (range (inc (- cnt len)))
+                 :let [end (+ start len)]
+                 :when (spalfn vc start end)]
+             (subs s start end)))))
+
+
+;;; Fastest implementation is to use interop to access chars in string.  Don't create new
+;;; strings.  Don't need to vectorize.  Just .charAt.  Still important to consider longest
+;;; candidates first.
+
+(defn substr-pal? [^String s start end]
+  (loop [front start back (dec end)]
+    (or (>= front back)
+        (and (= (.charAt s front) (.charAt s back))
+             (recur (inc front) (dec back))))))
+
+;; fastest  
+(defn long-pal [^String s]
+  (let [cnt (.length s)]
+    (first (for [len (range cnt 0 -1)
+                 start (range (inc (- cnt len)))
+                 :let [end (+ start len)]
+                 :when (substr-pal? s start end)]
+             (subs s start end)))))
+
+
+(def aman "amanaplanacanalpanama")
+(def junkman (str "aabbccddeeef" aman))
+
+(defn smoke [palfn]
+  (assert (= "a" (palfn "a")))
+  (assert (= "aba" (palfn "abax")))
+  (assert (= aman (palfn junkman)))
+  aman)
+
+
+
+
+;; SEM: probably should start search in middle of string??? and build out like A* or do
+;; jumps of your current width like Boyer-Moore.  I guess that's what was supposed to happen
+;; with the CL ports, but they're not quite right.
 

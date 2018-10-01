@@ -18,7 +18,7 @@
                  ;; [com.velisco/herbert "0.6.1"]
                   [com.velisco/herbert "0.7.0"]
                  [org.clojure/algo.monads "0.1.6"]
-                 [org.clojure/tools.trace "0.7.9"]
+                 [org.clojure/tools.trace "0.7.10"]
                  ;; [org.clojure/core.match "0.2.2"]
                  [org.clojure/core.match "0.3.0-alpha3"]
                  [com.velisco/halfbaked "0.2.3"]
@@ -28,7 +28,7 @@
                  [digest "1.4.8"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
-  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.10.0-alpha6"]
+  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.10.0-alpha7"]
                                    ;; [org.clojure/core.async "0.4.474"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.4"]]}
