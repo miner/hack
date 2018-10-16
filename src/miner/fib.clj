@@ -50,6 +50,7 @@
 (set! *unchecked-math* :warn-on-boxed)
 
 
+
 ;; Classic fib, but gets slow because recursion uses too much stack
 (defn fibc ^long [^long n]
   ;; assumes not-neg n
@@ -72,7 +73,51 @@
 (def memo-fib (memoize mfib))
 
 
-  
+
+
+
+;; Simple and reasonable with growing vector, returns N elements
+(defn nfibs [^long n]
+  (if (< n 2)
+    (vec (range (inc n)))
+    (reduce  (fn [v ^long i]
+               (conj v (+ ^long (nth v (dec i))
+                          ^long (nth v (dec (dec i))))))
+             [0 1]
+             (range 2 n))))
+
+(defn pfibs [^long n]
+  (if (< n 2)
+    (vec (range (inc n)))
+    (reduce  (fn [v ^long i]
+               (conj v (+ ^long (peek v)
+                          ^long (peek (pop v)))))
+             [0 1]
+             (range 2 n))))
+
+
+;; returns exactly Nth element
+(defn nfib [^long n]
+  (if (< n 2)
+    n
+    (peek (reduce  (fn [v ^long i]
+               (conj v (+ ^long (nth v (dec i))
+                          ^long (nth v (dec (dec i))))))
+             [0 1]
+             (range 2 (inc n))))))
+
+(defn pfib [^long n]
+  (if (< n 2)
+    n
+    (peek (reduce  (fn [v ^long i]
+               (conj v (+ ^long (peek v)
+                          ^long (peek (pop v)))))
+             [0 1]
+             (range 2 (inc n))))))
+
+
+
+
 ;; The original algorithm was for 32-bit int N, which is more than enough for most people,
 ;; but technically Clojure uses 64-bit long integers so I want to note that here.
 
@@ -306,13 +351,13 @@
 ;;; lazy, caching versions, use `take` to get what you want
 ;;; clever but never release the cached values
 
-;; from C. Grand
+;; from Christophe Grand many years ago on the mailing list.
 ;; also attributed to @ghoseb
 (def cgfibs (map first (iterate (fn [[^long a ^long b]] [b (+ a b)]) [0 1])))
 
 ;; project Euler #2
 (defn euler2 []
-  (transduce (comp (take-while #(< % 4000000)) (filter even?)) + 0 cgfibs))
+  (transduce (comp (take-while #(< ^long % 4000000)) (filter even?)) + 0 cgfibs))
 
 
 #_ (take 15 cgfibs)
@@ -428,3 +473,40 @@
     1 1
     (+ (myfib (dec n)) (myfib (inc n)))))
 
+
+
+
+
+;; very old thread on mailing list
+;; https://groups.google.com/forum/#!topic/clojure/V6EvGg2rXhs
+
+(defn fib 
+  ([n] 
+     (fib n 1)) 
+  ([n b] 
+     (if (zero? b)                        ;calculate lucas numbers 
+       (cond 
+        (zero? n) 2 
+        (= n 1) 1 
+        :otherwise 
+        (if (even? n) 
+          (let [ k (/ n 2) 
+                 l (fib k 0)] 
+            (+ (* l l) (if (even? k) -2 2))) 
+          (let [ k (- n 1) 
+                 l (fib k 0) 
+                 f (fib k 1)] 
+            (/ (+ (* 5 f) l) 2)))) 
+       (cond                                ;calculate fibonacci numbers 
+        (zero? n) 0 
+        (= n 1) 1 
+        :otherwise 
+        (if (even? n) 
+          (let [ k (/ n 2) 
+                 l (fib k 0) 
+                 f (fib k 1)] 
+            (* f l)) 
+          (let [ k (- n 1) 
+                 l (fib k 0) 
+                 f (fib k 1)] 
+            (/ (+ f l) 2))))))) 

@@ -134,6 +134,9 @@
 
 ;; Their solution is something like this...
 
+(defn palindrome? [s]
+  (= (seq s) (reverse s)))
+
 (defn substrings [s]
   (let [mx (inc (count s))]
     (for [start (range mx)
@@ -165,6 +168,16 @@
 (defn longest-palindrome1 [s]
   "Return the longest substring of s that is a palindrome"
   (first (filter palindrome? (substrings1 s))))
+
+
+
+(defn palindrome2? [s]
+  (= s (clojure.string/reverse s)))
+
+(defn longest-palindrome2 [s]
+  (first (filter palindrome2? (substrings1 s))))
+
+
 
 
 
@@ -260,6 +273,26 @@
              (subs s start end)))))
 
 
+
+
+
+;; pure Clojure, no Java
+(defn substr-pal5? [s start end]
+  (loop [front start back (dec end)]
+    (or (>= front back)
+        (and (= (nth s front) (nth s back))
+             (recur (inc front) (dec back))))))
+
+(defn long-pal5 [s]
+  (let [cnt (count s)]
+    (first (for [len (range cnt 0 -1)
+                 start (range (inc (- cnt len)))
+                 :let [end (+ start len)]
+                 :when (substr-pal2? s start end)]
+             (subs s start end)))))
+
+
+
 ;;; Fastest implementation is to use interop to access chars in string.  Don't create new
 ;;; strings.  Don't need to vectorize.  Just .charAt.  Still important to consider longest
 ;;; candidates first.
@@ -280,15 +313,97 @@
              (subs s start end)))))
 
 
+
+
+
 (def aman "amanaplanacanalpanama")
-(def junkman (str "aabbccddeeef" aman))
 
 (defn smoke [palfn]
-  (assert (= "a" (palfn "a")))
-  (assert (= "aba" (palfn "abax")))
-  (assert (= aman (palfn junkman)))
-  aman)
+  (let [aman "amanaplanacanalpanama"
+        junkman (str "aabbccddeeef" aman "xyz")]
+    (assert (= "a" (palfn "a")))
+    (assert (= "aba" (palfn "abax")))
+    (assert (= aman (palfn junkman)))
+    aman))
 
+
+(defn demunge [fnx]
+  (let [s (str fnx)
+        at (clojure.string/last-index-of s "@")
+        fname (if at (subs s 0 at) s)]
+    (keyword (clojure.main/demunge fname))))
+        
+
+(defn ben [& palfns]
+  (doseq [palfn palfns]
+    (println (demunge palfn))
+    (let [result (criterium.core/quick-benchmark (smoke palfn) nil)]
+      (println (first (:mean result)))
+      (println))))
+
+
+(defn abs [n] (if (neg? n) (- n) n))
+
+(defn default-keys [row]
+  (reduce-kv (fn [r k v] (conj r (if (number? v) k [k])))
+             []
+             row))
+
+
+;; SEM:  would be better to use Doric lib.  https://github.com/joegallo/doric
+
+;; hacked version of clojure.pprint/print-table
+;; I want symbols, strings and keywords to print left justified. Only numbers right-justified.
+(defn my-print-table
+  "Prints a collection of maps in a textual table. Prints table headings
+   ks, and then a line of output for each row, corresponding to the keys
+   in ks. If ks are not specified, use the keys of the first item in rows."
+  {:added "1.3"}
+  ([ks rows]
+     (when (seq rows)
+       (let [widths (map
+                     (fn [k]
+                       (let [right? (vector? k)
+                             k (if right? (first k) k)
+                             width (apply max (count (str k)) (map #(count (str (get % k)))
+                                                                   rows))]
+                         (if right? (- width) width)))
+                     ks)
+             ks (map (fn [k] (if (vector? k) (first k) k)) ks)
+             spacers (map #(apply str (repeat % "-")) (map abs widths))
+             fmts (map #(str "%" % "s") widths)
+             fmt-row (fn [leader divider trailer row]
+                       (str leader
+                            (apply str (interpose divider
+                                                  (for [[col fmt] (map vector (map #(get row %) ks) fmts)]
+                                                    (format fmt (str col)))))
+                            trailer))]
+         (println)
+         (println (fmt-row "| " " | " " |" (zipmap ks ks)))
+         (println (fmt-row "|-" "-+-" "-|" (zipmap ks spacers)))
+         (doseq [row rows]
+           (println (fmt-row "| " " | " " |" row))))))
+  ([rows] (my-print-table (default-keys (first rows)) rows)))
+
+
+
+
+(defn prben [& palfns]
+  (let [results  (reduce (fn [res palfn]
+                           (assoc res (demunge palfn)
+                                  (first (:mean (criterium.core/quick-benchmark
+                                                 (smoke palfn)
+                                                 nil)))))
+                         {}
+                         palfns)
+        [fastest fast] (apply min-key val results)
+        relatives (reduce (fn [r [k v]] (conj r {:palfn (name k) :mean v
+                                                 :relative (/ (long (/ (* 100.0 v) fast))
+                                                              100.0)}))
+                          []
+                          (sort-by val results))]
+    (println "Fastest: " (name fastest))
+    (my-print-table [[:palfn] :relative :mean] relatives)))
 
 
 
@@ -296,3 +411,8 @@
 ;; jumps of your current width like Boyer-Moore.  I guess that's what was supposed to happen
 ;; with the CL ports, but they're not quite right.
 
+(defn palstr? [^String s]
+  (loop [front 0 back (dec (.length s))]
+    (or (>= front back)
+        (and (= (.charAt s front) (.charAt s back))
+             (recur (inc front) (dec back))))))
