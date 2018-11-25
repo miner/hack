@@ -74,8 +74,6 @@
 
 
 
-
-
 ;; Simple and reasonable with growing vector, returns N elements
 (defn nfibs [^long n]
   (if (< n 2)
