@@ -141,3 +141,25 @@
              (reduce (fn [counts x]
                        (assoc counts x (inc (get counts x 0))))
                       {} coll)))
+
+
+
+(defn recurse
+  "Calls `f` on `init` and recursively on the result `n` times.  N=0 returns `init`."
+[f init ^long n]
+  (loop [z n res init]
+    (if (zero? z)
+      res
+      (recur (dec z) (f res)))))
+
+
+(defn recursively
+  [f init pred2]
+  "Calls `f` on `init` and recursively on the result until `pred2` returns true.  The
+`pred2` predicate is called with two arguments, the interim result and the current recursion
+depth.  The iterim result starts as `init` at depth 0 before `f` is called."
+  (loop [depth 0 res init]
+    (if (pred2 res depth)
+      res
+      (recur (inc depth) (f res)))))
+
