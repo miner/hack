@@ -1,5 +1,5 @@
 (ns miner.rps
-  (:require [clojure.core.async :refer :all]))
+  (:require [clojure.core.async :refer [>! <! chan go <!!] :as a]))
 
 ;; original: https://gist.github.com/puredanger/5965883
 
@@ -38,7 +38,7 @@
   ([] (init "Alice" "Bob"))
   ([n1 n2] (judge (rand-player n1) (rand-player n2))))
 
-(defn report
+(defn report-results
   "Report results of a match to the console."
   [[name1 move1] [name2 move2] winner]
   (println)
@@ -49,7 +49,7 @@
 (defn play
   "Play by taking a match reporting channel and reporting the results of the latest match."
   [out-chan]
-  (apply report (<!! out-chan)))
+  (apply report-results (<!! out-chan)))
 
 (defn play-many
   "Play n matches from out-chan and report a summary of the results."

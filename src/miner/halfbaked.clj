@@ -609,11 +609,19 @@ As with `case`, constants must be compile-time literals, and need not be quoted.
       (bench ~@exprs))))
 
 ;; adapted from "guns" self@sungpae.com on the ML
-;; not sure about needing the reverse
 (defmacro dump-locals [label]
  `(do (println  "; locals" ~label)
       (clojure.pprint/pprint
-       ~(into {} (map (fn [x] [`'~x x]) (reverse (keys &env)))))))
+       ~(into {} (map (fn [x] [`'~x x]) (keys &env))))))
+
+;; another variation by @clojuregrams on twitter
+(defmacro locals []
+ (into {}
+  (map (juxt name identity))
+  (keys &env)))
+
+
+
 
 ;; http://stackoverflow.com/questions/11579804/clojure-reduce-with-three-parameters
 ;;

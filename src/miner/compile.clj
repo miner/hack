@@ -17,6 +17,14 @@
 )
 
 
+;; by @clojuregrams on twitter
+(defmacro locals []
+ (into {}
+  (map (juxt name identity))
+  (keys &env)))
+
+
+
 ;; Robert Luo <lt@basecity.com> on Clojure mailing list
 
 (defmacro opt-require
