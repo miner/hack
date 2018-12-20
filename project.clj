@@ -10,7 +10,7 @@
                  [org.clojure/tools.macro "0.1.5"]
                  [org.clojure/data.priority-map "0.0.10"]
                  [com.datomic/datomic-free "0.9.5697"  :exclusions [joda-time]]
-                 [instaparse "1.4.9"]
+                 [instaparse "1.4.10"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "0.8.11"]
                  [quil "2.8.0"]
