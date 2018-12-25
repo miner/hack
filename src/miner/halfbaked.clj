@@ -857,6 +857,14 @@ are nil.  That is, there are no conflicting values, ignoring nil."
          guess
          (recur f guess' (dec limit) eq?))))))
 
+
+;; for exact = fixed-point
+(defn exact-fixed-point [f x]
+  "Calculates the fixed point of f with respect to x."
+  (reduce #(if (= %1 %2) (reduced %1) %2)
+    (iterate f x)))
+
+
 ;; SEM rewrite with converge-seq (below)
 (defn converge-seq-or-throw
   "Eager iteration of f, starting with n.  Terminates when result is repeated
