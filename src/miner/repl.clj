@@ -1,6 +1,8 @@
 
 (ns miner.repl
-  (:require clojure.repl))
+  (:require [clojure.repl :as repl]
+            [clojure.java.io :as io]
+            [clojure.java.shell :as sh]))
 
 ;; https://gist.github.com/2049970
 ;; ghoseb via cgrand
@@ -48,3 +50,28 @@
                      (map @#'clojure.repl/special-doc (keys @#'clojure.repl/special-doc-map)))]
       (doseq [m (filter (fn [m] (and (:doc m) (re-matches re (str (:name m))))) ms)]
         (#'clojure.repl/print-doc m))))
+
+
+;; Not perfect, but useful for Clojure functions defined with source code.  Not so much for
+;; anonymous functions.
+(defn as-symbol [x]
+  (if (fn? x)
+    (symbol (repl/demunge (str/replace-first (pr-str (type x)) #"__\d+$" "")))
+    (let [sym (symbol x)]
+      (if (qualified-symbol? sym)
+        sym
+        (if-let [vr (resolve sym)]
+          (symbol vr)
+          sym)))))
+
+;; opendiff is Mac-only.  On other platforms, subsitute your diff tool.
+
+;; hard-coding the /tmp files saves some churn in /tmp
+(defn fdiff [fn1 fn2]
+  (let [fn1 (as-symbol fn1)
+        fn2 (as-symbol fn2)]
+    (spit "/tmp/fdiff-1.clj" (repl/source-fn fn1))
+    (spit "/tmp/fdiff-2.clj" (repl/source-fn fn2))
+    (sh/sh "/usr/bin/opendiff" "/tmp/fdiff-1.clj" "/tmp/fdiff-2.clj")
+    (list 'fdiff fn1 fn2)))
+
