@@ -71,3 +71,38 @@
 
 
 
+
+
+
+
+;; WIP -- trying to be normal Clojure
+;; need a reduce/iterate-ish thing that runs to zero internal state and yields a result
+;; like (converge step pred init)
+
+(defn converge2 [pred2 stepfn init]
+  (loop [state init step 0]
+    (if (pred2 state step)
+      state
+      (recur (stepfn state step) (inc step)))))
+
+
+(defn converge3 [pred3 stepfn init]
+  (loop [old nil state init step 0]
+    (if (pred3 old state step)
+      [state step]
+      (recur state (stepfn state (inc step)) (inc step)))))
+
+(defn fn1 [f]
+  (fn ([x] (f x)) ([x & _] (f x))))
+
+
+(defn fn2 [f]
+  (fn ([_ x] (f x)) ([_ x & _] (f x))))
+
+
+(defn converge [pred2 stepfn init]
+  (loop [state init step 0]
+    (if (pred2 state step)
+      [state step]
+      (recur (stepfn state step) (inc step)))))
+

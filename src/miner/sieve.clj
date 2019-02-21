@@ -1,14 +1,29 @@
-(ns miner.sieve)
+(ns miner.sieve
+  (:require [clojure.data.int-map :as im]
+            [clojure.core.rrb-vector :as fv]
+            [clojure.data.avl :as avl]))
+
+
+;; https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes
 
 ;;; SEM: use rem instead of mod -- it's a bit faster
 ;;; obvious from looking at source
 
+;; convert infinite, lazy no-arg (nullary) to limited one-arg (unary)
+(defn twf [infinite-fn]
+  (fn [limit]
+    (take-while #(< % limit) (infinite-fn))))
+
+
+
 
 ;;; mailing list discussion:
-;;http://groups.google.com/group/clojure/browse_thread/thread/735a485e385c6eb7/0a5c1ac268980c6d?#0a5c1ac268980c6d
+;; http://groups.google.com/group/clojure/browse_thread/thread/735a485e385c6eb7/0a5c1ac268980c6d?#0a5c1ac268980c6d
 
 ;; See also cgrand ideas:
 ;; http://clj-me.cgrand.net/2009/07/30/everybody-loves-the-sieve-of-eratosthenes/
+
+;; I suspect that cgrand's algorithm is really Disjkstra's Primes, not the Sieve of E
 
 (defn lazy-primes3 []
   (letfn [(enqueue [sieve n step]
@@ -52,6 +67,33 @@
                 (lazy-seq (next-primes (next-sieve! sieve candidate)
                             (+ candidate 2))))))]
     (cons 2 (lazy-seq (next-primes (transient {}) 3)))))
+
+
+
+(defn cg-primes
+  ([]  (letfn [(enqueue! [sieve n step]
+                 (let [m (+ n step)]
+                   (if (sieve m)
+                     (recur sieve m step)
+                     (assoc! sieve m step))))
+               (next-sieve! [sieve candidate]
+                 (if-let [step (sieve candidate)]
+                   (-> sieve
+                       (dissoc! candidate)
+                       (enqueue! candidate step))
+                   (enqueue! sieve candidate (+ candidate candidate))))
+               (next-primes [sieve candidate]
+                 (if (sieve candidate)
+                   (recur (next-sieve! sieve candidate) (+ candidate 2))
+                   (cons candidate
+                         (lazy-seq (next-primes (next-sieve! sieve candidate)
+                                                (+ candidate 2))))))]
+         (cons 2 (lazy-seq (next-primes (transient {}) 3)))))
+  ([limit]
+   (take-while #(< % limit) (cg-primes))))
+
+
+
 
 ;; Of course, in a real app, you'd probably just pre-compute a limited set of primes that
 ;; you might need.  The lazy-infinite-primes (as a lazy seq, not function) is a good
@@ -104,12 +146,13 @@
 
 
 
+
 ;; https://clojuredocs.org/clojure.core/lazy-seq
 ;; I renamed lazy-sieve so I could hack on it
 (defn lazy-sieve [s]
   (cons (first s)
         (lazy-seq (lazy-sieve (filter #(not= 0 (rem % (first s)))
-                                 (rest s))))))
+                                      (rest s))))))
 
 (take 20 (lazy-sieve (iterate inc 2)))
 ;; (2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71)
@@ -220,7 +263,7 @@
 
 
 (defn regex-prime? [n]
-  ;; slow but wonderful
+  ;; slow but amazing that it works at all
   (not (re-matches #"1?|(11+?)\1+" (apply str (repeat n "1")))))
 
 (defn regex-primes []
@@ -274,3 +317,87 @@
 
 
 ;; See also dijkstra_primes.clj for another algorithm
+
+
+
+
+;; ordered-set is too slow, better to sort at end
+;; but even with transient set the sort is too slow
+
+;; Translated from pseudocode on Wikipedia
+(defn classic-sieve
+  "Returns sequence of primes less than N"
+  [n]
+  (loop [nums (transient (vec (range n))) i 2]
+    (cond
+     (> (* i i) n) (remove nil? (nnext (persistent! nums)))
+     (nums i) (recur (loop [nums nums j (* i i)]
+                       (if (< j n)
+                         (recur (assoc! nums j nil) (+ j i))
+                         nums))
+                     (inc i))
+     :else (recur nums (inc i)))))
+
+
+;; slow compared to classic-sieve
+;; need to adjust from limit down, as algo goes to 2n + 2
+
+;; https://en.wikipedia.org/wiki/Sieve_of_Sundaram
+
+;; NOTE: my first attempt used :when but it's much better to use :while in the for
+;; comprehension.
+
+;; much faster with transients
+;; and simplified with more inlined calcs
+;; simplified limit to n  to avoid inc/dec
+;; transducer style looks a little nicer, but not much performance improvement over obvious
+
+;; still twice as slow as classic-sieve but at least it's competitive with some others
+(defn sundaram [limit]
+  (let [n (quot (inc limit) 2) ]
+    (into [2]
+          (comp (remove nil?) (map #(inc (* 2 %))))
+          (rest (persistent! (reduce (fn [res x] (assoc! res x nil))
+                                     (transient (vec (range n)))
+                                     (for [j (range 1 n)
+                                           i (range 1 (inc j))
+                                           :let [c (+ i j (* 2 i j))]
+                                           :while (< c n)]
+                                       c)))))))
+
+
+
+
+;; highest prime less than 100000
+(def phk 99991)
+
+;; for Eric Normand PurelyFunctional.tv newsletter
+(defn en-test [f]
+  (let [result (f 100000)]
+    (assert (every? true? (map = primes-300 result)))
+    (assert (= (last result) 99991))
+    (assert (= (reduce + 0 result) 454396537)))
+  99991)
+
+(defn smoke-test
+  ([f] (smoke-test f 100))
+  ([f n] (smoke-test f n nil))
+  ([f n coll]
+   (let [res (or coll (f n))]
+   (assert (every? true? (map = res primes-300)))
+   (last res))))
+
+
+
+(require '[criterium.core :as c])
+
+(defn ben [& fs]
+  (doseq [f fs]
+    (println)
+    (println (str f))
+    (c/quick-bench (en-test f))))
+
+
+
+
+

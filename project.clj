@@ -6,6 +6,7 @@
                  [org.clojure/math.combinatorics "0.1.4"]
                  [org.clojure/data.int-map "0.2.4"]
                  [org.clojure/data.avl "0.0.18"]
+                 [org.clojure/core.rrb-vector "0.0.14"]
                  [org.clojure/core.async "0.4.490"]
                  [org.clojure/tools.macro "0.1.5"]
                  [org.clojure/data.priority-map "0.0.10"]
