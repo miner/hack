@@ -70,7 +70,7 @@
 
 
 
-(defn cg-primes
+(defn cg-primes-standard
   ([]  (letfn [(enqueue! [sieve n step]
                  (let [m (+ n step)]
                    (if (sieve m)
@@ -90,7 +90,127 @@
                                                 (+ candidate 2))))))]
          (cons 2 (lazy-seq (next-primes (transient {}) 3)))))
   ([limit]
-   (take-while #(< % limit) (cg-primes))))
+   (take-while #(< % limit) (cg-primes-standard))))
+
+
+;; slightly faster with int-map
+(defn cg-primes
+  ([]  (letfn [(enqueue! [sieve n step]
+                 (let [m (+ n step)]
+                   (if (sieve m)
+                     (recur sieve m step)
+                     (assoc! sieve m step))))
+               
+               (next-sieve! [sieve candidate]
+                 (if-let [step (sieve candidate)]
+                   (-> sieve
+                       (dissoc! candidate)
+                       (enqueue! candidate step))
+                   (enqueue! sieve candidate (+ candidate candidate))))
+               
+               (next-primes [sieve candidate]
+                 (if (sieve candidate)
+                   (recur (next-sieve! sieve candidate) (+ candidate 2))
+                   (cons candidate
+                         (lazy-seq (next-primes (next-sieve! sieve candidate)
+                                                (+ candidate 2))))))]
+         
+         (cons 2 (lazy-seq (next-primes (transient (im/int-map)) 3)))))
+  
+  ([limit]   (take-while #(< % limit) (cg-primes))))
+
+
+;; faster if you skip dissoc! but probably uses more memory
+(defn cg-primes2
+  ([]  (letfn [(enqueue! [sieve n step]
+                 (let [m (+ n step)]
+                   (if (sieve m)
+                     (recur sieve m step)
+                     (assoc! sieve m step))))
+               
+               (next-sieve! [sieve candidate]
+                 (if-let [step (sieve candidate)]
+                   (-> sieve
+                       ;; (dissoc! candidate)
+                       (enqueue! candidate step))
+                   (enqueue! sieve candidate (+ candidate candidate))))
+               
+               (next-primes [sieve candidate]
+                 (if (sieve candidate)
+                   (recur (next-sieve! sieve candidate) (+ candidate 2))
+                   (cons candidate
+                         (lazy-seq (next-primes (next-sieve! sieve candidate)
+                                                (+ candidate 2))))))]
+         
+         (cons 2 (lazy-seq (next-primes (transient (im/int-map)) 3)))))
+  
+  ([limit]   (take-while #(< % limit) (cg-primes2))))
+
+;; don't dissoc! for performance
+;; use int-map for performance
+;; limit=nil for infinite, othewise max candidate to consider
+(defn cg-primes3
+  ([] (cg-primes3 nil))
+  ([limit]
+   (letfn [(enqueue! [sieve n step]
+             (let [m (+ n step)]
+               (if (sieve m)
+                 (recur sieve m step)
+                 (assoc! sieve m step))))
+           
+           (next-sieve! [sieve candidate]
+             (if-let [step (sieve candidate)]
+               (-> sieve
+                   ;; (dissoc! candidate)
+                   (enqueue! candidate step))
+               (enqueue! sieve candidate (+ candidate candidate))))
+           
+           (next-primes [sieve candidate]
+             (when (or (nil? limit) (< candidate limit))
+               (if (sieve candidate)
+                 (recur (next-sieve! sieve candidate) (+ candidate 2))
+                 (cons candidate
+                       (lazy-seq (next-primes (next-sieve! sieve candidate)
+                                              (+ candidate 2)))))))]
+     
+     (cons 2 (lazy-seq (next-primes (transient (im/int-map)) 3))))))
+  
+
+
+
+
+;; don't call dissoc!
+;; simpler and faster but doesn't clear old location so probably uses more memory
+
+;; [org.clojure/data.int-map "0.2.4"]
+;; (require '[clojure.data.int-map :as im])
+
+(defn oprimes
+  ([] (oprimes nil))
+
+  ([limit]
+   (let [update-sieve! (fn [sieve c step]
+                         (let [c2 (+ c step)]
+                           (if (sieve c2)
+                             (recur sieve c2 step)
+                             (assoc! sieve c2 step))))
+
+         next-primes (fn next-primes [sieve candidate]
+                       (when (or (nil? limit) (< candidate limit))
+                         (if-let [step (sieve candidate)]
+                           (recur (update-sieve! sieve candidate step) (+ candidate 2))
+                           (cons candidate
+                                 (lazy-seq (next-primes
+                                            (assoc! sieve (* candidate candidate) (* 2 candidate))
+                                            (+ candidate 2))))))) ]
+     
+     (cons 2 (lazy-seq (next-primes (transient (im/int-map)) 3))))))
+
+;;; skipping dissoc! for performance.
+;;; potential for saving memory, but it's slower...
+;;; (recur (dissoc! (update-sieve! sieve candidate step) candidate) (+ candidate 2))
+
+
 
 
 
@@ -337,6 +457,182 @@
                          nums))
                      (inc i))
      :else (recur nums (inc i)))))
+
+
+;; about the same speed so not worth it to use sqrt
+(defn cs7
+  "Returns sequence of primes less than N"
+  [n]
+  (let [nsqrt (long (inc (Math/sqrt n)))]
+  (loop [nums (transient (vec (range n))) i 2]
+    (cond
+     (> i nsqrt) (remove nil? (nnext (persistent! nums)))
+     (nums i) (recur (loop [nums nums j (* i i)]
+                       (if (< j n)
+                         (recur (assoc! nums j nil) (+ j i))
+                         nums))
+                     (inc i))
+     :else (recur nums (inc i))))))
+
+
+
+
+;;; SEM idea: do just odd primes
+;;; odd-prime_i = 2i+1
+;;; step by 2p to skip missing evens
+
+(defn csodd
+  "Returns sequence of primes less than N"
+  [n]
+  (let [nsqrt2 (inc (long (/ (Math/sqrt n) 2.0)))]
+    (loop [nums (transient (into [2] (range 3 n 2))) i 1]
+      (cond
+       (> i nsqrt2) (remove nil? (persistent! nums))
+       (nums i) (recur (let [step (* 2 (nums i))]
+                         (loop [nums nums j (* (nums i) (nums i))]
+                           (if (< j n)
+                             (recur (assoc! nums (quot j 2) nil) (+ j step))
+                             nums)))
+                       (inc i))
+       :else (recur nums (inc i))))))
+
+
+
+(defn cso4
+  "Returns sequence of primes less than N"
+  [n]
+  (let [nsqrt2 (inc (long (/ (Math/sqrt (double n)) 2.0)))]
+    (loop [nums (transient (into [2] (range 3 n 2))) i 1]
+      (cond
+       (> i nsqrt2) (remove nil? (persistent! nums))
+       (nums i) (recur (let [step (* 2 (nums i))]
+                         (loop [nums nums j (* (nums i) (nums i))]
+                           (if (< j n)
+                             (recur (assoc! nums (quot j 2) nil) (+ j step))
+                             nums)))
+                       (inc i))
+       :else (recur nums (inc i))))))
+
+;; quot 2 slightly faster than bitshift
+
+
+
+
+
+
+;; Idea about packing odds, sounds like Sundaram
+;; https://codereview.stackexchange.com/questions/28902/clojure-code-for-finding-prime-numbers
+
+;; Use packed array of odds, where index i represents value 2i+1. Then you don't have to
+;; deal with evens, which are all non-prime a priori (except the 2 of course). Then you can
+;; increment by 2*p for a prime p to find its odd multiples twice faster.
+;;
+;; For a non-marked index i, the prime p is p = 2*i+1, its square is p*p = (2i+1)(2i+1) =
+;; 4i^2 + 4i + 1 and its index is (p*p-1)/2 = 2i^2 + 2i = 2i(i+1) = (p-1)(i+1). For the value
+;; increment of 2*p, the index increment on 2x-packed array is di = p = 2i+1.
+
+;;; More ideas:
+;; https://rosettacode.org/wiki/Extensible_prime_generator#Clojure
+;; https://rosettacode.org/wiki/Sieve_of_Eratosthenes#Unbounded_Versions
+
+;; Good paper with Haskell examples:
+;; https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf
+;; "The Genuine Sieve of Eratosthenes"
+;; Melissa E. O’Neill
+;; Harvey Mudd College
+
+
+;; SEM -- total disaster that hidden def looks like a cache -- no fair and bad style.
+
+;; orig from Rosetta code based on O'Neill paper
+(defn ros-primes-hashmap
+  "Infinite sequence of primes using an incremental Sieve or Eratosthenes with a Hashmap"
+  []
+  (letfn [(nxtoddprm [c q bsprms cmpsts]
+            (if (>= c q) ;; only ever equal
+              (let [p2 (* (first bsprms) 2), nbps (next bsprms), nbp (first nbps)]
+                (recur (+ c 2) (* nbp nbp) nbps (assoc cmpsts (+ q p2) p2)))
+              (if (contains? cmpsts c)
+                (recur (+ c 2) q bsprms
+                       (let [adv (cmpsts c), ncmps (dissoc cmpsts c)]
+                         (assoc ncmps
+                                (loop [try (+ c adv)] ;; ensure map entry is unique
+                                  (if (contains? ncmps try)
+                                    (recur (+ try adv)) try)) adv)))
+                (cons c (lazy-seq (nxtoddprm (+ c 2) q bsprms cmpsts))))))]
+    (do (def baseoddprms (cons 3 (lazy-seq (nxtoddprm 5 9 baseoddprms {}))))
+        (cons 2 (lazy-seq (nxtoddprm 3 9 baseoddprms {}))))))
+
+
+;; SEM -- buggy to use def, but I accidentally depended on having that def when I thought I
+;; was accessing a local recursively.
+
+
+;; hacking by SEM
+;; TBA
+
+
+
+
+
+;; for benchmarking inf-primes-fn
+(defn p10k [f] (first (drop 10000 (f))))
+
+
+;;; Misguided stuff trying to estimate number of primes
+;; https://en.wikipedia.org/wiki/Prime_number_theorem
+
+;; (defn overestimated-prime-count [x]
+;;   (if (< x 10)
+;;     10
+;;     (let [x (double x)]
+;;       (+ 150 (long (/ x (Math/log x)))))))
+;; 
+;; 
+;; (defn estimated-prime-count [x]
+;;   (if (< x 10)
+;;     10
+;;     (let [x (double x)]
+;;       (inc (long (/ x (Math/log x)))))))
+;; 
+;; 
+
+;; by experiment to get 1.3 factor for safety
+(defn est-prime-count [x]
+  (if (< x 2)
+    1
+    (let [x (double x)]  (long (* 1.3 (/ x (Math/log x)))))))
+
+;; hack, 1.3 factor is an empirical kludge derived from tests with n < 1e6
+(defn limit-for-count [n]
+  (if (< n 10)
+    30
+    (let [n (double n)]
+      (long (* 1.0 n (Math/log n))))))
+;; maybe 1.2 factor is OK
+
+
+(defn pcounts [limit]
+  (let [pc (reduce-kv (fn [r i p] (into r (repeat (- p (count r)) i)))
+                      []
+                      (vec (classic-sieve limit)))]
+    pc
+#_    (reduce min Long/MAX_VALUE (map - (map est-prime-count (range limit)) pc))))
+
+(defn sieve-cnt [cnt]
+  (take cnt (classic-sieve (limit-for-count cnt))))
+
+(defn scnt [cnt]
+  (let [limit (* 2 (limit-for-count cnt))
+        pc (reduce-kv (fn [r i p] (into r (repeat (- p (count r)) i)))
+                      []
+                      (vec (classic-sieve limit)))
+        errors (map - (map limit-for-count (range limit)) pc)]
+       
+    [(reduce min Long/MAX_VALUE errors)
+     (reduce max Long/MIN_VALUE errors)]))
+
+
 
 
 ;; slow compared to classic-sieve
