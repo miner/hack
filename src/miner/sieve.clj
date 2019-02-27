@@ -1,13 +1,32 @@
 (ns miner.sieve
-  (:require [clojure.data.int-map :as im]
-            [clojure.core.rrb-vector :as fv]
-            [clojure.data.avl :as avl]))
+  (:require [clojure.data.int-map :as im]))
+
+;;            [clojure.core.rrb-vector :as fv]
+;;            [clojure.data.avl :as avl]
+
 
 
 ;; https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes
 
+
+;;; More ideas:
+;; https://rosettacode.org/wiki/Extensible_prime_generator#Clojure
+;; https://rosettacode.org/wiki/Sieve_of_Eratosthenes#Unbounded_Versions
+
+;; Good paper with Haskell examples:
+;; https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf
+;; "The Genuine Sieve of Eratosthenes"
+;; Melissa E. O’Neill
+;; Harvey Mudd College
+
+;; Note anything that does a bunch of divisions is not the genuine Sieve of E.  That's
+;; called trial division.  Read the paper for details.
+
+
+
 ;;; SEM: use rem instead of mod -- it's a bit faster
 ;;; obvious from looking at source
+
 
 ;; convert infinite, lazy no-arg (nullary) to limited one-arg (unary)
 (defn twf [infinite-fn]
@@ -15,15 +34,11 @@
     (take-while #(< % limit) (infinite-fn))))
 
 
-
-
 ;;; mailing list discussion:
 ;; http://groups.google.com/group/clojure/browse_thread/thread/735a485e385c6eb7/0a5c1ac268980c6d?#0a5c1ac268980c6d
 
-;; See also cgrand ideas:
+;; See also Christophe Grand ideas:
 ;; http://clj-me.cgrand.net/2009/07/30/everybody-loves-the-sieve-of-eratosthenes/
-
-;; I suspect that cgrand's algorithm is really Disjkstra's Primes, not the Sieve of E
 
 (defn lazy-primes3 []
   (letfn [(enqueue [sieve n step]
@@ -48,52 +63,10 @@
 
 
 ;; SEM: even faster with transients
-(defn trans-primes3 []
-  (letfn [(enqueue! [sieve n step]
-            (let [m (+ n step)]
-              (if (sieve m)
-                (recur sieve m step)
-                (assoc! sieve m step))))
-          (next-sieve! [sieve candidate]
-            (if-let [step (sieve candidate)]
-              (-> sieve
-                (dissoc! candidate)
-                (enqueue! candidate step))
-              (enqueue! sieve candidate (+ candidate candidate))))
-          (next-primes [sieve candidate]
-            (if (sieve candidate)
-              (recur (next-sieve! sieve candidate) (+ candidate 2))
-              (cons candidate
-                (lazy-seq (next-primes (next-sieve! sieve candidate)
-                            (+ candidate 2))))))]
-    (cons 2 (lazy-seq (next-primes (transient {}) 3)))))
-
-
-
-(defn cg-primes-standard
-  ([]  (letfn [(enqueue! [sieve n step]
-                 (let [m (+ n step)]
-                   (if (sieve m)
-                     (recur sieve m step)
-                     (assoc! sieve m step))))
-               (next-sieve! [sieve candidate]
-                 (if-let [step (sieve candidate)]
-                   (-> sieve
-                       (dissoc! candidate)
-                       (enqueue! candidate step))
-                   (enqueue! sieve candidate (+ candidate candidate))))
-               (next-primes [sieve candidate]
-                 (if (sieve candidate)
-                   (recur (next-sieve! sieve candidate) (+ candidate 2))
-                   (cons candidate
-                         (lazy-seq (next-primes (next-sieve! sieve candidate)
-                                                (+ candidate 2))))))]
-         (cons 2 (lazy-seq (next-primes (transient {}) 3)))))
-  ([limit]
-   (take-while #(< % limit) (cg-primes-standard))))
-
-
 ;; slightly faster with int-map
+
+;; faster if you skip dissoc! but probably uses more memory
+;; This is actually faster than oprimes but I don't know why?
 (defn cg-primes
   ([]  (letfn [(enqueue! [sieve n step]
                  (let [m (+ n step)]
@@ -104,7 +77,7 @@
                (next-sieve! [sieve candidate]
                  (if-let [step (sieve candidate)]
                    (-> sieve
-                       (dissoc! candidate)
+                       #_ (dissoc! candidate)
                        (enqueue! candidate step))
                    (enqueue! sieve candidate (+ candidate candidate))))
                
@@ -116,66 +89,9 @@
                                                 (+ candidate 2))))))]
          
          (cons 2 (lazy-seq (next-primes (transient (im/int-map)) 3)))))
-  
+
+  ;; but see oprimes for a better way to handle limit
   ([limit]   (take-while #(< % limit) (cg-primes))))
-
-
-;; faster if you skip dissoc! but probably uses more memory
-(defn cg-primes2
-  ([]  (letfn [(enqueue! [sieve n step]
-                 (let [m (+ n step)]
-                   (if (sieve m)
-                     (recur sieve m step)
-                     (assoc! sieve m step))))
-               
-               (next-sieve! [sieve candidate]
-                 (if-let [step (sieve candidate)]
-                   (-> sieve
-                       ;; (dissoc! candidate)
-                       (enqueue! candidate step))
-                   (enqueue! sieve candidate (+ candidate candidate))))
-               
-               (next-primes [sieve candidate]
-                 (if (sieve candidate)
-                   (recur (next-sieve! sieve candidate) (+ candidate 2))
-                   (cons candidate
-                         (lazy-seq (next-primes (next-sieve! sieve candidate)
-                                                (+ candidate 2))))))]
-         
-         (cons 2 (lazy-seq (next-primes (transient (im/int-map)) 3)))))
-  
-  ([limit]   (take-while #(< % limit) (cg-primes2))))
-
-;; don't dissoc! for performance
-;; use int-map for performance
-;; limit=nil for infinite, othewise max candidate to consider
-(defn cg-primes3
-  ([] (cg-primes3 nil))
-  ([limit]
-   (letfn [(enqueue! [sieve n step]
-             (let [m (+ n step)]
-               (if (sieve m)
-                 (recur sieve m step)
-                 (assoc! sieve m step))))
-           
-           (next-sieve! [sieve candidate]
-             (if-let [step (sieve candidate)]
-               (-> sieve
-                   ;; (dissoc! candidate)
-                   (enqueue! candidate step))
-               (enqueue! sieve candidate (+ candidate candidate))))
-           
-           (next-primes [sieve candidate]
-             (when (or (nil? limit) (< candidate limit))
-               (if (sieve candidate)
-                 (recur (next-sieve! sieve candidate) (+ candidate 2))
-                 (cons candidate
-                       (lazy-seq (next-primes (next-sieve! sieve candidate)
-                                              (+ candidate 2)))))))]
-     
-     (cons 2 (lazy-seq (next-primes (transient (im/int-map)) 3))))))
-  
-
 
 
 
@@ -185,34 +101,52 @@
 ;; [org.clojure/data.int-map "0.2.4"]
 ;; (require '[clojure.data.int-map :as im])
 
+
+;;; skipping dissoc! for performance.
+;;; potential for saving memory, but it's slower...
+
+;; this take-while limit does force us to calculate one extra prime
+;;
+;; could instead seed a zero at the limit to force a stop
+
+;; better limit handling if you want it
+;; neg means no limit
+;; need to special case limit=1 and 2.  Interally, limit must be marked on an odd candidate
+;; since we're skipping evens, but that's not visible to caller.
 (defn oprimes
   ([] (oprimes nil))
 
   ([limit]
-   (let [update-sieve! (fn [sieve c step]
-                         (let [c2 (+ c step)]
-                           (if (sieve c2)
-                             (recur sieve c2 step)
-                             (assoc! sieve c2 step))))
+   {:pre [(or (nil? limit) (int? limit))]}
+   (if (and limit (<= limit 2))
+     ()
+     (let [update-sieve! (fn [sieve c step]
+                           (if (sieve c)
+                             (recur sieve (+ c step) step)
+                             (assoc! sieve c step)))
 
-         next-primes (fn next-primes [sieve candidate]
-                       (when (or (nil? limit) (< candidate limit))
-                         (if-let [step (sieve candidate)]
-                           (recur (update-sieve! sieve candidate step) (+ candidate 2))
-                           (cons candidate
-                                 (lazy-seq (next-primes
-                                            (assoc! sieve (* candidate candidate) (* 2 candidate))
-                                            (+ candidate 2))))))) ]
-     
-     (cons 2 (lazy-seq (next-primes (transient (im/int-map)) 3))))))
-
-;;; skipping dissoc! for performance.
-;;; potential for saving memory, but it's slower...
-;;; (recur (dissoc! (update-sieve! sieve candidate step) candidate) (+ candidate 2))
-
-
-
-
+           next-primes
+           (fn next-primes [sieve candidate]
+             (if-let [step (sieve candidate)]
+               ;; magic zero step at limit
+               (when-not (zero? step)
+                 (recur (-> sieve
+                            (update-sieve! (+ candidate step) step)
+                            ;; better performance without dissoc!, but more memory
+                            #_ (dissoc! candidate))
+                        (+ candidate 2)))
+               (cons candidate (lazy-seq
+                                (next-primes (update-sieve! sieve
+                                                            (* candidate candidate)
+                                                            (* 2 candidate))
+                                             (+ candidate 2))))))
+           
+           composite-map (cond (nil? limit) (im/int-map)
+                               (odd? limit) (im/int-map limit 0)
+                               ;; marked limit must be odd since we're skipping evens
+                               :else (im/int-map (inc limit) 0))]
+       
+       (cons 2 (lazy-seq (next-primes (transient composite-map) 3)))))))
 
 
 ;; Of course, in a real app, you'd probably just pre-compute a limited set of primes that
@@ -481,6 +415,9 @@
 ;;; odd-prime_i = 2i+1
 ;;; step by 2p to skip missing evens
 
+;; (def unchecked-math *unchecked-math*)
+;; (set! *unchecked-math* :warn-on-boxed)
+
 (defn csodd
   "Returns sequence of primes less than N"
   [n]
@@ -496,28 +433,249 @@
                        (inc i))
        :else (recur nums (inc i))))))
 
+(defmacro aseta [arr i val]
+  `(let [arr# ~arr]
+     (aset arr# ~i ~val)
+     arr#))
+
+(defmacro aremove [f arr]
+  `(let [arr# ~(with-meta arr {:tag "[J"})
+         f# ~f]
+     (persistent! (areduce arr# i# ret#
+                           (transient [])
+                           (let [x# (aget arr# i#)]
+                             (if (f# x#)
+                               ret#
+                               (conj! ret# x#)))))))
+
+(defn arpm
+  "Returns sequence of primes less than N"
+  [n]
+  (let [nsqrt2 (inc (long (/ (Math/sqrt n) 2.0)))]
+    (loop [nums (long-array (cons 2 (range 3 n 2))) i 1]
+      (cond
+       (> i nsqrt2) (aremove zero? nums)
+       (zero? (aget nums i)) (recur nums (inc i))
+       :else (recur (let [p (aget nums i)
+                          step (* 2 p)]
+                      (loop [nums nums j (* p p)]
+                        (if (< j n)
+                          (recur (aseta nums (quot j 2) 0) (+ j step))
+                          nums)))
+                    (inc i))))))
 
 
-(defn cso4
+
+
+(def unchecked-math *unchecked-math*)
+(set! *unchecked-math* :warn-on-boxed)
+
+;; pretty fast
+;; functional style with side-effects on interal long-array
+;; but bar-primes is faster
+(defn ar-primes
+  "Returns sequence of primes less than N"
+  [^long n]
+  (if (<= n 2)
+    []
+    (let [nsqrt2 (long (/ (Math/sqrt n) 2.0))]
+      (loop [nums (long-array (cons 2 (range 3 n 2))) i 1]
+        (cond
+         (> i nsqrt2) (persistent! (areduce nums a ret
+                                            (transient [])
+                                            (let [x (aget nums a)]
+                                              (if (zero? x)
+                                                ret
+                                                (conj! ret x)))))
+         (zero? (aget nums i)) (recur nums (inc i))
+         :else (recur (let [p (aget nums i)
+                            step (* 2 p)]
+                        (loop [nums nums j (* p p)]
+                          (if (< j n)
+                            (recur (do (aset nums (quot j 2) 0) nums) (+ j step))
+                            nums)))
+                      (inc i)))))))
+
+
+
+;; fastest, bar none
+;; special case 2 and skip evens
+;; mark composites "cmps" as boolean flags
+
+;; building a list backwards is just as fast as using a transient vector and arguably simpler
+(defn bar-primes
+  "Returns sequence of primes less than N"
+  [^long n]
+  (if (<= n 2)
+    ()
+    (let [n (if (odd? n) (dec n) n)
+          nsqrt (long (Math/sqrt n))]
+      (loop [cmps (boolean-array n) i 3]
+        (cond
+         (> i nsqrt) (loop [b (dec n) ps ()]
+                        (if (< b 3)
+                          (conj ps 2)
+                          (recur (- b 2) (if (aget cmps b) ps (conj ps b)))))
+         (aget cmps i) (recur cmps (+ i 2))
+         :else (recur (let [step (* 2 i)]
+                        (loop [cmps cmps j (* i i)]
+                          (if (< j n)
+                            (recur (do (aset cmps j true) cmps) (+ j step))
+                            cmps)))
+                      (+ i 2)))))))
+
+;; actually a bit slower even though it looks like it should be faster.  Locality of reference?
+(defn bar-primes2
+  "Returns sequence of primes less than N"
+  [^long n]
+  (if (<= n 2)
+    ()
+    (let [n (if (odd? n) (dec n) n)
+          nsqrt (long (Math/sqrt n))]
+      (loop [cmps (boolean-array n) i 3 ps (transient [2])]
+        (cond
+         (> i nsqrt) (loop [b i ps ps]
+                        (if (< b n)
+                          (recur (+ b 2) (if (aget cmps b) ps (conj! ps b)))
+                          (persistent! ps)))
+         (aget cmps i) (recur cmps (+ i 2) ps)
+         :else (recur (let [step (* 2 i)]
+                        (loop [cmps cmps j (* i i)]
+                          (if (< j n)
+                            (recur (do (aset cmps j true) cmps) (+ j step))
+                            cmps)))
+                      (+ i 2)
+                      (conj! ps i)))))))
+
+
+
+
+;; java.util.BitSet works but isn't as fast as the boolean-array
+
+
+
+;; Valentin Waeselynck
+
+(defn vw-primes-below
+  "Finds all prime numbers less than n, returns them sorted in a vector"
+  [^long n]
+  (if (< n 2)
+    []
+    (let [sieve (boolean-array n false)
+          s (-> n Math/sqrt Math/floor int)]
+      (loop [p 2]
+        (if (> p s)
+          (into []
+            (remove #(aget sieve %))
+            (range 2 n))
+          (do
+            (when-not (aget sieve p)
+              (loop [i (* 2 p)]
+                (when (< i n)
+                  (aset sieve i true)
+                  (recur (+ i p)))))
+            (recur (inc p))))))))
+
+
+(set! *unchecked-math* unchecked-math)
+
+
+
+
+(defn arp7
+  "Returns sequence of primes less than N"
+  [n]
+  (let [nsqrt2 (inc (long (/ (Math/sqrt n) 2.0)))]
+    (loop [nums (long-array (cons 2 (range 3 n 2))) i 1]
+      (cond
+       (> i nsqrt2) (areduce nums a ret []
+                             (let [x (aget nums a)]
+                               (if (zero? x)
+                                 ret
+                                 (conj ret x))))
+       (zero? (aget nums i)) (recur nums (inc i))
+       :else (recur (let [p (aget nums i)
+                          step (* 2 p)]
+                      (loop [nums nums j (* p p)]
+                        (if (< j n)
+                          (recur (do (aset nums (quot j 2) 0) nums) (+ j step))
+                          nums)))
+                    (inc i))))))
+
+
+
+;; into transducer is faster than simple remove, but not fast enough
+;; but slower than arp, nicer remove zero?
+(defn arp3
+  "Returns sequence of primes less than N"
+  [n]
+  (let [nsqrt2 (inc (long (/ (Math/sqrt n) 2.0)))]
+    (loop [nums (long-array (cons 2 (range 3 n 2))) i 1]
+      (cond
+       (> i nsqrt2) (into [] (remove zero?) nums)
+       (zero? (aget nums i)) (recur nums (inc i))
+       :else (recur (let [p (aget nums i)
+                          step (* 2 p)]
+                      (loop [nums nums j (* p p)]
+                        (if (< j n)
+                          (recur (do (aset nums (quot j 2) 0) nums) (+ j step))
+                          nums)))
+                    (inc i))))))
+
+
+
+
+;; more direct array bashing, but not much faster so probably not worth it
+(defn arp2
+  "Returns sequence of primes less than N"
+  [n]
+  (let [nsqrt2 (inc (long (/ (Math/sqrt n) 2.0)))
+        nums (long-array (cons 2 (range 3 n 2)))]
+    (loop [i 1]
+      (if (> i nsqrt2)
+        (persistent! (areduce nums a ret
+                              (transient [])
+                              (let [x (aget nums a)]
+                                (if (zero? x)
+                                  ret
+                                  (conj! ret x)))))
+        (let [p (aget nums i)]
+          (when-not (zero? p)
+            (let [step (* 2 p)]
+              (loop [j (* p p)]
+                (when (< j n)
+                  (aset nums (quot j 2) 0)
+                  (recur (+ j step))))))
+          (recur (inc i)))))))
+
+
+
+
+
+;; local p not faster even with hint, better to let compiler/jit figure out common exprs
+(defn cso7
   "Returns sequence of primes less than N"
   [n]
   (let [nsqrt2 (inc (long (/ (Math/sqrt (double n)) 2.0)))]
     (loop [nums (transient (into [2] (range 3 n 2))) i 1]
       (cond
        (> i nsqrt2) (remove nil? (persistent! nums))
-       (nums i) (recur (let [step (* 2 (nums i))]
-                         (loop [nums nums j (* (nums i) (nums i))]
+       (nums i) (recur (let [p (nums i)
+                             step (* 2 p)]
+                         (loop [nums nums j (* p p)]
                            (if (< j n)
                              (recur (assoc! nums (quot j 2) nil) (+ j step))
                              nums)))
                        (inc i))
        :else (recur nums (inc i))))))
 
+
+
 ;; quot 2 slightly faster than bitshift
 
 
 
-
+;; (set! *unchecked-math* unchecked-math)
 
 
 ;; Idea about packing odds, sounds like Sundaram
@@ -668,9 +826,11 @@
 (def phk 99991)
 
 ;; for Eric Normand PurelyFunctional.tv newsletter
-(defn en-test [f]
+(defn my-test [f]
   (let [result (f 100000)]
     (assert (every? true? (map = primes-300 result)))
+    ;; regression test for small limits, or limit = p^2
+    (assert (= (map f (range 20)) (map classic-sieve (range 20))))
     (assert (= (last result) 99991))
     (assert (= (reduce + 0 result) 454396537)))
   99991)
@@ -691,9 +851,57 @@
   (doseq [f fs]
     (println)
     (println (str f))
-    (c/quick-bench (en-test f))))
+    (c/quick-bench (my-test f))))
 
 
 
 
 
+
+;;; ----------------------------------------------------------------------
+;;; borrowed from Eric Normand
+;;; https://gist.github.com/ericnormand/b29ef113401ad2a6f656c4b701fb08a7
+
+
+
+
+(def tests (clojure.edn/read-string (slurp "resources/normand-tests.edn")))
+
+
+
+(comment
+  (with-open [w (clojure.java.io/writer "tests.edn")]
+    (binding [*print-length* nil]
+      (.write w "[")
+      (.write w (clojure.string/join "\n  " (map pr-str tests)))
+      (.write w "]"))))
+
+(defmacro time2 [expr]
+  `(let [t0# (System/nanoTime)
+         r# ~expr]
+     [(- (System/nanoTime) t0#) r#]))
+
+(def allowed-time
+  (* 30 1e9)) ;; 30 seconds in nanoseconds
+
+(defn run-test [f]
+  (let [run? (atom true)]
+    (doto (Thread.
+           (fn []
+             (loop [minutes 1]
+               (Thread/sleep 60000)
+               (when @run?
+                 (println minutes "minute")
+                 (recur (inc minutes))))))
+      .start)
+    (try
+      (println "Running basic tests.")
+      (doseq [[n ex] tests]
+        (let [[t ac] (time2 (f n))]
+          (assert (= ex ac) (format "Test failed for n=%d." n))
+          (assert (<= t allowed-time) (format "Went over allowed time for n=%d." n))))
+      (println "Passed tests. Running benchmark.")
+      (c/quick-bench (count (f 100000))) ;; make sure it's realized if it's lazy
+      (finally
+        (reset! run? false))))
+  :done)
