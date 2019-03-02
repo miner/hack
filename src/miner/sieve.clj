@@ -397,7 +397,7 @@
 (defn cs7
   "Returns sequence of primes less than N"
   [n]
-  (let [nsqrt (long (inc (Math/sqrt n)))]
+  (let [nsqrt (long (Math/sqrt n))]
   (loop [nums (transient (vec (range n))) i 2]
     (cond
      (> i nsqrt) (remove nil? (nnext (persistent! nums)))
