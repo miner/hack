@@ -393,24 +393,6 @@
      :else (recur nums (inc i)))))
 
 
-;; about the same speed so not worth it to use sqrt
-(defn cs7
-  "Returns sequence of primes less than N"
-  [n]
-  (let [nsqrt (long (Math/sqrt n))]
-  (loop [nums (transient (vec (range n))) i 2]
-    (cond
-     (> i nsqrt) (remove nil? (nnext (persistent! nums)))
-     (nums i) (recur (loop [nums nums j (* i i)]
-                       (if (< j n)
-                         (recur (assoc! nums j nil) (+ j i))
-                         nums))
-                     (inc i))
-     :else (recur nums (inc i))))))
-
-
-
-
 ;;; SEM idea: do just odd primes
 ;;; odd-prime_i = 2i+1
 ;;; step by 2p to skip missing evens
@@ -421,17 +403,19 @@
 (defn csodd
   "Returns sequence of primes less than N"
   [n]
-  (let [nsqrt2 (inc (long (/ (Math/sqrt n) 2.0)))]
-    (loop [nums (transient (into [2] (range 3 n 2))) i 1]
-      (cond
-       (> i nsqrt2) (remove nil? (persistent! nums))
-       (nums i) (recur (let [step (* 2 (nums i))]
-                         (loop [nums nums j (* (nums i) (nums i))]
-                           (if (< j n)
-                             (recur (assoc! nums (quot j 2) nil) (+ j step))
-                             nums)))
-                       (inc i))
-       :else (recur nums (inc i))))))
+  (if (<= n 2)
+    ()
+    (let [nsqrt2 (long (/ (Math/sqrt n) 2.0))]
+      (loop [nums (transient (into [2] (range 3 n 2))) i 1]
+        (cond
+         (> i nsqrt2) (remove nil? (persistent! nums))
+         (nums i) (recur (let [step (* 2 (nums i))]
+                           (loop [nums nums j (* (nums i) (nums i))]
+                             (if (< j n)
+                               (recur (assoc! nums (quot j 2) nil) (+ j step))
+                               nums)))
+                         (inc i))
+         :else (recur nums (inc i)))))))
 
 (defmacro aseta [arr i val]
   `(let [arr# ~arr]
@@ -451,18 +435,20 @@
 (defn arpm
   "Returns sequence of primes less than N"
   [n]
-  (let [nsqrt2 (inc (long (/ (Math/sqrt n) 2.0)))]
-    (loop [nums (long-array (cons 2 (range 3 n 2))) i 1]
-      (cond
-       (> i nsqrt2) (aremove zero? nums)
-       (zero? (aget nums i)) (recur nums (inc i))
-       :else (recur (let [p (aget nums i)
-                          step (* 2 p)]
-                      (loop [nums nums j (* p p)]
-                        (if (< j n)
-                          (recur (aseta nums (quot j 2) 0) (+ j step))
-                          nums)))
-                    (inc i))))))
+  (if (<= n 2)
+    []
+    (let [nsqrt2 (long (/ (Math/sqrt n) 2.0))]
+      (loop [nums (long-array (cons 2 (range 3 n 2))) i 1]
+        (cond
+         (> i nsqrt2) (aremove zero? nums)
+         (zero? (aget nums i)) (recur nums (inc i))
+         :else (recur (let [p (aget nums i)
+                            step (* 2 p)]
+                        (loop [nums nums j (* p p)]
+                          (if (< j n)
+                            (recur (aseta nums (quot j 2) 0) (+ j step))
+                            nums)))
+                      (inc i)))))))
 
 
 
