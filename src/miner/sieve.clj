@@ -548,6 +548,33 @@
                       (conj! ps i)))))))
 
 
+;; Euler sieve (from Sieve wikipedia page)
+;; NB -- you must run the j loop without trashing existing bits -- ie 3 x 9 must still be
+;; marked off after you mark 9. Because 9 was still there at the beginning of that round.
+;;
+;; Slow with sorted-set ~90ms vs ~15ms.
+;; Much faster with a im/dense-int-set instead of a normal sorted-set
+;; NB: assuming dense-int-set maintains sort ordering even though it's not strictly `sorted?`
+;;
+;; transducer version was too slow -- deleted.
+
+;; respectable, but nowhere near fast
+(defn euler-primes
+  "Returns sequence of primes less than N"
+  [^long n]
+  (if (<= n 2)
+    []
+    (let [nsqrt (long (Math/ceil (Math/sqrt n)))]
+      (loop [nos (into (im/dense-int-set) (range 3 n 2)) ps (transient [2])]
+        ;;(println "Nos" nos ps)
+        (if-let [s (seq nos)]
+          (let [p (long (first s))]
+            (if (< p nsqrt)
+              (recur (reduce disj (disj nos p) (take-while #(< ^long % n)
+                                                           (map #(* p ^long %) s)))
+                     (conj! ps p))
+              (into (persistent! ps) s)))
+          (persistent! ps))))))
 
 
 ;; java.util.BitSet works but isn't as fast as the boolean-array
