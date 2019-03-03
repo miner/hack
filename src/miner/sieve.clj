@@ -5,13 +5,12 @@
 ;;            [clojure.data.avl :as avl]
 
 
-
 ;; https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes
-
 
 ;;; More ideas:
 ;; https://rosettacode.org/wiki/Extensible_prime_generator#Clojure
 ;; https://rosettacode.org/wiki/Sieve_of_Eratosthenes#Unbounded_Versions
+;;  Some bad stuff in those examples.  Nested def???
 
 ;; Good paper with Haskell examples:
 ;; https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf
@@ -21,7 +20,6 @@
 
 ;; Note anything that does a bunch of divisions is not the genuine Sieve of E.  That's
 ;; called trial division.  Read the paper for details.
-
 
 
 ;;; SEM: use rem instead of mod -- it's a bit faster
@@ -609,48 +607,6 @@
 ;; 4i^2 + 4i + 1 and its index is (p*p-1)/2 = 2i^2 + 2i = 2i(i+1) = (p-1)(i+1). For the value
 ;; increment of 2*p, the index increment on 2x-packed array is di = p = 2i+1.
 
-;;; More ideas:
-;; https://rosettacode.org/wiki/Extensible_prime_generator#Clojure
-;; https://rosettacode.org/wiki/Sieve_of_Eratosthenes#Unbounded_Versions
-
-;; Good paper with Haskell examples:
-;; https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf
-;; "The Genuine Sieve of Eratosthenes"
-;; Melissa E. O’Neill
-;; Harvey Mudd College
-
-
-;; SEM -- total disaster that hidden def looks like a cache -- no fair and bad style.
-
-;; orig from Rosetta code based on O'Neill paper
-(defn ros-primes-hashmap
-  "Infinite sequence of primes using an incremental Sieve or Eratosthenes with a Hashmap"
-  []
-  (letfn [(nxtoddprm [c q bsprms cmpsts]
-            (if (>= c q) ;; only ever equal
-              (let [p2 (* (first bsprms) 2), nbps (next bsprms), nbp (first nbps)]
-                (recur (+ c 2) (* nbp nbp) nbps (assoc cmpsts (+ q p2) p2)))
-              (if (contains? cmpsts c)
-                (recur (+ c 2) q bsprms
-                       (let [adv (cmpsts c), ncmps (dissoc cmpsts c)]
-                         (assoc ncmps
-                                (loop [try (+ c adv)] ;; ensure map entry is unique
-                                  (if (contains? ncmps try)
-                                    (recur (+ try adv)) try)) adv)))
-                (cons c (lazy-seq (nxtoddprm (+ c 2) q bsprms cmpsts))))))]
-    (do (def baseoddprms (cons 3 (lazy-seq (nxtoddprm 5 9 baseoddprms {}))))
-        (cons 2 (lazy-seq (nxtoddprm 3 9 baseoddprms {}))))))
-
-
-;; SEM -- buggy to use def, but I accidentally depended on having that def when I thought I
-;; was accessing a local recursively.
-
-
-;; hacking by SEM
-;; TBA
-
-
-
 
 
 ;; for benchmarking inf-primes-fn
@@ -728,16 +684,66 @@
 
 ;; still twice as slow as classic-sieve but at least it's competitive with some others
 (defn sundaram [limit]
-  (let [n (quot (inc limit) 2) ]
-    (into [2]
-          (comp (remove nil?) (map #(inc (* 2 %))))
-          (rest (persistent! (reduce (fn [res x] (assoc! res x nil))
-                                     (transient (vec (range n)))
-                                     (for [j (range 1 n)
-                                           i (range 1 (inc j))
-                                           :let [c (+ i j (* 2 i j))]
-                                           :while (< c n)]
-                                       c)))))))
+  (if (<= limit 2)
+    []
+    (let [n (quot limit 2)]
+      (into [2]
+            (comp (remove nil?) (map #(inc (* 2 %))))
+            (rest (persistent! (reduce (fn [res x] (assoc! res x nil))
+                                       (transient (vec (range n)))
+                                       (for [j (range 1 n)
+                                             i (range 1 (inc j))
+                                             :let [c (+ i j (* 2 i j))]
+                                             :while (< c n)]
+                                         c))))))))
+
+
+
+(defn sund2 [limit]
+  (if (<= limit 2)
+    []
+    (let [n (quot limit 2)]
+      (cons 2 (map #(inc (* 2 %))
+                   (persistent! (reduce disj! (transient (into (im/dense-int-set) (range 1 n)))
+                                        (for [j (range 1 n)
+                                              i (range 1 (inc j))
+                                              :let [c (+ i j (* 2 i j))]
+                                              :while (< c n)]
+                                          c))))))))
+
+
+(defn sund3 [limit]
+  (if (<= limit 2)
+    []
+    (let [n (quot limit 2)]
+      (into [2]
+            (map #(inc (* 2 %)))
+            (im/difference
+             (into (im/dense-int-set) (range 1 n))
+             (into (im/dense-int-set)
+                   (for [j (range 1 n)
+                         i (range 1 (inc j))
+                         :let [c (+ i j (* 2 i j))]
+                         :while (< c n)]
+                     c)))))))
+
+;; faster with transient int-set and unrolled `for`
+(defn sund4 [limit]
+  (if (<= limit 2)
+    []
+    (let [n (quot limit 2)]
+      (loop [j 1 cs (transient (into (im/dense-int-set) (range 1 n)))]
+        (if (< j n)
+          (recur (inc j)
+                 (loop [i 1 cs cs]
+                   (if (<= i j)
+                     (let [c (+ i j (* 2 i j))]
+                       (if (< c n)
+                         (recur (inc i) (disj! cs c))
+                         cs))
+                     cs)))
+          (cons 2 (map #(inc (* 2 %)) (persistent! cs))))))))
+
 
 
 
