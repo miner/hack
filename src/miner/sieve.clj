@@ -240,38 +240,6 @@
   (cons 2 (take-until-nil (map first (iterate sieve (range 3 max 2))))))
 
 
-;; SEM: but of course, you can't just go dropping over and over as many drops will overlap
-;; SEM experimenting with a drop versus a mod
-(defn drop-nth
-  "Returns a lazy seq by dropping every nth item in coll."
-  [n coll]
-    (lazy-seq
-     (when-let [s (seq coll)]
-       (concat (take (dec n) s) (drop-nth n (drop n s))))))
-
-(defn drop-nth2
-  "Returns a lazy seq by dropping every nth item in coll."
-  [n coll]
-  (letfn [(stepfn [n i xs]
-            (lazy-seq
-             (when-let [s (seq xs)]
-               (if (pos? i)
-                 (conj (stepfn n (dec i) (rest s)) (first s))
-                 (stepfn n n (rest s))))))]
-    (stepfn (dec n) (dec n) coll)))
-
-
-
-;; Buggy at end -- shouldn't 
-(defn rep-nth
-  "Returns a lazy seq by dropping every nth item in coll."
-  [n val coll]
-    (lazy-seq
-     (when-let [s (seq coll)]
-       (concat (take (dec n) s) [val] (rep-nth n val (drop n s))))))
-
-
-
 ;; ---
 
 ;;; http://clojuredocs.org/clojure_core/clojure.core/keep
