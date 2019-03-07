@@ -666,36 +666,7 @@
                                          c))))))))
 
 
-
-(defn sund2 [limit]
-  (if (<= limit 2)
-    []
-    (let [n (quot limit 2)]
-      (cons 2 (map #(inc (* 2 %))
-                   (persistent! (reduce disj! (transient (into (im/dense-int-set) (range 1 n)))
-                                        (for [j (range 1 n)
-                                              i (range 1 (inc j))
-                                              :let [c (+ i j (* 2 i j))]
-                                              :while (< c n)]
-                                          c))))))))
-
-
-(defn sund3 [limit]
-  (if (<= limit 2)
-    []
-    (let [n (quot limit 2)]
-      (into [2]
-            (map #(inc (* 2 %)))
-            (im/difference
-             (into (im/dense-int-set) (range 1 n))
-             (into (im/dense-int-set)
-                   (for [j (range 1 n)
-                         i (range 1 (inc j))
-                         :let [c (+ i j (* 2 i j))]
-                         :while (< c n)]
-                     c)))))))
-
-;; faster with transient int-set and unrolled `for`
+;; faster with transient int-set and `loop` instead of `for`
 (defn sund4 [limit]
   (if (<= limit 2)
     []
@@ -713,21 +684,69 @@
           (cons 2 (map #(inc (* 2 %)) (persistent! cs))))))))
 
 
+;; one of many at rosettacode.org, unfortunately buggy
+;; https://rosettacode.org/wiki/Sieve_of_Eratosthenes#Unbounded_Versions
+(defn ROS-primes-to
+  "Returns a lazy sequence of prime numbers less than lim"
+  [lim]
+  (let [max-i (int (/ (- lim 1) 2))
+        refs (boolean-array max-i true)
+        root (/ (dec (int (Math/sqrt lim))) 2)]
+    (do (doseq [i (range 1 (inc root))
+                :when (aget refs i)]
+          (doseq [j (range (* (+ i i) (inc i)) max-i (+ i i 1))]
+            (aset refs j false)))
+        (cons 2 (map #(+ % % 1) (filter #(aget refs %) (range 1 max-i)))))))
+
+
+;; slight fixes by SEM
+(defn ROS-primes2
+  "Returns a lazy sequence of prime numbers less than lim"
+  [lim]
+  (if (<= lim 2)
+    ()
+    (let [max-i (quot lim 2)
+          refs (boolean-array max-i true)
+          root (/ (dec (int (Math/sqrt lim))) 2)]
+      (do (doseq [i (range 1 (inc root))
+                  :when (aget refs i)]
+            (doseq [j (range (* (+ i i) (inc i)) max-i (+ i i 1))]
+              (aset refs j false)))
+          (cons 2 (map #(+ % % 1) (filter #(aget refs %) (range 1 max-i))))))))
+
+;; slightly faster to invert boolean logic
+(defn ROS-primes3
+  "Returns a lazy sequence of prime numbers less than lim"
+  [lim]
+  (if (<= lim 2)
+    ()
+    (let [max-i (quot lim 2)
+          refs (boolean-array max-i)
+          root (/ (dec (int (Math/sqrt lim))) 2)]
+      (do (doseq [i (range 1 (inc root))
+                  :when (not (aget refs i))]
+            (doseq [j (range (* (+ i i) (inc i)) max-i (+ i i 1))]
+              (aset refs j true)))
+          (cons 2 (map #(+ % % 1) (remove #(aget refs %) (range 1 max-i))))))))
 
 
 
 ;; highest prime less than 100000
 (def phk 99991)
 
+
 ;; for Eric Normand PurelyFunctional.tv newsletter
 (defn my-test [f]
-  (let [result (f 100000)]
-    (assert (every? true? (map = primes-300 result)))
+  (let [result (f 100000)
+        bad (remove nil? (map #(when (not= % %2) %) result primes-300))]
+    (assert (empty? bad) (str f " - Bad prime results starting at: " (pr-str (take 5 bad))))
     ;; regression test for small limits, or limit = p^2
-    (assert (= (map f (range 20)) (map classic-sieve (range 20))))
+    (doseq [i (range 20)]
+      (assert (= (classic-sieve i) (f i)) (str f " - Wrong result for " i)))
     (assert (= (last result) 99991))
     (assert (= (reduce + 0 result) 454396537)))
   99991)
+
 
 (defn smoke-test
   ([f] (smoke-test f 100))
