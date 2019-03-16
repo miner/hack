@@ -112,7 +112,6 @@
       (recur (inc cnt) (rest coll))
       cnt)))
         
-
 (defn rle2
   ([]
    (fn [rf]
@@ -134,8 +133,6 @@
                 (if (zero? c)
                   (rf result)
                   (rf result [c x]))))))))))
-
-
 
   ([coll]
    (lazy-seq
@@ -171,10 +168,10 @@
   ([coll]
    (lazy-seq
     (when-first [x coll]
-      (let [cnt (count-leading x coll)]
-        (cons [cnt x] (rle2 (drop cnt coll))))))))
-
-
+      (loop [cnt 1 coll (rest coll)]
+        (if (and (seq coll) (= x (first coll)))
+          (recur (inc cnt) (rest coll))
+          (cons [cnt x] (rle3 coll))))))))
 
 
 
