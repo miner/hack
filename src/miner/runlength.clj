@@ -74,7 +74,7 @@
 
 ;; SEM: LOOK AT SOURCE OF PARTITION-BY for handling reduced?
 
-(defn rle
+(defn rle2
   ([]
    (fn [rf]
      (let [cv (volatile! 0)
@@ -106,40 +106,6 @@
 
 
 
-(defn count-leading [x coll]
-  (loop [cnt 0 coll coll]
-    (if (and (seq coll) (= x (first coll)))
-      (recur (inc cnt) (rest coll))
-      cnt)))
-        
-(defn rle2
-  ([]
-   (fn [rf]
-     (let [cv (volatile! 0)
-           xv (volatile! (Object.))]
-       (fn
-         ([] (rf))
-         ([result] (unreduced (if (zero? @cv)
-                                (rf result)
-                                (rf result [@cv @xv]))))
-         ([result input]
-          (let [x @xv]
-            (if (= input x)
-              (do (vswap! cv inc)
-                  (rf result))
-              (let [c @cv]
-                (vreset! xv input)
-                (vreset! cv 1)
-                (if (zero? c)
-                  (rf result)
-                  (rf result [c x]))))))))))
-
-  ([coll]
-   (lazy-seq
-    (when-let [coll (seq coll)]
-      (let [x (first coll)
-            cnt (count-leading x coll)]
-        (cons [cnt x] (rle2 (lazy-seq (drop cnt coll)))))))))
 
 
 ;; SEM -- I like this coll version.  The transducer part needs review for unreduced.
@@ -178,9 +144,29 @@
 
 ;; nice simple version, but can't handle infinite lists
 
-(defn prle
+(defn rle
   ([] (comp (partition-by identity) (map (juxt count peek))))
-  ([coll] (sequence (prle) coll)))
+  ([coll] (sequence (rle) coll)))
+
+
+(defn rld
+  ([] (mapcat #(apply repeat %)))
+  ([runs] (sequence (rld) runs)))
+
+
+(defn lazy-rle [coll]
+  (lazy-seq
+   (when-first [x coll]
+     (loop [cnt 1 coll (rest coll)]
+       (if (and (seq coll) (= x (first coll)))
+         (recur (inc cnt) (rest coll))
+         (cons [cnt x] (rle3 coll)))))))
+
+(defn lazy-rld [runs]
+  (lazy-seq
+   (when-first [[cnt x] runs]
+     (concat (repeat cnt x) (lazy-rld (rest runs))))))
+
 
 
 ;; transducer can handle infinite input if we do the take within, but not on the outside
@@ -192,13 +178,9 @@
 
   )
 
-#_
-(defn lrle
-   ([coll] (if-let [coll (seq coll)]
-             (lrle (first coll) 1 (rest coll) [])
-             ()))
-   ([target cnt coll result]
-    ...))
+
+
+
 
  
 ;;;;; JUNK
@@ -357,10 +339,10 @@
   ([rle]
    (let [abx (concat [:a :b] (repeat :x))
          xyxz  (concat (repeat 10000 :x) (repeat 10000 :y) (repeat 10000 :x)
-                           (repeat 10000 :z))]
+                       (repeat 10000 :z))]
 
      (assert (= (rle [:a :a :a :b :c :d :d :d :d])
-             '([3 :a] [1 :b] [1 :c] [4 :d])))
+                '([3 :a] [1 :b] [1 :c] [4 :d])))
      (assert (= (rle []) ()))
      (assert (= (rle [:a]) '([1 :a])))
      (assert (= (rle [:a :a]) '([2 :a])))
@@ -368,14 +350,14 @@
      (assert (= (rle (repeat 10000 :x)) '([10000 :x])))
      (assert (= (rle xyxz)
                 '([10000 :x] [10000 :y] [10000 :x] [10000 :z])))
-  #_   (assert (= (take 1 (rle abx))
-              '([1 :a])))
+     #_   (assert (= (take 1 (rle abx))
+                     '([1 :a])))
 
-  #_ (assert (= (rld '([3 :a] [1 :b] [1 :c] [4 :d]))
+     (assert (= (rld '([3 :a] [1 :b] [1 :c] [4 :d]))
                 '(:a :a :a :b :c :d :d :d :d)))
 
-  )
-  true))
+     )
+   true))
 
 
 (require '[criterium.core :as cc])
