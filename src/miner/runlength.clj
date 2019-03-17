@@ -142,7 +142,7 @@
         (cons [cnt x] (rle2 (lazy-seq (drop cnt coll)))))))))
 
 
-
+;; SEM -- I like this coll version.  The transducer part needs review for unreduced.
 (defn rle3
   ([]
    (fn [rf]
