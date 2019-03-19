@@ -168,6 +168,22 @@
      (concat (repeat cnt x) (lazy-rld (rest runs))))))
 
 
+;; slightly faster, but more complicated so probably not worth it
+(defn eager-rld [runs]
+  (persistent! (reduce (fn [res cx] (reduce conj! res (repeat (first cx) (second cx))))
+                       (transient [])
+                       runs)))
+
+;; not faster
+(defn eager-rld2 [runs]
+  (persistent! (reduce (fn [res cx]
+                         (let [x (second cx)]
+                           (loop [cnt (long (first cx)) res res]
+                             (if (zero? cnt)
+                               res
+                               (recur (unchecked-dec cnt) (conj! res x))))))
+                       (transient [])
+                       runs)))
 
 ;; transducer can handle infinite input if we do the take within, but not on the outside
 ;; (sequence (comp (take 2) (rle)) (list* :a :b (repeat :z)))
@@ -360,6 +376,21 @@
    true))
 
 
+(defn rld-smoke
+  ([] (rld-smoke rld))
+  ([rld]
+   (assert (= (rld '([3 :a] [1 :b] [1 :c] [4 :d]))
+              '(:a :a :a :b :c :d :d :d :d)))
+   (assert (= () (rld ())))
+   (let [xyxz  (concat (repeat 10000 :x) (repeat 10000 :y) (repeat 10000 :x)
+                       (repeat 10000 :z))
+         rl-xyxz (rle xyxz)]
+     (assert (= xyxz (rld rl-xyxz)))  )
+   true))
+
+
+
+
 (require '[criterium.core :as cc])
 
 (defn ben [& fs]
@@ -368,3 +399,10 @@
     (println (str f))
     (cc/quick-bench (smoke f))))
 
+
+
+(defn rld-ben [& fs]
+  (doseq [f fs]
+    (println)
+    (println (str f))
+    (cc/quick-bench (rld-smoke f))))
