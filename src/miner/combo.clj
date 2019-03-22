@@ -37,11 +37,6 @@
           (range n)))
 
 
-;; NOT RIGHT!  need more swaps
-
-;; pick a split point (n - 1) and then add last from rest
-
-
 
 
 
@@ -53,24 +48,7 @@
 ;; SEM: idea -- think of mask walking across vector
 ;; generate the masks then convolve them
 ;; For n=3, three in a row, one-skip-three-four, one-skip-skip-four-five, 
-
-
-(defn iter [f x n]
-  (if-not (pos-int? n)
-    x
-    (loop [i n res x]
-      (if (zero? i)
-        res
-        (recur (unchecked-dec i) (f res))))))
-
-
-;; slower, probably iter overhead
-(defn combo-indices-ITER [cnt choose]
-  (iter (fn [res]
-          (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))) res))
-        (map vector (range cnt))
-        choose))
-
+;; NOT IMPLEMENTED
 
 (defn combo-indices-SAVE [cnt grp]
   ;; {:pre [(pos-int? grp) (<= grp cnt)]}
@@ -97,6 +75,7 @@
              (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))) res)))))
 
 
+
 ;; WORKS slightly faster, maybe not as pretty
 (defn combinations-BEST [coll n]
   (if-not (pos-int? n)
@@ -106,6 +85,119 @@
       (when (<= n cnt)
         (map #(map v %) (combo-indices cnt n))))))
 
+
+
+
+
+
+;; integrated combo-indices, hoping for speed, but didn't pay off in my testing
+;; and is less readable
+(defn combinations5 [coll n]
+  (if-not (pos-int? n)
+    (list ())
+    (let [v (vec coll)
+          cnt (count v)]
+      (when (<= n cnt)
+        (loop [i (unchecked-dec n) res (map vector (range cnt))]
+          (if (zero? i)
+            (map #(map v %) res)
+            (recur (unchecked-dec i)
+                   (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt)))
+                           res))))))))
+
+
+
+;; I prefer simple collections in my results because they're faster.  But Eric Normand
+;; wanted sets, which is logically correct so I did a version for him below.
+(defn combinations-SEM [coll n]
+  (let [choose-indices (fn [cnt choose]
+                        ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+                        (loop [i (dec choose) res (map vector (range cnt))]
+                          (if (zero? i)
+                            res
+                            (recur (dec i)
+                                   (mapcat (fn [prev] (map #(conj prev %)
+                                                           (range (inc (peek prev)) cnt)))
+                                           res)))))]
+    (if-not (pos-int? n)
+      (list ())
+      (let [v (vec coll)
+            cnt (count v)]
+        (when (<= n cnt)
+          (map #(map v %) (choose-indices cnt n)))))))
+
+
+
+;; submitted to Eric.  Don't change now.
+;; Eric used sets which is slower, but logical.
+;; (into #{} xform ...) seems pretty fast
+(defn combinations [coll n]
+  (let [choose-indices (fn [cnt choose]
+                        ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+                        (loop [i (dec choose) res (map vector (range cnt))]
+                          (if (zero? i)
+                            res
+                            (recur (dec i)
+                                   (mapcat (fn [prev] (map #(conj prev %)
+                                                           (range (inc (peek prev)) cnt)))
+                                           res)))))]
+    (if-not (pos-int? n)
+      (list ())
+      (let [v (vec coll)
+            cnt (count v)]
+        (when (<= n cnt)
+          (map #(into #{} (map v) %) (choose-indices cnt n)))))))
+
+
+(defn combinations-sets2 [coll n]
+  (let [choose-indices (fn [cnt choose]
+                        {:pre [(pos-int? choose) (<= choose cnt)]}
+                        (loop [i (dec choose) res (map vector (range cnt))]
+                          (if (zero? i)
+                            res
+                            (recur (dec i)
+                                   (mapcat (fn [prev] (map #(conj prev %)
+                                                           (range (inc (peek prev)) cnt)))
+                                           res)))))]
+    (if-not (pos-int? n)
+      (list ())
+      (let [v (vec coll)
+            cnt (count v)]
+        (when (<= n cnt)
+          (map #(into #{} (map v) %) (choose-indices cnt n)))))))
+
+
+
+;; (into #{}...) is faster than (set (map...))
+
+
+
+(defn set= [a b] (= (set a) (set b)))
+
+;; peek and inc to n add
+
+
+
+(defn smoke-combo [cf]
+  (assert (=  (set nil) (set (cf [] 11))))
+  (assert (= (set (map set (cf #{:rose :lily :daisy :tulip} 3)))
+             (hash-set #{:rose :lily :daisy}, #{:rose :lily :tulip}, #{:rose :daisy :tulip}, #{:lily :daisy :tulip})))
+  (dotimes [n 5]
+    (let [xs (range n)]
+      (dotimes [m n]
+        (assert (= (set (map set (mc/combinations xs m))) (set (map set (cf xs m))))
+                (str "Testing " m " with " n " items")))))
+  true)
+
+
+
+
+
+;;;;;; JUNK
+
+;; disabled by COMMENT
+
+(comment 
 
 (defn combinations0 [coll n]
   (if-not (pos-int? n)
@@ -133,23 +225,21 @@
 ;; this range is just for driving the reduce, i is unused
 
 
-
-
-;; integrated combo-indices, hoping for speed, but didn't pay off in my testing
-;; and is less readable
-(defn combinations5 [coll n]
+(defn iter [f x n]
   (if-not (pos-int? n)
-    (list ())
-    (let [v (vec coll)
-          cnt (count v)]
-      (when (<= n cnt)
-        (loop [i (unchecked-dec n) res (map vector (range cnt))]
-          (if (zero? i)
-            (map #(map v %) res)
-            (recur (unchecked-dec i)
-                   (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt)))
-                           res))))))))
+    x
+    (loop [i n res x]
+      (if (zero? i)
+        res
+        (recur (unchecked-dec i) (f res))))))
 
+
+;; slower, probably iter overhead
+(defn combo-indices-ITER [cnt choose]
+  (iter (fn [res]
+          (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))) res))
+        (map vector (range cnt))
+        choose))
 
 
 ;; explicitly integrated
@@ -172,46 +262,6 @@
 
 
 
-(defn combinations [coll n]
-  (let [choose-indices (fn [cnt choose]
-                        ;; {:pre [(pos-int? choose) (<= choose cnt)]}
-                        (loop [i (dec choose) res (map vector (range cnt))]
-                          (if (zero? i)
-                            res
-                            (recur (dec i)
-                                   (mapcat (fn [prev] (map #(conj prev %)
-                                                           (range (inc (peek prev)) cnt)))
-                                           res)))))]
-    (if-not (pos-int? n)
-      (list ())
-      (let [v (vec coll)
-            cnt (count v)]
-        (when (<= n cnt)
-          (map #(map v %) (choose-indices cnt n)))))))
 
-
-
-(defn combinations-sets [coll n]
-  (map set (combinations coll n)))
-
-
-
-
-(defn set= [a b] (= (set a) (set b)))
-
-;; peek and inc to n add
-
-
-
-(defn smoke-combo [cf]
-  (assert (=  (set nil) (set (cf [] 11))))
-  (assert (= (set (map set (cf #{:rose :lily :daisy :tulip} 3)))
-             (hash-set #{:rose :lily :daisy}, #{:rose :lily :tulip}, #{:rose :daisy :tulip}, #{:lily :daisy :tulip})))
-  (dotimes [n 5]
-    (let [xs (range n)]
-      (dotimes [m n]
-        (assert (= (set (map set (mc/combinations xs m))) (set (map set (cf xs m))))
-                (str "Testing " m " with " n " items")))))
-  true)
-
-
+;;; END COMMENT
+)
