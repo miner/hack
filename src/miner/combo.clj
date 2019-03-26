@@ -127,7 +127,6 @@
           (map #(map v %) (choose-indices cnt n)))))))
 
 
-
 ;; submitted to Eric.  Don't change now.
 ;; Eric used sets which is slower, but logical.
 ;; (into #{} xform ...) seems pretty fast
