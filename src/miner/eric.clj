@@ -74,7 +74,7 @@
 
 (defn ecombo1 [r coll n]
   (cond
-    (zero? n)    nil
+    (zero? n)    '(())
     (> n (count coll)) nil
 
     (= 1 n)  (map list coll)
