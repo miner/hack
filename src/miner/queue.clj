@@ -17,20 +17,20 @@
 ;; empty? to test for empty queue
 ;; seq to see the contents in order
 
-;; last gives last element (tail)
-;; butlast gives seq of all but last element
-
+;; last gives last element (tail), O(n)
+;; butlast gives seq of all but last element, O(n)
+;; does not support IFn so can't access like vector (q 3)
+;; does not support quick nth so expect O(n)
 
 (defmethod print-method clojure.lang.PersistentQueue
   [q ^java.io.Writer w]
   (.write w "#queue ")
   (print-method (sequence q) w))
 
-#_ (let [*data-readers* {'queue #'queue}]
+;; adding a data-reader
+#_ (binding [*data-readers* {'queue #'queue}]
      (read-string (pr-str (queue [1 2 3]))))
 
-;; note that some my REPL didn't do the right thing with (set! *data-readers* ...)
-;; probably a bug in REPL-y or nREPL
 
 
 ;; ----------------------------------------------------------------------
