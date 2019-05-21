@@ -88,7 +88,7 @@
 ;; Trying to keep the 9, we note that excluding the 4 gives us seven digits 9876321, whose
 ;; sum is 36 (a multiple of 9).  We use that as an initial seed and find success quickly.
 ;; I don't provide a proof that this short-cut is 100% correct, but it has the virtue of
-;; yielding the right answer.  [The link to StackExchange explains why 4 should be
+;; yielding the right answer.  [The link to StackExchange explains why 5 and 4 should be
 ;; excluded.]
 
 (defn fast-largest-lynch-bell []
