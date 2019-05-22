@@ -71,13 +71,24 @@
 (defn seed-excluding [& excluding]
   (remove (set excluding) (range 9 0 -1)))
 
+(defn find-largest-lb [n]
+  ;; starting at N digits, should be [1..7]
+  (first (keep search-lb (map #(apply seed-excluding %)
+                              (mapcat #(mc/combinations (range 1 10) %)
+                                      (range (- 9 n) 9))))))
+
 ;; From the previous discussion, we conclude that the search must start with seven digits.
 ;; The `seed-excluding` function returns a "seed" collection of digits with the given digits
-;; excluded.  We're pretty sure 5 should be excluded so we need to exclude one more to make
-;; seven digits.
+;; excluded.
+;;
+;; We're pretty sure 5 should be excluded so we need to exclude one more to make
+;; seven digits.  Just to be safe we have code to run through all the possible combinations
+;; of 7 or fewer digits, but it will never actually execute.
 
 (defn find-largest-lynch-bell []
-  (first (keep search-lb (map seed-excluding (repeat 5) [1 2 3 4 6 7 8 9]))))
+  (or (first (keep search-lb (map seed-excluding (repeat 5) [1 2 3 4 6 7 8 9])))
+      (find-largest-lb 7)))
+
 
 #_
 (time (find-largest-lynch-bell))
@@ -99,12 +110,20 @@
 ;; "Elapsed time: 0.313049 msecs"
 ;; 9867312
 
-
+#_
+(time (find-largest-lb 8))
+;; "Elapsed time: 1313.236453 msecs"
+;; 9867312
 
 (defn smoke []
   (assert (every? lynch-bell? lb-seq))
+  (assert (= (find-largest-lb 8) largest-lynch-bell))
   (assert (= (find-largest-lynch-bell) largest-lynch-bell))
   (assert (= (fast-largest-lynch-bell) largest-lynch-bell))
+
+  (println "Find largest Lynch-Bell starting at 8 digits")
+  (time (find-largest-lb 8))
+  (println)
   (println "Find largest Lynch-Bell number")
   (time (find-largest-lynch-bell))
   (println)
