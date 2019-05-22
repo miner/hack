@@ -115,7 +115,7 @@
 ;; "Elapsed time: 1313.236453 msecs"
 ;; 9867312
 
-(defn smoke []
+(defn lb-test []
   (assert (every? lynch-bell? lb-seq))
   (assert (= (find-largest-lb 8) largest-lynch-bell))
   (assert (= (find-largest-lynch-bell) largest-lynch-bell))
