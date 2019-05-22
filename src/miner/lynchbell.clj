@@ -11,10 +11,10 @@
 ;; https://math.stackexchange.com/questions/2766109/biggest-lynch-bell-number#2766151
 ;;
 ;; My paraphrase:  Zero is excluded by definition.  Similarly, you can't have both 2 and
-;; 5 (2x5=10).  So you know there are no 10 or 9 digit LBs.  Any even and 5 would also be a
-;; problem producing a factor of 10 and an ending 0 digit.  So 5 is out.  Leaving 98764321
-;; possible in some order.  But the sum of digits is 40 which means it can't be multiple of
-;; 9 (or 3).  So no eight digit LBs.
+;; 5 (2x5=10).  So you know there are no 10 or 9 digit LBs.  Any even digit and 5 would also
+;; be a problem producing a factor of 10 and an ending 0 digit.  So 5 is out.  Leaving
+;; 98764321 possible in some order.  But the sum of digits is 40 which means it can't be
+;; multiple of 9 (or 3).  So no eight digit LBs.
 ;;
 ;; We want to start with a 9 if possible.  That also means the LB is a multiple of 9.  So
 ;; the sum of the digits must be a multiple of 9.  The failing eight-digit sum was 40.  We
@@ -67,7 +67,7 @@
   (when-let [success (first (filter lb? (mc/permutations digs)))]
     (digs->long success)))
 
-;; returns collection of digits in high to low orders (9 ... 1) excluding args
+;; returns collection of digits in high to low orders [9...1] excluding args
 (defn seed-excluding [& excluding]
   (remove (set excluding) (range 9 0 -1)))
 
