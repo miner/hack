@@ -51,17 +51,14 @@
     (when (lb-digits? n digs)
       n)))
 
-(defn lb? [digs]
-  (lb-digits? (digs->long digs) digs))
-
 (defn lynch-bell? [n]
   (lb-digits? n (digits n)))
 
 ;; Note: mc/permutations guarantees lexical ordering so we seed digs with the largest digits
 ;; first.  That way, we test larger numbers first and stop on the first success.
 (defn search-max-lb [digs]
-  (when-let [success (first (filter lb? (mc/permutations digs)))]
-    (digs->long success)))
+  (first (keep lbn (mc/permutations digs))))
+
 
 ;; returns collection of digits in high to low orders [9...1] excluding args
 (defn seed-excluding [& excluding]
@@ -100,6 +97,7 @@
 
 
 ;; bonus -- return all the Lynch-Bell numbers in order
+;; transducers for a slight performance boost
 (defn find-all-lynch-bell-numbers []
   (sort (sequence (comp (mapcat #(mc/combinations (range 1 10) %))
                         (mapcat mc/permutations)
@@ -108,22 +106,21 @@
 
 
 
-
-
 #_
 (time (find-largest-lb 8))
-;; "Elapsed time: 1313.236453 msecs"
-;; 9867312
+;; "Elapsed time: 1313.236453 msecs" 9867312
+
+#_
+(time (find-largest-lb 7))
+;; "Elapsed time: 311.626788 msecs" 9867312
 
 #_
 (time (find-largest-lynch-bell))
-;; "Elapsed time: 43.613458 msecs"
-;; 9867312
+;; "Elapsed time: 43.613458 msecs" 9867312
 
 #_
 (time (fast-largest-lynch-bell))
-;; "Elapsed time: 0.313049 msecs"
-;; 9867312
+;; "Elapsed time: 0.313049 msecs" 9867312
 
 
 
