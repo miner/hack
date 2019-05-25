@@ -1,6 +1,9 @@
 (ns miner.lynchbell
   (:require [clojure.math.combinatorics :as mc]))
 
+;; dependency coordinates:  [org.clojure/math.combinatorics "0.1.4"]
+
+
 ;; Puzzle for largest Lynch-Bell number
 ;; https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-327-tip-always-be-decomplecting/
 ;; "A Lynch-Bell number is an integer that is divisible by each of its base-ten digits. The
@@ -60,15 +63,14 @@
 (defn search-max-lb [digs]
   (first (keep lbn (mc/permutations digs))))
 
+(defn find-largest-lb [n]
+  ;; starting at N digits, should be [1..7]
+  (first (keep search-max-lb (mapcat #(mc/combinations (range 9 0 -1) %)
+                                     (range n 0 -1)))))
+
 ;; returns collection of digits in high to low orders [9...1] excluding args
 (defn seed-excluding [& excluding]
   (remove (set excluding) (range 9 0 -1)))
-
-(defn find-largest-lb [n]
-  ;; starting at N digits, should be [1..7]
-  (first (keep search-max-lb (map #(apply seed-excluding %)
-                                  (mapcat #(mc/combinations (range 1 10) %)
-                                          (range (- 9 n) 9))))))
 
 ;; From the previous discussion, we conclude that the search must start with seven digits.
 ;; The `seed-excluding` function returns a "seed" collection of digits with the given digits
