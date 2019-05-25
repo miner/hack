@@ -27,11 +27,12 @@
 ;; treatment.
 
 
-;; zero is excluded
-(defn zmod? [n d]
-  (and (pos-int? n)
-       (pos-int? d)
-       (zero? (rem n d))))
+(defn zmod? [^long n ^long d]
+  (case d
+    1 true
+    2 (even? n)
+    (3 4 5 6 7 8 9) (zero? (rem n d))
+    false))
 
 (defn digits [n]
   (map #(- (long %) (long \0)) (str n)))
