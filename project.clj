@@ -1,8 +1,9 @@
-(defproject hack "0.2.91-SNAPSHOT" 
+(defproject hack "0.2.92-SNAPSHOT" 
   :min-lein-version "2.0.0"
   :dependencies [
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
+                 [com.velisco/strgen "0.1.8"]
                  [org.clojure/math.combinatorics "0.1.4"]
                  [org.clojure/data.int-map "0.2.4"]
                  [org.clojure/data.avl "0.0.18"]

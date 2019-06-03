@@ -45,6 +45,26 @@
 
 
 
+(defn maxcat3
+   "Returns the largest BigInt you can create by concatenating
+  the non-negative long integers in ns."
+  [ns]
+  (let [dcompare (fn [as bs]
+                   (let [cnta (count as)
+                         cntb (count bs)
+                         total (+ cnta cntb)
+                         ab (fn [i] (if (< i cnta) (get as i) (get bs (- i cnta))))
+                         ba (fn [i] (if (< i cntb) (get bs i) (get as (- i cntb))))]
+                     (loop [i 0]
+                       (if (= i total)
+                         (compare cnta cntb)
+                         (let [c (compare (ba i) (ab i))]
+                           (if (zero? c)
+                             (recur (inc i))
+                             c))))))]
+    (bigint (apply str (sort dcompare (map str ns))))))
+
+
 ;; hints don't do much, better to be pure Clojure
 (defn maxcat1
    "Returns the largest integer you can create by concatenating
