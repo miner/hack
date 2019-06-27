@@ -45,7 +45,11 @@
 
 ;; look for a better nilable gen???
 
-(def comparable-gens (map (fn [gn] (g/frequency [[5 gn] [1 (g/return nil)]]))
+(defn gen-mostly
+  ([gen] (gen-mostly gen nil))
+  ([gen const] (g/frequency [[5 gen] [1 (g/return const)]])))
+  
+(def comparable-gens (map gen-mostly
                           [(g/int) (g/string-alphanumeric) (g/symbol) (g/keyword) (g/boolean)]))
 
 (def gen-sorted-list (g/fmap sort (g/one-of (map g/list comparable-gens))))
@@ -61,3 +65,76 @@
 
 ;; (def BADgen-sorted-list-rec
 ;;  (g/fmap sort (g/one-of (map (fn [gn] (g/recursive-gen g/vector gn)) comparable-gens))))
+
+
+;; SEM needs work
+(defn stable-sorting? [sortfn coll]
+  (let [cn (sort (map-indexed #(vector %2 %) coll))
+        sn (map-indexed #(vector %2 %) (sortfn coll))]
+    (= (map first cn) (map first sn))))
+    
+
+
+(defn ascending? [coll]
+  (empty? (filter pos? (map compare coll (rest coll)))))
+
+
+(defn test-sorting [sort-fn coll]
+  (let [result (sort-fn coll)]
+    (and (ascending? result)
+         (= (count result) (count coll))
+         (= (frequencies result) (frequencies coll)))))
+  
+
+(defn rasc? [coll]
+  (if-let [rst (next coll)]
+    (not= ::fail (reduce (fn [r x] (if (pos? (compare r x)) (reduced ::fail) x))
+                         (first coll)
+                         rst))
+    true))
+
+(defn rasc2? [coll]
+  (or (empty? coll)
+      (not= ::fail (reduce (fn [r x] (if (pos? (compare r x)) (reduced ::fail) x)) coll))))
+
+
+
+(defn rasc3? [coll]
+  (or (empty? coll)
+      (not= ::fail (reduce (fn [r x] (if (pos? (compare r x)) (reduced ::fail) x))
+                           (first coll)
+                           (rest coll)))))
+
+
+(defn asc4? [coll]
+  (loop [cs coll]
+    (cond (empty? (rest cs)) true
+          (pos? (compare (first cs) (second cs))) false
+          :else (recur (rest cs)))))
+
+
+(defn smoke-sort
+  ([] (smoke-sort 100))
+  ([n]
+   (assert (every? ascending? (g/sample gen-sorted-nested-list n)))
+   true))
+
+
+
+
+
+
+
+;; Eric had gen/long, but I couldn't find that.  I used gen/int.
+(def gen-eric
+  (gen/fmap
+   (fn [[init nums]]
+     (next (reductions + init nums)))
+   (gen/tuple gen/int (gen/vector gen/nat))))
+
+;; my version...
+(def gen-sem
+  (gen/let [init gen/int
+            nums (gen/list gen/nat)]
+    (reductions + init nums)))
+
