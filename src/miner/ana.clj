@@ -82,3 +82,137 @@
 ;;  ["evil" "levi" "live" "veil" "vile"])
 
 
+
+
+
+;; Harder anagrams for phrases
+
+
+(def eric-dict
+  "https://gist.githubusercontent.com/ericnormand/8c0ccc095edaa64eb8e00f861f70b02c/raw/01c33b3438bbab6bdd7e8dade55c1f5997ad8027/wordlist.txt")
+
+(defn word-digest [word]
+  (-> word
+      str/lower-case
+      frequencies))
+
+(defn phrase-digest [phrase]
+  (-> phrase
+      (str/replace #"[^A-Za-z]" "")
+      str/lower-case
+      frequencies))
+
+(defn normalize-phrase [phrase]
+  (-> phrase
+      str/lower-case
+      (str/replace #"[^a-z]" " ")
+      (str/replace #" +"  " ")
+      str/trim))
+
+
+(defn ana-phrase? [phrase1 phrase2]
+  (and (not= (normalize-phrase phrase1) (normalize-phrase phrase2))
+       (= (phrase-digest phrase1) (phrase-digest phrase2))))
+
+;; longest words first, = length by alphabetical order
+(defn compare-word-length-alpha [^String a ^String b]
+  (cond (and (nil? a) (nil? b)) 0
+        (nil? a) -1
+        (nil? b) 1
+        (> (count a) (count b)) -1
+        (< (count a) (count b)) 1
+        :else (compare a b)))
+           
+
+(defn ana-freqs [words]
+  (reduce (fn [m w] (assoc m w (word-digest w))) (sorted-map-by compare-word-length-alpha) words))
+
+(defn load-freqs [filename]
+  (ana-freqs (load-words filename)))
+
+
+(defn take-word [word working freqs]
+  (reduce-kv (fn [res ch cnt]
+               (if (>= (get res ch 0) cnt)
+                 (update res ch - cnt)
+                 (reduced nil)))
+             working
+             (get freqs word)))
+
+;; returns nil for failure
+(defn subtract-freq [working freq]
+  (reduce-kv (fn [res ch cnt]
+               (if (>= (get res ch 0) cnt)
+                 (update res ch - cnt)
+                 (reduced nil)))
+             working
+             freq))
+
+(defn add-freq [working freq]
+  (merge-with + working freq))
+
+
+(defn empty-working? [m]
+  (every? zero? (vals m)))
+
+
+;; needs backtracking!
+;; probably should sort freqs by length
+
+;; unify state of ana and working into one stack of maps
+
+;; shouldn't match original!
+
+
+(defn add-back-word [working word freqs]
+  (merge-with + working (get freqs word)))
+
+
+;;; got to control backtracking correctly -- not from the top to repeat everything
+;;; should search for all anagrams!
+;;; but not return original -- spaces significant in final
+
+
+(defn search-freqs [phrase freqs]
+  (let [pdig (phrase-digest phrase)
+        xfreqs (reduce-kv (fn [r k v]
+                            (if (take-word k pdig freqs)
+                              r
+                              (dissoc r k)))
+                          freqs
+                          freqs)]
+    (println "Freqs count" (count freqs) "  xfreqs" (count xfreqs))
+
+  (loop [ana [] remaining pdig fqs xfreqs]
+    (if (empty-working? remaining)
+      (str/join " " ana)
+      (if (empty? fqs)
+        (if (empty? ana)
+          nil
+          (do (println "Backtrack " ana (keys fqs))
+              (recur (pop ana)
+                     (add-back-word remaining (peek ana) xfreqs)
+                     (reduce dissoc xfreqs (concat ana (map key (subseq xfreqs < (peek ana))))))))
+        (let [word (key (first fqs))]
+          (if-let [rem1 (take-word word remaining xfreqs)]
+            (do (println "Matched" (conj ana word) (keys (dissoc fqs word)))
+                (recur (conj ana word)
+                       rem1
+                       (dissoc fqs word)))
+            (do (println "skipping " word ana (keys (dissoc fqs word)))
+                (recur ana remaining (dissoc fqs word))))))))))
+
+
+
+;;; could short circuit if there's a letter with no words
+;;; maybe no "x" or "z"
+;;; or count of letters
+;;; should look for words with least likely letters first
+;;;
+;;; or filter all words first to see if they could be in, then try to search that list which
+;;; should be much smaller.  Avoids reconsidering dead words a million times.
+
+
+
+;;; testing only
+(def bbb (ana-freqs ["foo" "bar" "baz" "boing"]))
