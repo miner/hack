@@ -102,16 +102,17 @@
       str/lower-case
       frequencies))
 
-(defn normalize-phrase [phrase]
+(defn phrase-words-sorted [phrase]
   (-> phrase
       str/lower-case
       (str/replace #"[^a-z]" " ")
-      (str/replace #" +"  " ")
-      str/trim))
+      str/trim
+      (str/split #" +")
+      sort))
 
 
 (defn ana-phrase? [phrase1 phrase2]
-  (and (not= (normalize-phrase phrase1) (normalize-phrase phrase2))
+  (and (not= (phrase-words-sorted phrase1) (phrase-words-sorted phrase2))
        (= (phrase-digest phrase1) (phrase-digest phrase2))))
 
 ;; longest words first, = length by alphabetical order
@@ -130,15 +131,6 @@
 (defn load-freqs [filename]
   (ana-freqs (load-words filename)))
 
-
-(defn take-word [word working freqs]
-  (reduce-kv (fn [res ch cnt]
-               (if (>= (get res ch 0) cnt)
-                 (update res ch - cnt)
-                 (reduced nil)))
-             working
-             (get freqs word)))
-
 ;; returns nil for failure
 (defn subtract-freq [working freq]
   (reduce-kv (fn [res ch cnt]
@@ -151,32 +143,25 @@
 (defn add-freq [working freq]
   (merge-with + working freq))
 
-
 (defn empty-working? [m]
   (every? zero? (vals m)))
 
-
-;; needs backtracking!
-;; probably should sort freqs by length
 
 ;; unify state of ana and working into one stack of maps
 
 ;; shouldn't match original!
 
 
-(defn add-back-word [working word freqs]
-  (merge-with + working (get freqs word)))
-
-
 ;;; got to control backtracking correctly -- not from the top to repeat everything
 ;;; should search for all anagrams!
 ;;; but not return original -- spaces significant in final
 
+(def ^:dynamic *debug* false)
 
 (defn search-freqs [phrase freqs]
   (let [pdig (phrase-digest phrase)
         xfreqs (reduce-kv (fn [r k v]
-                            (if (take-word k pdig freqs)
+                            (if (subtract-freq pdig (get freqs k))
                               r
                               (dissoc r k)))
                           freqs
@@ -189,17 +174,17 @@
       (if (empty? fqs)
         (if (empty? ana)
           nil
-          (do (println "Backtrack " ana (keys fqs))
+          (do (when *debug* (println "Backtrack " ana (keys fqs)))
               (recur (pop ana)
-                     (add-back-word remaining (peek ana) xfreqs)
+                     (add-freq remaining (get xfreqs (peek ana)))
                      (reduce dissoc xfreqs (concat ana (map key (subseq xfreqs < (peek ana))))))))
         (let [word (key (first fqs))]
-          (if-let [rem1 (take-word word remaining xfreqs)]
-            (do (println "Matched" (conj ana word) (keys (dissoc fqs word)))
+          (if-let [rem1 (subtract-freq remaining (get xfreqs word))]
+            (do (when *debug* (println "Matched" (conj ana word) (keys (dissoc fqs word))))
                 (recur (conj ana word)
                        rem1
                        (dissoc fqs word)))
-            (do (println "skipping " word ana (keys (dissoc fqs word)))
+            (do (when *debug* (println "skipping " word ana (keys (dissoc fqs word))))
                 (recur ana remaining (dissoc fqs word))))))))))
 
 
@@ -216,3 +201,13 @@
 
 ;;; testing only
 (def bbb (ana-freqs ["foo" "bar" "baz" "boing"]))
+
+(def eee (load-freqs eric-dict))
+
+(defn smoke-anap []
+  (assert (ana-phrase? "the classroom" "school master"))
+  (assert (not (ana-phrase? "master school" "school master")))
+  (assert (not (ana-phrase? "school master" "School  Master")))
+  (assert (ana-phrase? "Astronomer" "Moon starer"))
+  (assert (ana-phrase? "The Eyes" "They see"))
+  true)
