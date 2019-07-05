@@ -1,5 +1,6 @@
 (ns miner.ana
   (:require [clojure.java.io :as io]
+            [clojure.math.combinatorics :as mc]
             [clojure.string :as str]))
 
 ;;; Eric Normand's Clojure challenge: anagrams
@@ -88,8 +89,12 @@
 ;; Harder anagrams for phrases
 
 
-(def eric-dict
+(def eric-original-dict
   "https://gist.githubusercontent.com/ericnormand/8c0ccc095edaa64eb8e00f861f70b02c/raw/01c33b3438bbab6bdd7e8dade55c1f5997ad8027/wordlist.txt")
+
+;; modified by SEM to add a few words: "master" and "fun"
+(def eric-local-dict "resources/wordlist.txt")
+
 
 (defn word-digest [word]
   (-> word
@@ -128,8 +133,10 @@
 (defn ana-freqs [words]
   (reduce (fn [m w] (assoc m w (word-digest w))) (sorted-map-by compare-word-length-alpha) words))
 
-(defn load-freqs [filename]
-  (ana-freqs (load-words filename)))
+(defn load-freqs
+  ([filename] (load-freqs 3 filename))
+  ([min filename]
+   (ana-freqs (remove #(< (count %) min) (load-words filename)))))
 
 ;; returns nil for failure
 (defn subtract-freq [working freq]
@@ -158,8 +165,13 @@
 
 (def ^:dynamic *debug* false)
 
+
+(defn pprint-results [results]
+  (clojure.pprint/pprint (map #(str/join " " %) (mapcat mc/permutations results))))
+
 (defn search-freqs [phrase freqs]
   (let [pdig (phrase-digest phrase)
+        phwords (phrase-words-sorted phrase)
         xfreqs (reduce-kv (fn [r k v]
                             (if (subtract-freq pdig (get freqs k))
                               r
@@ -168,24 +180,37 @@
                           freqs)]
     (println "Freqs count" (count freqs) "  xfreqs" (count xfreqs))
 
-  (loop [ana [] remaining pdig fqs xfreqs]
+  (loop [ana [] remaining pdig fqs xfreqs results []]
     (if (empty-working? remaining)
-      (str/join " " ana)
+      ;; found one, backtrack for more
+      (recur (pop ana)
+             (add-freq remaining (get xfreqs (peek ana)))
+             (reduce dissoc xfreqs (concat ana (map key (subseq xfreqs < (peek ana)))))
+             (conj results ana))
       (if (empty? fqs)
         (if (empty? ana)
-          nil
+          ;; finished
+          (not-empty (remove #(= (phrase-words-sorted %) phwords) results))
+          ;; backtrack
           (do (when *debug* (println "Backtrack " ana (keys fqs)))
               (recur (pop ana)
                      (add-freq remaining (get xfreqs (peek ana)))
-                     (reduce dissoc xfreqs (concat ana (map key (subseq xfreqs < (peek ana))))))))
+                     (reduce dissoc xfreqs (concat ana (map key (subseq xfreqs < (peek
+                                                                                  ana)))))
+                     results)))
         (let [word (key (first fqs))]
           (if-let [rem1 (subtract-freq remaining (get xfreqs word))]
             (do (when *debug* (println "Matched" (conj ana word) (keys (dissoc fqs word))))
                 (recur (conj ana word)
                        rem1
-                       (dissoc fqs word)))
+                       (dissoc fqs word)
+                       results))
             (do (when *debug* (println "skipping " word ana (keys (dissoc fqs word))))
-                (recur ana remaining (dissoc fqs word))))))))))
+                (recur ana remaining (dissoc fqs word) results)))))))))
+
+
+(defn find-anagram-phrases [phrase dict]
+  (pprint-results (search-freqs phrase (if (map? dict) dict (load-freqs dict)))))
 
 
 
@@ -202,7 +227,7 @@
 ;;; testing only
 (def bbb (ana-freqs ["foo" "bar" "baz" "boing"]))
 
-(def eee (load-freqs eric-dict))
+(def eee (load-freqs eric-local-dict))
 
 (defn smoke-anap []
   (assert (ana-phrase? "the classroom" "school master"))
@@ -210,4 +235,8 @@
   (assert (not (ana-phrase? "school master" "School  Master")))
   (assert (ana-phrase? "Astronomer" "Moon starer"))
   (assert (ana-phrase? "The Eyes" "They see"))
+  (assert (ana-phrase? "Steve Miner" "event miser"))
+  (assert (ana-phrase? "Steve Miner" "severe mint"))
+  (assert (ana-phrase? "Eric Normand" "modern cairn"))
+  (assert (ana-phrase? "Eric Normand" "Roman cinder"))
   true)
