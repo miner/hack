@@ -173,8 +173,8 @@
 (defn search-freqs [phrase freqs]
   (let [pdig (phrase-digest phrase)
         phwords (phrase-words-sorted phrase)
-        xwords (sort-by identity compare-word-length-alpha
-                        (filter #(subtract-freq pdig (get freqs %)) (keys freqs)))]
+        xwords (sort compare-word-length-alpha
+                     (filter #(subtract-freq pdig (get freqs %)) (keys freqs)))]
 
     (println "Freqs count" (count freqs) "  xwords" (count xwords))
 
