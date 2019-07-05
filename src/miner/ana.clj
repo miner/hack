@@ -131,7 +131,7 @@
            
 
 (defn ana-freqs [words]
-  (reduce (fn [m w] (assoc m w (word-digest w))) (sorted-map-by compare-word-length-alpha) words))
+  (reduce (fn [m w] (assoc m w (word-digest w))) {} words))
 
 (defn load-freqs
   ([filename] (load-freqs 3 filename))
@@ -169,44 +169,47 @@
 (defn pprint-results [results]
   (clojure.pprint/pprint (map #(str/join " " %) (mapcat mc/permutations results))))
 
+
 (defn search-freqs [phrase freqs]
   (let [pdig (phrase-digest phrase)
         phwords (phrase-words-sorted phrase)
-        xfreqs (reduce-kv (fn [r k v]
-                            (if (subtract-freq pdig (get freqs k))
-                              r
-                              (dissoc r k)))
-                          freqs
-                          freqs)]
-    (println "Freqs count" (count freqs) "  xfreqs" (count xfreqs))
+        xwords (sort-by identity compare-word-length-alpha
+                        (filter #(subtract-freq pdig (get freqs %)) (keys freqs)))]
 
-  (loop [ana [] remaining pdig fqs xfreqs results []]
-    (if (empty-working? remaining)
-      ;; found one, backtrack for more
-      (recur (pop ana)
-             (add-freq remaining (get xfreqs (peek ana)))
-             (reduce dissoc xfreqs (concat ana (map key (subseq xfreqs < (peek ana)))))
-             (conj results ana))
-      (if (empty? fqs)
-        (if (empty? ana)
-          ;; finished
-          (not-empty (remove #(= (phrase-words-sorted %) phwords) results))
-          ;; backtrack
-          (do (when *debug* (println "Backtrack " ana (keys fqs)))
-              (recur (pop ana)
-                     (add-freq remaining (get xfreqs (peek ana)))
-                     (reduce dissoc xfreqs (concat ana (map key (subseq xfreqs < (peek
-                                                                                  ana)))))
-                     results)))
-        (let [word (key (first fqs))]
-          (if-let [rem1 (subtract-freq remaining (get xfreqs word))]
-            (do (when *debug* (println "Matched" (conj ana word) (keys (dissoc fqs word))))
-                (recur (conj ana word)
-                       rem1
-                       (dissoc fqs word)
-                       results))
-            (do (when *debug* (println "skipping " word ana (keys (dissoc fqs word))))
-                (recur ana remaining (dissoc fqs word) results)))))))))
+    (println "Freqs count" (count freqs) "  xwords" (count xwords))
+
+    ;; ana is now a vector of word-lists
+    ;; first of each is the accepted word, rest is to be searched
+    
+    (loop [ana [] remaining pdig ws (seq xwords) results []]
+      (if (empty-working? remaining)
+        ;; found one, backtrack for more
+        (recur (pop ana)
+               (add-freq remaining (get freqs (first (peek ana))))
+               (rest (peek ana))
+               (conj results (map first ana)))
+        (if (empty? ws)
+          (if (empty? ana)
+            ;; finished
+            (not-empty (remove #(= % phwords) results))
+            ;; backtrack
+            (do (when *debug* (println "Backtrack " (map first ana) ws))
+                (recur (pop ana)
+                       (add-freq remaining (get freqs (first (peek ana))))
+                       (rest (peek ana))
+                       results)))
+          (let [word (first ws)]
+            (if-let [rem1 (subtract-freq remaining (get freqs word))]
+              (do (when *debug* (println "Matched" (conj ana word) (rest ws)))
+                  (recur (conj ana ws)
+                         rem1
+                         (rest ws)
+                         results))
+              (do (when *debug* (println "skipping " word (map first ana) (rest ws)))
+                  (recur ana remaining (rest ws) results)))))))))
+
+
+
 
 
 (defn find-anagram-phrases [phrase dict]
