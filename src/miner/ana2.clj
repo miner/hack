@@ -1,100 +1,18 @@
-(ns miner.ana
+(ns miner.ana2
   (:require [clojure.java.io :as io]
             [clojure.math.combinatorics :as mc]
             [clojure.string :as str]))
 
-;;; Eric Normand's Clojure challenge: anagrams
-;;; https://purelyfunctional.tv/?p=31286
-
-;;; revised after submission
-;;; need to lowercase words, and dedupe
-
-
-
-(defn digest [w]
-  (sort (seq w)))
-
-(defn anagram? [a b]
-  (let [a (str/lower-case a)
-        b (str/lower-case b)]
-    (and (not= a b)
-         (= (digest a) (digest b)))))
-
-;; assume text file with one word per line
-;; Note: the file could contain capitalized and lowercase versions of the same spelling so we
-;; need to dedupe after lower-casing.
-(defn load-words [filename]
-  (into []
-        (comp (map str/lower-case) (dedupe))
-        (with-open [rdr (io/reader filename)] (doall (line-seq rdr)))))
-
-
-;; old version
-#_
-(defn load-words1 [filename]
-  (dedupe (map str/lower-case (with-open [rdr (io/reader filename)] (doall (line-seq rdr))))))
-
-#_
-(defn load-words0 [filename]
-  (with-open [fi (io/reader filename)]
-    (binding [*in* fi]
-      (doall (map str/lower-case (take-while some? (repeatedly read-line)))))))
-
-(defn anagram-group [filename]
-  (group-by digest (load-words filename)))
-
-(def default-dict "http://wiki.puzzlers.org/pub/wordlists/unixdict.txt")
-
-(def default-anagram-group (delay (anagram-group default-dict)))
-
-(def local-dict "/usr/share/dict/words")
-
-(def local-anagram-group (delay (anagram-group local-dict)))
-  
-;; `dict` can be either a file reference or a predigested anagram group (for better performance)
-(defn anagrams
-  ([word]
-   (anagrams word @default-anagram-group))
-  ([word dict]
-   (let [ana-group (if (map? dict) dict (anagram-group dict))
-         word (str/lower-case word)
-         grams (get ana-group (digest word))]
-     (not-empty (remove #{word} grams)))))
-
-
-#_
-(anagrams "crate")
-;; ("caret" "carte" "cater" "trace")
-
-#_
-(apply max-key count (vals @local-anagram-group))
-;; ["elaps" "lapse" "lepas" "pales" "salep" "saple" "sepal" "slape" "spale" "speal"]
-
-;; the other 10 count grouping...
-;; ["angor" "argon" "goran" "grano" "groan" "nagor" "orang" "orang" "rogan" "ronga"]
-
-#_
-(pprint (sort-by first (filter #(>= (count %) 5) (vals @default-anagram-group))))
-;; (["abel" "able" "bale" "bela" "elba"]
-;;  ["alger" "glare" "lager" "large" "regal"]
-;;  ["angel" "angle" "galen" "glean" "lange"]
-;;  ["caret" "carte" "cater" "crate" "trace"]
-;;  ["elan" "lane" "lean" "lena" "neal"]
-;;  ["evil" "levi" "live" "veil" "vile"])
-
-
-
-
-
+;; https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-333-tool-rebel-readline/
 ;; Harder anagrams for phrases
 
+(def eric-dict
+  "https://gist.githubusercontent.com/ericnormand/8c0ccc095edaa64eb8e00f861f70b02c/raw/wordlist.txt")
 
-(def eric-original-dict
-  "https://gist.githubusercontent.com/ericnormand/8c0ccc095edaa64eb8e00f861f70b02c/raw/01c33b3438bbab6bdd7e8dade55c1f5997ad8027/wordlist.txt")
+;; modified by SEM to add a few words to make my examples work
+(def the-dict "resources/sem-wordlist.txt")
 
-;; modified by SEM to add a few words: "master" and "fun", etc to make my examples work
-(def the-dict "resources/wordlist.txt")
-
+(def extra-words ["astronomer" "cinder" "fun" "master" "mint" "miser" "Roman" "severe"])
 
 (defn word-digest [word]
   (-> word
@@ -114,8 +32,6 @@
       str/trim
       (str/split #" +")))
 
-
-
 (defn ana-phrase? [phrase1 phrase2]
   (and (= (phrase-digest phrase1) (phrase-digest phrase2))
        (not= (sort (phrase-words phrase1)) (sort (phrase-words phrase2)))))
@@ -125,18 +41,25 @@
   (cond (and (nil? a) (nil? b)) 0
         (nil? a) -1
         (nil? b) 1
-        (> (count a) (count b)) -1
-        (< (count a) (count b)) 1
+        (> (.length a) (.length b)) -1
+        (< (.length a) (.length b)) 1
         :else (compare a b)))
-           
 
-(defn ana-freqs [words]
-  (reduce (fn [m w] (assoc m w (word-digest w))) {} words))
+;; assume text file with one word per line
+;; Note: the file could contain capitalized and lowercase versions of the same spelling so we
+;; need to dedupe after lower-casing.
+(defn load-words [filename]
+  (into []
+        (comp (map str/lower-case) (dedupe))
+        (with-open [rdr (io/reader filename)] (doall (line-seq rdr)))))
 
+;; Executive decision: by default only consider words of 3 or more characters
 (defn load-freqs
   ([filename] (load-freqs 3 filename))
   ([min filename]
-   (ana-freqs (remove #(< (count %) min) (load-words filename)))))
+   (reduce (fn [m w] (assoc m w (word-digest w)))
+           {}
+           (remove #(< (count %) min) (load-words filename)))))
 
 ;; returns nil for failure
 (defn subtract-freq [working freq]
@@ -209,10 +132,14 @@
 
 (def default-freqs (load-freqs the-dict))
 
-(defn find-anagram-phrases
-  ([phrase] (find-anagram-phrases phrase default-freqs))
+(defn anagram-phrases
+  ([phrase] (anagram-phrases phrase default-freqs))
   ([phrase dict]
-   (pprint-results (search-freqs phrase (if (map? dict) dict (load-freqs dict))))))
+   (search-freqs phrase (if (map? dict) dict (load-freqs dict)))))
+
+(defn pprint-anagram-phrases
+  ([phrase] (pprint-anagram-phrases phrase default-freqs))
+  ([phrase dict]  (pprint-results (anagram-phrases phrase dict))))
 
 
 
