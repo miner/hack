@@ -81,7 +81,7 @@
 
 
 ;; subtract character counts from frequency map
-;; dissoc character count when zero
+;; dissoc character when count would be zero
 ;; returns nil for failure
 
 (defn subtract-freq [working freq]
