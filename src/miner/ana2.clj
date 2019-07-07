@@ -77,9 +77,6 @@
   (every? zero? (vals m)))
 
 
-(def ^:dynamic *debug* false)
-
-
 (defn pprint-results [results]
   (when (seq results)
     (clojure.pprint/pprint (map #(str/join " " %) (mapcat mc/permutations results)))))
@@ -87,14 +84,10 @@
 
 ;; could be faster if you kept a letter count total to prune more words
 
-;; longest actual phrase word could be removed from initial list so we don't have to check
-;; all of them at the end
-
-
 ;; ana is a vector of word-lists. Each word-list has a first which is the accepted word and
 ;; rest which has yet to be searched.
 
-;; my rule -- don't allow any original words to be reused
+;; my rule -- don't allow any original words to be appear in anagram results
 
 (defn search-freqs [phrase dict-freqs]
   (let [pdig (phrase-digest phrase)
@@ -113,20 +106,17 @@
             ;; finished
             results
             ;; backtrack
-            (do (when *debug* (println "Backtrack " (map first ana) ws))
-                (recur (pop ana)
-                       (add-freq remaining (get freqs (first (peek ana))))
-                       (rest (peek ana))
-                       results)))
+            (recur (pop ana)
+                   (add-freq remaining (get freqs (first (peek ana))))
+                   (rest (peek ana))
+                   results))
           (let [word (first ws)]
             (if-let [rem1 (subtract-freq remaining (get freqs word))]
-              (do (when *debug* (println "Matched" (conj ana word) (rest ws)))
-                  (recur (conj ana ws)
-                         rem1
-                         (rest ws)
-                         results))
-              (do (when *debug* (println "skipping " word (map first ana) (rest ws)))
-                  (recur ana remaining (rest ws) results)))))))))
+              (recur (conj ana ws)
+                     rem1
+                     (rest ws)
+                     results)
+              (recur ana remaining (rest ws) results))))))))
 
 
 
