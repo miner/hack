@@ -6,13 +6,30 @@
 ;; https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-333-tool-rebel-readline/
 ;; Harder anagrams for phrases
 
+;; My solution uses frequency maps of the characters of the dictionary words and compares
+;; them to the frequency map of the source phrase.  As a first pass, I collect the words
+;; that could individually match part of the phrase.  Then I test the longest words first
+;; and search for a combination that works.  As a word matches, I save the whole remaining
+;; word list on the "ana" stack.  If a sequence fails, I backtrack and start again with rest
+;; of that word-list segment.  If a sequence succeeds, the anagram is taken from the first
+;; of each word-list on the stack.  When pretty-printing the final results, I expand all the
+;; permutations of the matching words.
+
+;; Some executive decisions:
+;;  1.  Don't allow anagram phrases to contain any words from the original phrase.
+;;  2.  Skip dictionary words of fewer than three characters.
+;;  3.  Add a few words to the source dictionary to make my test examples work.
+
 (def eric-dict
   "https://gist.githubusercontent.com/ericnormand/8c0ccc095edaa64eb8e00f861f70b02c/raw/wordlist.txt")
 
-;; modified by SEM to add a few words to make my examples work
-(def the-dict "resources/sem-wordlist.txt")
-
+;; A few extra words to make my test examples work
 (def extra-words ["astronomer" "cinder" "fun" "master" "mint" "miser" "Roman" "severe"])
+
+;; modified by SEM to add the extra words for my test examples
+#_
+(def sem-dict "resources/sem-wordlist.txt")
+
 
 (defn word-digest [word]
   (-> word
@@ -21,8 +38,8 @@
 
 (defn phrase-digest [phrase]
   (-> phrase
-      (str/replace #"[^A-Za-z]" "")
       str/lower-case
+      (str/replace #"[^a-z]" "")
       frequencies))
 
 (defn phrase-words [phrase]
@@ -53,29 +70,32 @@
         (comp (map str/lower-case) (dedupe))
         (with-open [rdr (io/reader filename)] (doall (line-seq rdr)))))
 
-;; Executive decision: by default only consider words of 3 or more characters
+;; by default consider only words of 3 or more characters
 (defn load-freqs
-  ([filename] (load-freqs 3 filename))
-  ([min filename]
+  ([filename] (load-freqs 3 [] filename))
+  ([min extras filename]
    (reduce (fn [m w] (assoc m w (word-digest w)))
            {}
-           (remove #(< (count %) min) (load-words filename)))))
+           (concat extras
+                   (remove #(< (count %) min) (load-words filename))))))
 
+
+;; subtract character counts from frequency map
+;; dissoc character count when zero
 ;; returns nil for failure
+
 (defn subtract-freq [working freq]
   (reduce-kv (fn [res ch cnt]
-               (if (>= (get res ch 0) cnt)
-                 (update res ch - cnt)
-                 (reduced nil)))
+               (let [old (get res ch)]
+                 (cond (nil? old) (reduced nil)
+                       (= cnt old) (dissoc res ch)
+                       (< cnt old) (update res ch - cnt)
+                       :else (reduced nil))))
              working
              freq))
 
 (defn add-freq [working freq]
   (merge-with + working freq))
-
-(defn empty-working? [m]
-  (every? zero? (vals m)))
-
 
 (defn pprint-results [results]
   (when (seq results)
@@ -87,7 +107,6 @@
 ;; ana is a vector of word-lists. Each word-list has a first which is the accepted word and
 ;; rest which has yet to be searched.
 
-;; my rule -- don't allow any original words to be appear in anagram results
 
 (defn search-freqs [phrase dict-freqs]
   (let [pdig (phrase-digest phrase)
@@ -95,8 +114,8 @@
         xwords (sort compare-word-length-alpha
                      (filter #(subtract-freq pdig (get freqs %)) (keys freqs)))]
     (loop [ana [] remaining pdig ws xwords results []]
-      (if (empty-working? remaining)
-        ;; found one, backtrack for more
+      (if (empty? remaining)
+        ;; found an anagram, backtrack for more
         (recur (pop ana)
                (add-freq remaining (get freqs (first (peek ana))))
                (rest (peek ana))
@@ -110,41 +129,23 @@
                    (add-freq remaining (get freqs (first (peek ana))))
                    (rest (peek ana))
                    results))
-          (let [word (first ws)]
-            (if-let [rem1 (subtract-freq remaining (get freqs word))]
-              (recur (conj ana ws)
-                     rem1
-                     (rest ws)
-                     results)
-              (recur ana remaining (rest ws) results))))))))
+            (if-let [rem1 (subtract-freq remaining (get freqs (first ws)))]
+              (recur (conj ana ws) rem1 (rest ws) results)
+              (recur ana remaining (rest ws) results)))))))
 
+(def default-freqs (load-freqs 3 extra-words eric-dict))
 
-
-(def default-freqs (load-freqs the-dict))
-
-(defn anagram-phrases
-  ([phrase] (anagram-phrases phrase default-freqs))
+(defn anagram-lists
+  ([phrase] (anagram-lists phrase default-freqs))
   ([phrase dict]
    (search-freqs phrase (if (map? dict) dict (load-freqs dict)))))
 
 (defn pprint-anagram-phrases
   ([phrase] (pprint-anagram-phrases phrase default-freqs))
-  ([phrase dict]  (pprint-results (anagram-phrases phrase dict))))
+  ([phrase dict]  (pprint-results (anagram-lists phrase dict))))
 
 
-
-;;; could short circuit if there's a letter with no words
-;;; maybe no "x" or "z"
-;;; or count of letters
-;;; should look for words with least likely letters first
-;;;
-;;; or filter all words first to see if they could be in, then try to search that list which
-;;; should be much smaller.  Avoids reconsidering dead words a million times.
-
-
-
-
-(defn smoke-phrase []
+(defn smoke-test-phrases []
   (assert (ana-phrase? "the classroom" "school master"))
   (assert (not (ana-phrase? "master school" "school master")))
   (assert (not (ana-phrase? "school master" "School  Master")))
@@ -155,10 +156,11 @@
   (assert (ana-phrase? "Eric Normand" "Roman cinder"))
   true)
 
-(defn local-phrase-test []
-  (let [results (set (search-freqs "Steve Miner" default-freqs))]
+
+(defn my-phrase-test []
+  (let [results (set (anagram-lists "Steve Miner"))]
     (assert (not (contains? results ["even" "steven"])))
-    (assert (contains? results ["event" "miser"]))
-    (assert (contains? results ["severe" "mint"])))
+    (assert (contains? results '("event" "miser")))
+    (assert (contains? results '("severe" "mint"))))
   true)
 
