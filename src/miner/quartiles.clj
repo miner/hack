@@ -18,6 +18,13 @@
 ;; https://en.wikipedia.org/wiki/Quartile
 
 
+(defn- median-sorted-vec [v]
+  (let [cnt (count v)
+        mid (quot cnt 2)]
+    (if (odd? cnt)
+      (v mid)
+      (/ (+ (v (dec mid)) (v mid)) 2.0))))
+
 
 (defn quartiles [coll]
   "Returns a vector of 5 elements based on the collection of numbers `coll`. Q0 is the
@@ -26,13 +33,7 @@
   split according to the *Tukey's hinges* convention in which the median belongs to both
   halves if the dataset has an odd number of elements."
   (when (seq coll)
-    (let [median-sorted-vec (fn [vvv]
-                              (let [c (count vvv)
-                                    mid (quot c 2)]
-                                (if (odd? c)
-                                  (vvv mid)
-                                  (/ (+ (vvv (dec mid)) (vvv mid)) 2.0))))
-          v (vec (sort coll))
+    (let [v (vec (sort coll))
           cnt (count v)
           lower (subvec v 0 (quot (inc cnt) 2))
           upper (subvec v (if (odd? cnt) (dec (count lower)) (count lower)))]
@@ -50,6 +51,8 @@
              [6 25.5 40 42.5 49]))
   (assert (= (quartiles [7, 15, 36, 39, 40, 41])
              [7 15 37.5 40 41]))
+  (assert (= (quartiles (range 0.0 10.1 0.5))
+             [0.0 2.5 5.0 7.5 10.0]))
   (assert (= (quartiles [13])
              [13 13 13 13 13]))
   (assert (= (quartiles (range 100001))
