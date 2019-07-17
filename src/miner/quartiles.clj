@@ -25,7 +25,6 @@
       (v mid)
       (/ (+ (v (dec mid)) (v mid)) 2.0))))
 
-
 (defn quartiles [coll]
   "Returns a vector of 5 elements based on the collection of numbers `coll`. Q0 is the
   minimum, Q1 is the median of the lower half, Q2 is the median, Q3 is the median of the
@@ -42,9 +41,6 @@
        (median-sorted-vec v)
        (median-sorted-vec upper)
        (v (dec cnt))])))
-
-
-
 
 (defn smoke-test-quartiles []
   (assert (= (quartiles [6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49])
