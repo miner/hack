@@ -26,14 +26,14 @@
   split according to the *Tukey's hinges* convention in which the median belongs to both
   halves if the dataset has an odd number of elements."
   (when (seq coll)
-    (let [v (vec (sort coll))
-          cnt (count v)
-          median-sorted-vec (fn [vvv]
+    (let [median-sorted-vec (fn [vvv]
                               (let [c (count vvv)
                                     mid (quot c 2)]
                                 (if (odd? c)
                                   (vvv mid)
                                   (/ (+ (vvv (dec mid)) (vvv mid)) 2.0))))
+          v (vec (sort coll))
+          cnt (count v)
           lower (subvec v 0 (quot (inc cnt) 2))
           upper (subvec v (if (odd? cnt) (dec (count lower)) (count lower)))]
       [(v 0)
@@ -52,6 +52,8 @@
              [7 15 37.5 40 41]))
   (assert (= (quartiles [13])
              [13 13 13 13 13]))
+  (assert (= (quartiles (range 100001))
+             [0 25000 50000 75000 100000]))
   (assert (nil? (quartiles [])))
   true)
 
