@@ -8,30 +8,29 @@
 ;; Rosetta is overly string-based.  Clojure allows better data types.
 
 ;; The string representation for a card is a two-character or three-character string.
-;; Faces are: a, 2, 3, 4, 5, 6, 7, 8, 9, 10, j, q, k
+;; Faces are: 2, 3, 4, 5, 6, 7, 8, 9, 10, j, q, k, a
 ;; Suits are: h (hearts), d (diamonds), c (clubs), and s (spades), or alternatively the
 ;; unicode card-suit characters: ♥ ♦ ♣ ♠
 
 ;; My internal representation for a card is a two element vector of [rank suit] where rank
-;; is a long 1 - 13 for Ace - King, and suit is a keyword :hearts, :diamonds :clubs, or :spades.
+;; is a long 2 - 14 (Ace high), and suit is a keyword :hearts, :diamonds :clubs, or :spades.
 
 
 (def possible-evaluations
-  [:straight-flush
- :four-of-a-kind
-  :full-house
-  :flush
-  :straight
-  :three-of-a-kind
-  :two-pair
-  :one-pair
-  :high-card
-  :invalid])
+  [:invalid :high-card :one-pair :two-pair :three-of-a-kind :straight
+   :flush :full-house :four-of-a-kind :straight-flush])
+
+;; add five-of-a-kind with jokers
+
+
+(def eval-map (reduce-kv (fn [r i v] (assoc r (* i 1000) v v (* i 1000))) {}
+                         possible-evaluations))
+
 
 (defn parse-card [cstr]
   (let [rank (case (count cstr)
                2 (case (first cstr)
-                   (\a \A \1) 1
+                   (\a \A \1) 14
                    (\t \T) 10
                    (\j \J) 11
                    (\q \Q) 12
@@ -54,46 +53,52 @@
     (when (and (= (count cards) 5) (not-any? nil? cards) (apply distinct? cards))
       cards)))
 
-(defn straight-hand? [hand]
-  (let [ranks (sort (map first hand))]
-    (or (= ranks (range (first ranks) (+ 5 (first ranks))))
-        (and (= (first ranks) 1)
-             (= (rest ranks) (range 10 14))))))
+(defn ace-low-straight? [sorted-ranks]
+  (= sorted-ranks '(14 5 4 3 2)))
+
+(defn simple-straight? [sorted-ranks]
+  (= sorted-ranks (take 5 (iterate dec (first sorted-ranks)))))
+
+(defn straight-ranks? [sorted-ranks]
+  (or (simple-straight? sorted-ranks)
+      (ace-low-straight? sorted-ranks)))  
 
 (defn flush-hand? [hand]
   (apply = (map second hand)))
 
-(defn kind-max [hand]
-  (let [freqs (frequencies (map first hand))]
-    (apply max (vals freqs))))
 
-(defn eval-hand [hand]
+(defn score-hand [hand]
   (if hand
-    (let [straight? (straight-hand? hand)
+    (let [freqs (frequencies (map first hand))
+          priorities (sort-by #(- (* -100 (val %)) (key %)) freqs)
+          ranks (map key priorities)
+          maxk (val (first priorities))
+          stra? (straight-ranks? ranks)
           flush? (flush-hand? hand)
-          freqs (frequencies (map first hand))
-          vfs (vals freqs)
-          maxk (apply max vfs)]
-      (cond (and straight? flush?) :straight-flush
-            (= maxk 4) :four-of-a-kind
-            (and (= maxk 3) (some #{2} vfs)) :full-house
-            flush? :flush
-            straight? :straight
-            (= maxk 3) :three-of-a-kind
-            (= (sort vfs) [1 2 2]) :two-pair
-            (= maxk 2) :one-pair
-            (= maxk 1) :high-card
-            :else :invalid))
-      :invalid))
+          evaluation (cond (and stra? flush?) :straight-flush
+                           (= maxk 4) :four-of-a-kind
+                           (= (map val priorities) [3 2]) :full-house
+                           flush? :flush
+                           stra? :straight
+                           (= maxk 3) :three-of-a-kind
+                           (= (map val priorities) [2 2 1]) :two-pair
+                           (= maxk 2) :one-pair
+                           (= maxk 1) :high-card
+                           :else :invalid)]
+      (if (and (= evaluation :straight) (ace-low-straight? ranks))
+        (vec (conj (rest ranks) (eval-map :straight)))
+        (vec (conj ranks (eval-map evaluation)))))
+    [(eval-map :invalid)]))
           
-(defn eval-hand-str [hand-str]
-  (eval-hand (parse-hand hand-str)))
+(defn score-hand-str [hand-str]
+  (score-hand (parse-hand hand-str)))
 
 (defn test-hands []
   (doseq [h ["2H 2D 2S KS QD" "2H 5H 7D 8S 9D" "AH 2D 3S 4S 5S" "2H 3H 2D 3S 3D"
              "2H 7H 2D 3S 3D" "2H 7H 7D 7S 7C" "TH JH QH KH AH" "4H 4C KC 5D TC"
              "QC TC 7C 6C 4C"]]
-    (println (str h ":") (name (eval-hand-str h)))))
+    (let [score (score-hand-str h)]
+    (println (str h ":") (name (eval-map (first score))) score))))
 
           
 ;; ----------------------------------------------------------------------
@@ -179,6 +184,7 @@
             ["4H" "4C" "KC" "5D" "TC"]
             ["QC" "TC" "7C" "6C" "4C"]])
 
-#_ (run! println (map #(str % " : " (check-hand %)) hands))
+(defn rosetta-test []
+ (run! println (map #(str % " : " (check-hand %)) hands)))
 
 
