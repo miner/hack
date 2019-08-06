@@ -28,22 +28,53 @@
       (apply str (into sdx (repeat (- 4 (count sdx)) 0))))))
 
 
-(defn soundex1 [word]
+;; ----------------------------------------------------------------------
+;; second take, after submission to Eric
+
+
+(defn xtake
+  "Like (take n) transducer, but with optional `pad` item that is provided as necessary if
+  input runs out before `n` items are taken."
+  ([n] (take n))
+  ([n pad]
+   (fn [rf]
+     (let [nv (volatile! n)]
+       (fn
+         ([] (rf))
+         ([result]
+          (let [n @nv]
+            (if (zero? n)
+              (rf result)
+              (rf (unreduced (reduce rf (unreduced result) (repeat n pad)))))))
+         ([result input]
+          (let [n @nv
+                nn (vswap! nv dec)
+                result (if (pos? n)
+                         (rf result input)
+                         result)]
+            (if (not (pos? nn))
+              (ensure-reduced result)
+              result))))))))
+
+(defn upcase [ch]
+  (let [c (long ch)]
+    (if (<= c (long \Z))
+      ch
+      (char (+ (long \A) (- c (long \a)))))))
+
+(defn soundex2 [word]
   (when-let [cs (seq word)]
     (let [c (first cs)
-          d (if (pos-int? (encode c)) 1 0)
-          sdx (into [(str/upper-case c)]
-                    (comp (map encode) (remove neg?) (dedupe)
-                          (remove zero?) (drop d) (take 3))
-                    cs)
-          result (apply str sdx)]
-      (if (= (count result) 4)
-        result
-        (str result (subs "000" 0 (- 4 (count result))))))))
+          sdx (into [(upcase c)]
+                    (comp (map encode) (remove neg?) (dedupe) (remove zero?)
+                          (drop (if (pos-int? (encode c)) 1 0)) (xtake 3 0))
+                    cs)]
+      (apply str sdx))))
 
 
-
-(defn smoke-test-soundex []
+(defn smoke-test-soundex
+  ([] (smoke-test-soundex soundex))
+  ([fsoundex]
   (doseq [[word sdx] {"Soundex",	"S532"
                       "Example",	"E251"
                       "Sownteks",	"S532"
@@ -77,5 +108,5 @@
                       "VanDeusen",	"V532"
                       "Ashcroft",	"A261"
                       "Ashcraft",	"A261"}]
-    (assert (= (soundex word) sdx)  word))
-  true)
+    (assert (= (fsoundex word) sdx)  word))
+  true))
