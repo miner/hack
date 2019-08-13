@@ -4,7 +4,7 @@
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
                  [com.velisco/strgen "0.1.8"]
-                 [org.clojure/math.combinatorics "0.1.5"]
+                 [org.clojure/math.combinatorics "0.1.6"]
                  [org.clojure/data.int-map "0.2.4"]
                  [org.clojure/data.avl "0.1.0"]
                  [org.clojure/core.rrb-vector "0.0.14"]

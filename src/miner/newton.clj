@@ -169,3 +169,24 @@
 
 ;; https://en.wikipedia.org/wiki/Integer_square_root
 ;; bitwise solution
+
+
+
+
+(defn df [f]
+  (let [h 0.0001]
+    (fn [x]
+      (/ (- (f (+ x h)) (f x)) h))))
+
+(defn sq [x] (* x x))
+
+(defn x2 [x] (* 2.0 x))
+
+(defn error [a b] (let [r (- a b)] (* r r)))
+
+(defn ferror [fa fb]
+  (fn [x] (let [r (- (fa x) (fb x))] (* r r))))
+
+(defn dtest [f derivf]
+  (reduce max (map (ferror (df f) derivf) (range 0.0 10000.0 0.5))))
+
