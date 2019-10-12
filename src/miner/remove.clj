@@ -1,5 +1,6 @@
 (ns miner.remove
-  (:require [criterium.core :as cc]))
+  (:require [clojure.core.rrb-vector :as fv]
+            [criterium.core :as cc]))
 
 ;; https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-320-tip-know-clojure-s-execution-semantics-for-better-repl-driven-development/
 
@@ -370,3 +371,24 @@
     (println (str rm))
     (cc/quick-bench (smoke-vrm rm))))
 
+
+
+;;; 10/07/19  08:51 by miner -- Eric's new challenge is a variation of the old one that
+;; started this file.
+;;
+;; https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-347-tip-catch-and-catch-again/
+;;
+;; write a function delete-at that takes a vector and an index and returns a new vector with
+;; the item at the index removed.
+
+
+(defn delete-at [v i]
+  (if (and (>= i 0) (< i (count v)))
+    (into (subvec v 0 i) (subvec v (inc i)))
+    v))
+
+
+(defn rrb-delete-at [v i]
+  (if (and (>= i 0) (< i (count v)))
+    (fv/catvec (fv/subvec v 0 i) (fv/subvec v (inc i)))
+    v))
