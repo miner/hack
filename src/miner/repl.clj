@@ -1,8 +1,10 @@
 
 (ns miner.repl
   (:require [clojure.repl :as repl]
+            [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure.java.shell :as sh]))
+            [clojure.java.shell :as sh]
+            [criterium.core :as crit]))
 
 ;; https://gist.github.com/2049970
 ;; ghoseb via cgrand
@@ -74,4 +76,16 @@
     (spit "/tmp/fdiff-2.clj" (repl/source-fn fn2))
     (sh/sh "/usr/bin/opendiff" "/tmp/fdiff-1.clj" "/tmp/fdiff-2.clj")
     (list 'fdiff fn1 fn2)))
+
+(defn benf
+  ([trial] [trial (constantly true)])
+  ([trial assertion]
+   (fn [& impls]
+     (assert (apply assertion impls))
+     (doseq [f impls]
+       (println)
+       (println (as-symbol f))
+       (crit/quick-bench (trial f)))
+     (println)
+     true)))
 
