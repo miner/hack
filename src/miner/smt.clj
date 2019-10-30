@@ -5,7 +5,8 @@
 ;;; showing much improved performance over the original.
 
 (ns miner.smt
-  (:require [criterium.core :as cc]))
+  (:require [criterium.core :as cc]
+            [clojure.reducers :as r]))
 
 ;; original
 (defn smt-8 [times]
@@ -70,12 +71,6 @@
       (list (for [j (range i (+ i width))] (aget larr j)) diff))))
 
 (set! *unchecked-math* false)
-
-
-
-;; SEM: try reducers
-
-
 
 
 
