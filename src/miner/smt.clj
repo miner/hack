@@ -5,8 +5,8 @@
 ;;; showing much improved performance over the original.
 
 (ns miner.smt
-  (:require [criterium.core :as cc]
-            [clojure.reducers :as r]))
+  (:require [criterium.core :as cc]))
+
 
 ;; original
 (defn smt-8 [times]
