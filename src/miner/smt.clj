@@ -3,6 +3,8 @@
 ;;; The author of the above blog post says that his `smt-8` was slow so he re-wrote it in
 ;;; Common Lisp and got nearly 300x improvement.  I wrote some pure Clojure variations
 ;;; showing much improved performance over the original.
+;;;
+;;; Criterium for benchmarking: https://github.com/hugoduncan/criterium/
 
 (ns miner.smt
   (:require [criterium.core :as cc]))
@@ -57,9 +59,8 @@
 ;; range expression compensates for "reverse" conjing into list, which is slightly faster
 ;; than conjing onto a vector.
 
-(defn smt-8x [times]
-  (let [v (vec times)
-        width 8]
+(defn smt-8x [v]
+  (let [width 8]
     (into ()
           (keep (fn [i]
                   (let [d (- ^long (v (+ (dec width) ^long i)) ^long (v i))]
@@ -68,11 +69,7 @@
           (range (- (count v) (inc width)) -1 -1))))
 
 
-
 ;; use Java array for speed
-
-;;(set! *unchecked-math* :warn-on-boxed)
-
 (defn smt-8arr [^longs larr]
   (let [width 8]
     (for [^long i (range (- (alength larr) (dec width)))
