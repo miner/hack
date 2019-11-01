@@ -39,6 +39,16 @@
       [(subvec v i (+ i width)) diff])))
 
 
+(set! *unchecked-math* :warn-on-boxed)
+
+(defn smt-8forh [v]
+  (let [width 8]
+    (for [^long i (range (- (count v) (dec width)))
+          :let [diff (- ^long (v (+ i (dec width))) ^long (v i))]
+          :when (> 1000 diff)]
+      (list (subvec v i (+ i width)) diff))))
+
+
 ;; subvec will hold onto original v
 ;; if you don't want that, you can copy the subvec or take a slice out of v
 
@@ -47,7 +57,7 @@
 ;; range expression compensates for "reverse" conjing into list, which is slightly faster
 ;; than conjing onto a vector.
 
-(defn smt-8fast [times]
+(defn smt-8x [times]
   (let [v (vec times)
         width 8]
     (into ()
@@ -61,7 +71,7 @@
 
 ;; use Java array for speed
 
-(set! *unchecked-math* :warn-on-boxed)
+;;(set! *unchecked-math* :warn-on-boxed)
 
 (defn smt-8arr [^longs larr]
   (let [width 8]
@@ -77,9 +87,10 @@
 (defn my-bench []
   (let [big (into [] (take (long 1e6)) (iterate #(+ % (rand-int 1000)) 0))
         bar (long-array big)]
-    (assert (= (smt-8 big) (smt-8a big) (smt-8for big) (smt-8fast big) (smt-8arr bar)))
+    (assert (= (smt-8 big) (smt-8a big) (smt-8for big) (smt-8forh big)
+               (smt-8x big) (smt-8arr bar)))
     (println "Result count:" (count (smt-8arr bar)) "groups out of" (count big) "times")
-    (doseq [smtf [smt-8 smt-8a smt-8for smt-8fast]]
+    (doseq [smtf [smt-8 smt-8a smt-8for smt-8forh smt-8x]]
       (println)
       (println (type smtf))
       (cc/quick-bench (count (smtf big))))
@@ -88,10 +99,11 @@
     (cc/quick-bench (count (smt-8arr bar)))))
 
 ;; Function      Execution time mean (ms)
-;; smt-8          1580.2                 
-;; smt-8a         1293.2                 
-;; smt-8for         41.7                 
-;; smt-8fast        24.2                     
-;; smt-8arr          6.7
+;; smt-8            1572
+;; smt-8a           1341
+;; smt-8for           47                 
+;; smt-8forh          31
+;; smt-8x             25
+;; smt-8arr            7
 
 
