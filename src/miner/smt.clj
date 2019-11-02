@@ -6,6 +6,9 @@
 ;;;
 ;;; Criterium for benchmarking: https://github.com/hugoduncan/criterium/
 
+;;; Published separately as this gist:
+;;; https://gist.github.com/miner/bf8b8221a8e31e3438c8620a81fbc16c
+
 (ns miner.smt
   (:require [criterium.core :as cc]))
 
@@ -81,7 +84,7 @@
 
 
 
-(defn my-bench []
+(defn my-bench-SAVE []
   (let [big (into [] (take (long 1e6)) (iterate #(+ % (rand-int 1000)) 0))
         bar (long-array big)]
     (assert (= (smt-8 big) (smt-8a big) (smt-8for big) (smt-8forh big)
@@ -94,6 +97,21 @@
     (println)
     (println (type smt-8arr))
     (cc/quick-bench (count (smt-8arr bar)))))
+
+
+(defn my-bench []
+  (let [big (into [] (take (long 1e6)) (iterate #(+ % (rand-int 1000)) 0))
+        bar (long-array big)]
+    (assert (= (smt-8 big) (smt-8a big) (smt-8for big) (smt-8forh big)
+               (smt-8x big) (smt-8arr bar)))
+    (println "Result count:" (count (smt-8arr bar)) "groups out of" (count big) "times")
+    (doseq [smtf [smt-8 smt-8a smt-8for smt-8forh smt-8x]]
+      (println)
+      (println (type smtf))
+      (cc/quick-bench (hash (smtf big))))
+    (println)
+    (println (type smt-8arr))
+    (cc/quick-bench (hash (smt-8arr bar)))))
 
 ;; Function      Execution time mean (ms)
 ;; smt-8            1572
