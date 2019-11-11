@@ -818,3 +818,39 @@
       (finally
         (reset! run? false))))
   :done)
+
+
+
+
+;; https://en.wikipedia.org/wiki/Truncatable_prime
+
+;; There are 4260 decimal left-truncatable primes
+(def largest-left-truncatable-prime 357686312646216567629137N)
+
+
+;; There are only 83 right-truncatable primes
+(def right-truncatable-primes
+  [2, 3, 5, 7, 23, 29, 31, 37, 53, 59, 71, 73, 79, 233, 239, 293, 311, 313, 317, 373, 379,
+   593, 599, 719, 733, 739, 797, 2333, 2339, 2393, 2399, 2939, 3119, 3137, 3733, 3739, 3793,
+   3797, 5939, 7193, 7331, 7333, 7393, 23333, 23339, 23399, 23993, 29399, 31193, 31379,
+   37337, 37339, 37397, 59393, 59399, 71933, 73331, 73939, 233993, 239933, 293999, 373379,
+   373393, 593933, 593993, 719333, 739391, 739393, 739397, 739399, 2339933, 2399333, 2939999,
+   3733799, 5939333, 7393913, 7393931, 7393933, 23399339, 29399999, 37337999, 59393339,
+   73939133])
+
+
+(defn digits [n]
+  (keep (fn [ch] (let [d (long ch)] (when (<= (long \0) d (long \9)) (- d (long \0)))))
+        (seq  (pr-str n))))
+
+(defn digjoin [ds]
+  (reduce (fn [sum d] (+' d (*' sum 10))) 0 ds))
+
+(defn left-truncations [n]
+  (map digjoin (take-while seq (iterate rest (digits n)))))
+
+(defn right-truncations [n]
+  (map digjoin (take-while seq (iterate pop (vec (digits n))))))
+
+;; NOTE: prime? is not appropriate for bignums.  Too slow for largest left truncatable.
+;; Works fine for all the right truncatable examples.

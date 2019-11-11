@@ -32,6 +32,7 @@
 (defn prime? [n]
   (or (= n 2) (= (inc n) (sum-factors n))))
 
+
 ;; http://sprott.physics.wisc.edu/pickover/pc/1000000000000066600000000000001.html
 ;; In John Milton's Paradise Lost, Belphegor is one of the "Principalities of the Prime." In hell, Belphegor is the demon of inventiveness.
 ;; Too big to be used in a practical test, but it would be fun to build it into our prime? predicate.
@@ -39,5 +40,4 @@
 
 (defn bprime? [n]
   (or (== n 2) (== n belphegor) (== (inc n) (sum-factors n))))
-
 
