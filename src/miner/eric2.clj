@@ -21,8 +21,8 @@
   (letfn [(gen [acc prev coll]
             (if (seq coll)
               (-> acc
-                  (gen (fn-prev-x prev (first coll)) (rest coll))
-                  (gen (conj prev (first coll)) (rest coll)))
+                  (gen (conj prev (first coll)) (rest coll))
+                  (gen (fn-prev-x prev (first coll)) (rest coll)))
               (conj acc prev)))]
     (when (seq coll)
       (gen () [(first coll)] (rest coll)))))
@@ -33,14 +33,10 @@
 (defn neg-prev [prev x]
   (conj prev (- x)))
 
-(defn gen-candidates-SAVE [coll]
-  (mapcat #(expand-nums neg-prev %) (expand-nums combine-prev coll)))
-
-
 (defn gen-candidates [coll]
   (let [negs #(expand-nums neg-prev %)
         nums #(expand-nums combine-prev %)]
-    (mapcat negs (nums coll))))
+    (into () (mapcat negs) (nums coll))))
 
 (defn eval-candidate [expr]
   (reduce + 0 expr))
@@ -72,6 +68,11 @@
 
 
 
+
+(defn gen-candidates3 [coll]
+  (let [negs #(expand-nums neg-prev %)
+        nums #(expand-nums combine-prev %)]
+    (mapcat negs (nums coll))))
 
 (defn gen-exprs1 [coll]
   (mapcat gen-negs (gen-nums coll)))
