@@ -40,8 +40,9 @@
   (let [negs #(expand-nums neg-prev %)
         nums #(expand-nums combine-prev %)
         hundred? #(= (eval-candidate %) 100)]
-    (into () (comp (mapcat negs) (filter hundred?)) (nums (range 1 10)))))
-  
+    (into () (comp (mapcat nums) (mapcat negs) (filter hundred?)) (list (range 1 10)))))
+
+
 (defn print-solutions []
   (doseq [xs (solutions)]
     (print (first xs))
@@ -58,4 +59,12 @@
 ;; Seems like there should be something built-in to Clojure to do the expand-nums stuff.
 ;; Maybe a transducer? With mapcat? Something with tree-seq?
 
+(defn xnegs [coll]
+  (expand-nums neg-prev coll))
+
+(defn xnums [coll]
+  (expand-nums combine-prev coll))
+
+(defn xhundred? [coll]
+  (= (eval-candidate coll) 100))
 
