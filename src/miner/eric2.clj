@@ -43,18 +43,28 @@
     (into () (comp (mapcat nums) (mapcat negs) (filter hundred?)) (list (range 1 10)))))
 
 
+(defn print-solution [xs]
+  (print (first xs))
+  (doseq [x (rest xs)]
+    (if (neg? x)
+      (print " -" (- x))
+      (print " +" x)))
+  (print " = 100"))
+
 (defn print-solutions []
   (doseq [xs (solutions)]
-    (print (first xs))
-    (doseq [x (rest xs)]
-      (if (neg? x)
-        (print " -" (- x))
-        (print " +" x)))
-    (println " = 100")))
+    (print-solution xs)
+    (println)))
 
-
+(defn str-solutions []
+  (map (fn [xs]
+         (with-out-str
+           (print-solution xs)))
+       (solutions)))
 
 ;;; END GOOD
+
+
 
 ;; Seems like there should be something built-in to Clojure to do the expand-nums stuff.
 ;; Maybe a transducer? With mapcat? Something with tree-seq?
@@ -68,3 +78,81 @@
 (defn xhundred? [coll]
   (= (eval-candidate coll) 100))
 
+(defn cands [coll]
+  (into () (comp (mapcat xnums) (mapcat xnegs)) (list coll)))
+
+(defn cart-negs [max]
+  (apply mc/cartesian-product [1] (map (juxt + -) (range 2 (inc max)))))
+
+
+
+
+
+;; not faster
+(defn esolutions []
+  (let [negs #(expand-nums neg-prev %)
+        nums #(expand-nums combine-prev %)
+        hundred? #(= (eval-candidate %) 100)]
+    (eduction (mapcat nums) (mapcat negs) (filter hundred?) (list (range 1 10)))))
+
+(defn print-esolutions []
+  (doseq [xs (esolutions)]
+    (print (first xs))
+    (doseq [x (rest xs)]
+      (if (neg? x)
+        (print " -" (- x))
+        (print " +" x)))
+    (println " = 100")))
+
+
+
+(defn step-cat [vxr]
+  (let [remaining (peek vxr)
+        prev (pop vxr)]
+    (if (seq remaining)
+      (list (conj (conj prev (first remaining)) (rest remaining))
+            (conj (conj (pop prev) (+ (* 10 (peek prev)) (first remaining)))
+                  (rest remaining)))
+      vxr)))
+
+
+(defn step-cat2 [v x]
+  (list (conj v x)
+        (conj (pop v) (+ (* 10 (peek v)) x))))
+
+(defn step-neg2 [v x]
+  (list (conj v x)
+        (conj v (- x))))
+
+;; (conj (range 2 10) [1])
+;; ([1] 2 3 4 5 6 7 8 9)
+
+;; looks OK, but not so fast (about 3x xnums)
+(defn iter [f n]
+  (loop [n (dec n) vxss (list (conj (range 2 (+ n 2)) [1]))]
+    ;;(println n vxss)
+    (if (pos? n)
+      (recur (dec n) (mapcat (fn [vxs]
+                               (map (fn [prev] (conj (nnext vxs) prev))
+                                    (f (first vxs) (second vxs))))
+                             vxss))
+      (map first vxss))))
+
+
+
+
+
+(defn remapcat [f2 coll]
+  (reduce (fn [vs x]
+            (mapcat f2 vs (repeat x)))
+          (list [(first coll)])
+          (rest coll)))
+
+;; much slower the cands
+(defn recands [coll]
+  (mapcat #(remapcat step-neg2 %) (remapcat step-cat2 coll)))
+  
+;; compose with mapcat
+(comment
+  (mapcat #(remapcat step-neg2 %) (remapcat step-cat2 (range 1 5)))
+  )
