@@ -27,6 +27,39 @@
     (when (seq coll)
       (gen () [(first coll)] (rest coll)))))
 
+
+
+;; expand-nums is eagar (and seems pretty fast).  How much slower would a lazy version be?
+;; about 2.5x
+
+
+;; not lazy enough
+(defn lazy-expand-nums1 [fn-prev-x coll]
+  (letfn [(gen [prev coll]
+            (if (seq coll)
+              (lazy-cat
+               (gen (conj prev (first coll)) (rest coll))
+               (gen (fn-prev-x prev (first coll)) (rest coll)))
+              (list prev)))]
+    (when (seq coll)
+      (gen [(first coll)] (rest coll)))))
+
+
+
+(defn lazy-expand-nums [fn-prev-x coll]
+  (letfn [(gen [prev coll]
+            (if (seq coll)
+              (lazy-cat
+               (gen (conj prev (first coll)) (rest coll))
+               (gen (fn-prev-x prev (first coll)) (rest coll)))
+              (list prev)))]
+    (when (seq coll)
+      (gen [(first coll)] (rest coll)))))
+
+
+
+
+
 (defn combine-prev [prev x]
   (conj (pop prev) (+ x (* 10 (peek prev)))))
 
@@ -41,6 +74,15 @@
         nums #(expand-nums combine-prev %)
         hundred? #(= (eval-candidate %) 100)]
     (into () (comp (mapcat nums) (mapcat negs) (filter hundred?)) (list (range 1 10)))))
+
+
+;; not lazy enough
+(defn lazy-solutions []
+  (let [negs #(lazy-expand-nums neg-prev %)
+        nums #(lazy-expand-nums combine-prev %)
+        hundred? #(= (eval-candidate %) 100)]
+    (sequence (comp (mapcat nums) (mapcat negs) (filter hundred?)) (list (range 1 10)))))
+
 
 
 (defn print-solution [xs]
@@ -156,3 +198,27 @@
 (comment
   (mapcat #(remapcat step-neg2 %) (remapcat step-cat2 (range 1 5)))
   )
+
+
+(defn comb [f ys zs]
+  (when (seq ys)
+    (loop [n 0 xs (rest ys) zs zs v [(first ys)]]
+      #_ (println "COMB n" n "V" v)
+      (if (and (seq zs) (seq xs))
+        (if (= (first zs) n)
+          (recur (inc n) (rest xs) (rest zs) (f v (first xs)))
+          (recur (inc n) (rest xs) zs (conj v (first xs))))
+        (into v xs)))))
+    
+
+
+(defn gcomb [n]
+  (let [xs (range 1 (inc n))
+        sbs (mc/subsets (range (dec n)))]
+    (mapcat (fn [yv] #_ (println "YV" yv)
+              (map #(comb neg-prev yv %) (mc/subsets (range (dec (count yv))))))
+            (map #(comb combine-prev xs %) sbs))))
+
+
+            
+
