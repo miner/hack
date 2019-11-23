@@ -1,7 +1,8 @@
 (ns miner.eric3)
 
-;; ----------------------------------------------------------------------
-;; 11/18/19  09:00 by miner -- new problem
+;;; 11/23/19  10:09 by miner -- ss sent to Eric
+
+
 ;; https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-352-tip-use-the-right-kind-of-comment-for-the-job/
 ;;
 ;; Write a program that outputs all possibilities to put a + or - or nothing between the
