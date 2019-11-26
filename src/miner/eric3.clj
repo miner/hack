@@ -1,7 +1,8 @@
 (ns miner.eric3)
 
-;;; 11/23/19  10:09 by miner -- ss sent to Eric
-
+;;; 11/23/19  10:09 by miner -- as sent to Eric
+;;; 11/25/19  17:12 by miner -- all the solutions:
+;;;   https://gist.github.com/ericnormand/a3f661ad5b0868e3cc9e1f3e123f3c3et
 
 ;; https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-352-tip-use-the-right-kind-of-comment-for-the-job/
 ;;
@@ -74,3 +75,57 @@
  "123 + 4 - 5 + 67 - 89 = 100"
  "123 + 45 - 67 + 8 - 9 = 100"
  "123 - 45 - 67 + 89 = 100")
+
+;;;; ---------- submitted above -----------
+;;;; other's below
+
+
+
+
+;;; 11/25/19  10:13 by miner -- Eric's solution
+(defn sum-to [nums target]
+  (let [[f & rst] nums]
+    (cond
+      (not (empty? rst))
+      (let [[sec & srst] rst]
+        (concat
+         (map #(str (Math/abs f) " + " %)
+              (sum-to
+               rst
+               (- target f)))
+         (map #(str (Math/abs f) " - " %)
+              (sum-to
+               (cons (- sec) srst)
+               (- target f)))
+         (sum-to
+          (cons (Long/parseLong (str f sec)) srst)
+          target)))
+
+      (= f target)
+      [(str (Math/abs f))]
+
+      :else
+      [])))
+
+(defn eric []
+  (sum-to (range 1 10) 100))
+
+
+
+;; My revised version to get rid of string manipulations.
+;; This version returns a vector of +/- longs, like my solution.
+;; The code is a bit tricky in that it essentially aborts candidates that don't add up right
+;; rather than filtering after the fact.  The concat cleans up the empty results.
+(defn sto [nums target]
+  (let [[f & rst] nums]
+    (cond (seq rst) (let [[sec & srst] rst]
+                      (concat
+                       (map #(cons f %) (sto rst (- target f)))
+                       (map #(cons f %) (sto (cons (- sec) srst) (- target f)))
+                       (sto (cons ((if (neg? f) - +) (* f 10) sec) srst) target)))
+          (= f target) (list (list f))
+          :else         nil)))
+
+(defn eric1 []
+  (sto (range 1 10) 100))
+
