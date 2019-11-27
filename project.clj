@@ -17,14 +17,15 @@
                  [org.clojure/core.logic "0.8.11"]
                  [quil "3.0.0"]
                  [primitive-math "0.1.6"]
-                 ;; [com.velisco/herbert "0.6.1"]
-                  [com.velisco/herbert "0.7.0"]
+                 [com.velisco/herbert "0.7.0"]
                  [org.clojure/algo.monads "0.1.6"]
                  [org.clojure/tools.trace "0.7.10"]
                  ;; [org.clojure/core.match "0.2.2"]
                  [org.clojure/core.match "0.3.0"]
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "0.3.12"]
+                 [com.clojure-goes-fast/clj-memory-meter "0.1.2"]
+                 [com.clojure-goes-fast/clj-java-decompiler "0.2.1"]
                  [metrics-clojure "2.10.0"]
                  [net.cgrand/xforms "0.19.0"]
                  [digest "1.4.9"]
@@ -45,6 +46,7 @@
 
              :snapshot {:dependencies [[org.clojure/clojure "1.10.0-master-snapshot"]]}
              }
+  :jvm-opts ["-Djdk.attach.allowAttachSelf"]
   :repositories [["sonatype-oss-public" {:url "https://oss.sonatype.org/content/groups/public/"}]]
   ;; :bootclasspath true
   ;; :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]

@@ -28,6 +28,9 @@
       (gen () [(first coll)] (rest coll)))))
 
 
+
+
+
 (defn combine-prev [prev x]
   (conj (pop prev) (+ x (* 10 (peek prev)))))
 
@@ -83,17 +86,18 @@
 
 
 ;;; 11/25/19  10:13 by miner -- Eric's solution
+;;; SEM added ^long type hints
 (defn sum-to [nums target]
   (let [[f & rst] nums]
     (cond
       (not (empty? rst))
       (let [[sec & srst] rst]
         (concat
-         (map #(str (Math/abs f) " + " %)
+         (map #(str (Math/abs ^long f) " + " %)
               (sum-to
                rst
                (- target f)))
-         (map #(str (Math/abs f) " - " %)
+         (map #(str (Math/abs ^long f) " - " %)
               (sum-to
                (cons (- sec) srst)
                (- target f)))
@@ -102,7 +106,7 @@
           target)))
 
       (= f target)
-      [(str (Math/abs f))]
+      [(str (Math/abs ^long f))]
 
       :else
       [])))
@@ -115,7 +119,9 @@
 ;; My revised version to get rid of string manipulations.
 ;; This version returns a vector of +/- longs, like my solution.
 ;; The code is a bit tricky in that it essentially aborts candidates that don't add up right
-;; rather than filtering after the fact.  The concat cleans up the empty results.
+;; rather than filtering after the fact.  The concat cleans up the empty results.  This uses
+;; a lot of memory but is surprisingly fast.
+
 (defn sto [nums target]
   (let [[f & rst] nums]
     (cond (seq rst) (let [[sec & srst] rst]
