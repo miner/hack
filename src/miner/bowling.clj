@@ -1,5 +1,9 @@
 (ns miner.bowling)
 
+;;; Years later, I discovered that Uncle Bob and Stuart Halloway worked this problem.
+;;; https://github.com/stuarthalloway/clojure-bowling
+
+
 ;;; SEE ALSO my transmuters project for a variation (but not really better).
 
 ;; http://codingdojo.org/cgi-bin/index.pl?KataBowling
