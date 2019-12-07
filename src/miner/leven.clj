@@ -153,3 +153,66 @@
 ;; Execution time mean : 0.6 ms
 
 
+
+
+(defmacro dmrfn
+  "Returns an anonymous function like `fn` but recursive calls to the given `name` within
+  `body` use a memoized version of the function, potentially improving performance (see
+  `memoize`).  Only simple argument symbols are supported, not varargs or destructing or
+  multiple arities.  Memoized recursion requires explicit calls to `name` so the `body`
+  should not use recur to the top level."
+  [name args & body]
+  {:pre [(simple-symbol? name) (vector? args) (seq args) (every? simple-symbol? args)]}
+  (let [akey (if (= (count args) 1) (first args) args)]
+    ;; name becomes extra arg to support recursive memoized calls
+    `(let [f# (fn [~name ~@args] ~@body)
+           mem# (atom {})]
+       (fn mr# [~@args]
+         (if-let [e# (find @mem# ~akey)]
+           (deref (val e#))
+           (let [d# (delay (f# mr# ~@args))]
+             (swap! mem# assoc ~akey d#)
+             @d#))))))
+
+
+(defmacro memofn
+  [name args & body]
+  `(let [cache# (atom {})]
+     (fn ~name [& args#]
+       (let [update-cache!# (fn update-cache!# [state# args#]
+                              (if-not (contains? state# args#)
+                                (assoc state# args#
+                                       (delay
+                                        (let [~args args#]
+                                          ~@body)))
+                                state#))]
+         (let [state# (swap! cache# update-cache!# args#)]
+           (-> state# (get args#) deref))))))
+
+
+
+(defn elev3 [a b]
+  (let [f (dmrfn f [i j]
+                (cond
+                 (zero? i)  j
+                 (zero? j)  i
+                 :else (min
+                        (inc (f (dec i) j))
+                        (inc (f i (dec j)))
+                        (+ (if (= (.charAt ^String a (dec i))
+                                  (.charAt ^String b (dec j))) 0 1)
+                           (f (dec i) (dec j))))))]
+    (f (count a) (count b))))
+
+(defn elev4 [a b]
+  (let [f (memofn f [i j]
+                (cond
+                 (zero? i)  j
+                 (zero? j)  i
+                 :else (min
+                        (inc (f (dec i) j))
+                        (inc (f i (dec j)))
+                        (+ (if (= (.charAt ^String a (dec i))
+                                  (.charAt ^String b (dec j))) 0 1)
+                           (f (dec i) (dec j))))))]
+    (f (count a) (count b))))
