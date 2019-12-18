@@ -1,7 +1,7 @@
 (ns miner.gsort
   (:require [clojure.test.check.generators :as gen]
-            [clojure.spec-alpha2 :as s]
-            [clojure.spec-alpha2.gen :as g]))
+            [clojure.alpha.spec :as s]
+            [clojure.alpha.spec.gen :as g]))
 
 ;; Challenge from Eric Normand: list generator.
 ;; https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-331-tool-shadow-cljs/
