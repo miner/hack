@@ -29,7 +29,7 @@
                  [metrics-clojure "2.10.0"]
                  [net.cgrand/xforms "0.19.0"]
                  [digest "1.4.9"]
-                 [org.clojure/spec-alpha2 "0.2.177-SNAPSHOT"]
+                 [org.clojure/alpha.spec "0.2.177-SNAPSHOT"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
   :profiles {:dev  {:dependencies [[org.clojure/clojure "1.10.1"]
