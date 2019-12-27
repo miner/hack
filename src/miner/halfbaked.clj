@@ -262,12 +262,25 @@ infinite sequences."
       a
       (recur b (rem a b)))))
 
+;; slightly faster to inline abs and type hint
+(defn gcd2 ^long [^long a ^long b]
+  (loop [a (if (neg? a) (- a) a)
+         b (if (neg? b) (- b) b)]
+    (if (zero? b)
+      a
+      (recur b (rem a b)))))
 
-(deftest test-66
-  (is (= (gcd 2 4) 2))
-  (is (= (gcd 10 5) 5))
-  (is (= (gcd 5 7) 1))
-  (is (= (gcd 1023 858) 33)))
+
+
+
+(defn test-gcd
+  ([] (test-gcd gcd))
+  ([gcd]
+   (assert (= (gcd 2 4) 2))
+   (assert (= (gcd 10 5) 5))
+   (assert (= (gcd 5 7) 1))
+   (assert (= (gcd 1023 858) 33))
+   true))
 
 
 
@@ -310,7 +323,7 @@ infinite sequences."
 (defmacro basis [record-type-symbol] `(. ~record-type-symbol getBasis))
 
 ;; based on an idea by alan@malloys.com (he called it `?`, but I changed to `debug`)
-(defmacro debug [x]
+(defmacro sem-debug [x]
  (let [line (:line (meta &form))
        file *file*]
    `(let [x# ~x]
@@ -585,11 +598,11 @@ As with `case`, constants must be compile-time literals, and need not be quoted.
   (when (some #(.startsWith ^String % "-XX:TieredStopAtLevel=") (jvmOpts))
     (println "Warning: TieredStopAtLevel setting may give bad benchmark results.  Check your Leiningen settings.  https://github.com/technomancy/leiningen/blob/stable/doc/FAQ.md")))
 
-;; bench is a quick and dirty micro-benchmarking tool that realizes
+;; qbench is a quick and dirty micro-benchmarking tool that realizes
 ;; the result (at the top level) in order to avoid misleading timings
-;; due to laziness.  Use bench instead of clojure.core/time.
+;; due to laziness.  Use qbench instead of clojure.core/time.
 ;; For serious work, use the criterium project, not this.
-(defmacro bench
+(defmacro qbench
   ([expr]
    `(let [result# (realize ~expr)]
       (println '~expr) (flush)
@@ -605,8 +618,8 @@ As with `case`, constants must be compile-time literals, and need not be quoted.
       nil))
   ([expr & exprs]
    `(do
-      (bench ~expr)
-      (bench ~@exprs))))
+      (qbench ~expr)
+      (qbench ~@exprs))))
 
 ;; adapted from "guns" self@sungpae.com on the ML
 (defmacro dump-locals [label]
