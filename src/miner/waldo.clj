@@ -9,13 +9,13 @@
 ;;
 ;; Bonus: Can you make it work with arbitrarily nested vectors of different sizes?
 
-
+;; two-dimension grid
 (defn wheres-waldo [w grid2]
   (first (for [i (range (count grid2)) :let [v (nth grid2 i)]
                j (range (count v)) :when (= (nth v j) w)]
            [i j])))
 
-;; faster
+;; faster two-dimension grid
 (defn wheres-waldo2 [w grid2]
   (reduce-kv (fn [_ i v]
                (reduce-kv (fn [_ j x] (when (= w x) (reduced (reduced [i j])))) nil v))
@@ -39,6 +39,41 @@
    true))
 
 
+;; arbitrarily nested grid
+(defn wheres-waldo4
+  ([w nested-vec] (wheres-waldo4 w nested-vec []))
+  ([w nested-vec stack]
+   (reduce-kv (fn [_ i v]
+                (cond (= w v) (reduced (conj stack i))
+                      (vector? v) (when-let [r (wheres-waldo4 w v (conj stack i))]
+                                    (reduced r))
+                      :else nil))
+              nil
+              nested-vec)))
+
+
+(defn test-nested
+  ([] (test-nested wheres-waldo4))
+  ([search-nested]
+   (let [grid2 [[:A :B :C]
+                [:D :E :F]
+                [:G :H :I]
+                [:J :K :L]
+                [:M :N :O]
+                [:P :Q :R]
+                [:S :T :U]
+                [:V :W :X]
+                [:Y :and :Z]]
+         grid4 (mapv #(vector :foo [%]) grid2)]
+     (assert (= (search-nested :W grid2) [7 1]))
+     (assert (= (search-nested :W grid4) [7 1 0 1]))
+     (assert (nil? (search-nested :missing grid2))))
+   true))
+
+
+
+
+;; Less useful stuff below
 ;; ----------------------------------------------------------------------
 
 (defn invert2a [grid2]
@@ -107,17 +142,6 @@
   (find-indices #(= w %) grid2))
 
 
-
-(defn iwaldo
-  ([w nested-vec] (iwaldo w nested-vec []))
-  ([w nested-vec stack]
-   (reduce-kv (fn [_ i v]
-                (cond (vector? v) (when-let [r (iwaldo w v (conj stack i))]
-                                    (reduced r))
-                      (= w v) (reduced (conj stack i))
-                      :else nil))
-              nil
-              nested-vec)))
 
 
 
