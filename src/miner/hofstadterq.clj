@@ -10,6 +10,7 @@
 ;; tell you how far to go back in the Q sequence to find the two numbers to sum to make the
 ;; next term of the sequence.
 
+;; https://oeis.org/A005185
 
 ;; Lisp definition of single item Q
 #_
@@ -88,10 +89,80 @@
           qv)))))
 
 
+;; if you just want the iTH value
+(defn qi [i]
+  (peek (qn (inc i))))
+
+
+
+
+
+
+
+
+
+;; similar version of fib
+;; note: I like to start fib at 0.  Some people start at 1.
+(defn fibn [n]
+  (let [fstep (fn [fv]
+                (let [cnt (count fv)]
+                  (conj fv (+ (fv (dec cnt))
+                              (fv (- cnt 2))))))]
+    (case (long n)
+      0 []
+      1 [0]
+      2 [0 1]
+      (loop [fv [0 1]]
+        (if (< (count fv) n)
+          (recur (fstep fv))
+          fv)))))
+
+
 
 
 
 ;; ---------------------
+
+
+;; slow recursive definition, uncached
+(defn qq [n]
+  (if (< n 2)
+    1
+    (+ (qq (- n (qq (dec n))))
+       (qq (- n (qq (- n 2)))))))
+
+
+;; borrowed from mrfn
+(defmacro mrfn
+  "Returns an anonymous function like `fn` but recursive calls to the given `name` within
+  `body` use a memoized version of the function, potentially improving performance (see
+  `memoize`).  Only simple argument symbols are supported, not varargs or destructing or
+  multiple arities.  Memoized recursion requires explicit calls to `name` so the `body`
+  should not use recur to the top level."
+  [name args & body]
+  {:pre [(simple-symbol? name) (vector? args) (seq args) (every? simple-symbol? args)]}
+  (let [akey (if (= (count args) 1) (first args) args)]
+    ;; name becomes extra arg to support recursive memoized calls
+    `(let [f# (fn [~name ~@args] ~@body)
+           mem# (atom {})]
+       (fn mr# [~@args]
+         (if-let [e# (find @mem# ~akey)]
+           (val e#)
+           (let [ret# (f# mr# ~@args)]
+             (swap! mem# assoc ~akey ret#)
+             ret#))))))
+
+;; caching improves performance, but still much slower than qn
+;; in this case, the previous values are known to be previous in the sequence, so storing in
+;; a vector as you compute (see qn) is faster than using a random access map
+(defn qm [n]
+  (let [mq (mrfn mq [n]
+                 (if (< n 2)
+                   1
+                   (+ (mq (- n (mq (dec n))))
+                      (mq (- n (mq (- n 2)))))))]
+    (mapv mq (range n))))
+
 
 
 ;; pop has a slight cost
