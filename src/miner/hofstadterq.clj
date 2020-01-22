@@ -217,3 +217,51 @@
           qv)))))
 
 
+;; ----------------------------------------------------------------------
+;; Hofstadter-Conway $10K sequence
+;; https://oeis.org/A004001
+;; interesting discussion about the prize
+;;
+;; a(n) = a(a(n-1)) + a(n-a(n-1)) with a(1) = a(2) = 1
+;; NOTE: 1-based indexing
+;;
+;; I like to start at 0 index so I will define it accordingly.  That means some other code
+;; might be a bit different.
+
+;; 1-based
+;; very slow, literal definition
+(defn hc1 [n]
+  (if (<= n 2)
+    1
+    (+ (hc (hc (dec n)))
+       (hc (- n (hc (dec n)))))))
+
+;; reminds me a bit of the JMC-91 function in nested recursion
+
+
+
+(def hc75
+  [1, 1, 2, 2, 3, 4, 4, 4, 5, 6, 7, 7, 8, 8, 8, 8, 9, 10, 11, 12, 12, 13, 14, 14, 15, 15, 15,
+   16, 16, 16, 16, 16, 17, 18, 19, 20, 21, 21, 22, 23, 24, 24, 25, 26, 26, 27, 27, 27, 28, 29,
+   29, 30, 30, 30, 31, 31, 31, 31, 32, 32, 32, 32, 32, 32, 33, 34, 35, 36, 37, 38, 38, 39, 40,
+   41, 42])
+
+
+
+;; fixed for zero based offest vs original 1-based: (dec lst)
+(defn hcn 
+  "Returns sequence of first N Hofstadter-Conway $10K numbers."
+  [n]
+  (let [hstep (fn [hcv]
+                (let [cnt (count hcv)
+                      lst (peek hcv)]
+                  (conj hcv (+ (hcv (dec lst))
+                               (hcv (- cnt lst))))))]
+    (case (long n)
+      0 []
+      1 [1]
+      2 [1 1]
+      (loop [hcv [1 1]]
+        (if (< (count hcv) n)
+          (recur (hstep hcv))
+          hcv)))))
