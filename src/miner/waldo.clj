@@ -229,3 +229,90 @@
    (reduce-kv (fn [r i e] (if-let [res (f e)] (reduced (conj init i)) r)) nil v)))
 
 
+
+
+;; https://gist.github.com/ericnormand/98a6ecccdbb9bfeeae7fd4bc07284a89
+;; Eric's solution (renamed by SEM)
+(defn wheres-eric
+  ([w world]
+   (wheres-eric w world 0))
+  ([w world i]
+   (cond
+    (empty? world)
+        nil
+
+    (vector? (first world))
+        (let [path (wheres-eric w (first world))]
+          (if (nil? path)
+            (recur w (rest world) (inc i))
+            (vec (cons i path))))
+
+    (= w (first world))
+        [i]
+
+    :else
+        (recur w (rest world) (inc i)))))
+
+
+;; Peter Stromberg
+(defn wheres-waldo-bonus
+  "Find the path to waldo"
+  ([waldo vektor]
+   (wheres-waldo-bonus waldo vektor []))
+  ([waldo vektor path]
+   (when (vector? vektor)
+     (let [i (.indexOf vektor waldo)]
+       (if (> i -1)
+         (conj path i)
+         (->> (map #(wheres-waldo-bonus waldo %1 (conj path %2)) vektor (range))
+              (remove nil?)
+              first))))))
+
+
+;; Chase Lambert (but fixed arg order to fit my test)
+(defn wheres-chase [value grid]
+  (loop [xs grid
+         value value]
+    (if (empty? xs)
+      nil
+      (if ((set (first xs)) value)
+        [(.indexOf grid (first xs)) (.indexOf (first xs) value)]
+        (recur (rest xs) value)))))
+
+
+(defn wheres-chase2 [value grid]
+  (loop [xs grid
+         value value]
+    (if (empty? xs)
+      nil
+      (if ((set (first xs)) value)
+        [(.indexOf ^clojure.lang.PersistentVector grid (first xs))
+         (.indexOf ^clojure.lang.PersistentVector (first xs) value)]
+        (recur (rest xs) value)))))
+
+
+(defn wheres-chase3 [value grid]
+  (loop [xs grid]
+    (if (empty? xs)
+      nil
+      (if ((set (first xs)) value)
+        [(index-of grid (first xs))
+         (index-of (first xs) value)]
+        (recur (rest xs))))))
+
+
+
+
+;; SEM suggestions:
+(defn index-of [v w]
+  (reduce-kv (fn [_ i x] (when (= x w) (reduced i))) nil v))
+
+(defn wheres-waldo-bonus1
+  "Find the path to waldo"
+  ([waldo vektor]
+   (wheres-waldo-bonus1 waldo vektor []))
+  ([waldo vektor path]
+   (when (vector? vektor)
+     (if-let [i (index-of vektor waldo)]
+       (conj path i)
+       (first (keep-indexed #(wheres-waldo-bonus1 waldo %2 (conj path %)) vektor))))))
