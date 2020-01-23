@@ -508,3 +508,23 @@
                  l (fib k 0) 
                  f (fib k 1)] 
             (/ (+ f l) 2))))))) 
+
+
+;; similar to hofstadterq approach.
+;; note: I like to start fib at 0.  Some people start at 1.
+(defn fibn [n]
+  (let [fstep (fn [fv]
+                (let [cnt (count fv)]
+                  (conj fv (+ (fv (dec cnt))
+                              (fv (- cnt 2))))))]
+    (case (long n)
+      0 []
+      1 [0]
+      2 [0 1]
+      (loop [fv [0 1]]
+        (if (< (count fv) n)
+          (recur (fstep fv))
+          fv)))))
+
+
+
