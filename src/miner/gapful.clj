@@ -8,19 +8,12 @@
 ;; concatenating the first and last digits.
 
 
-(defn first-digit [n]
-  (if (< n 10)
-    n
-    (recur (quot n 10))))
-
-  
 (defn gapful? [n]
   (when (> n 99)
-    (let [d0 (first-digit n)
-          dn (rem n 10)
-          dd (+ dn (* 10 d0))]
+    (let [hi (loop [i n] (if (< i 10) i (recur (quot i 10))))
+          lo (rem n 10)
+          dd (+ lo (* 10 hi))]
       (zero? (rem n dd)))))
-
 
 (defn nearest-gapful
   ([n] (if (gapful? n) n (nearest-gapful n 1)))
@@ -28,17 +21,60 @@
    (cond (gapful? (- n dist)) (- n dist)
          (gapful? (+ n dist)) (+ n dist)
          :else (recur n (inc dist)))))
-    
 
 
-(defn abs [n] (if (neg? n) (- n) n))
 
+
+
+
+;; difference should be +/- 1 for each step
 (defn test-gap []
-  (assert (reduce (fn [r x] (if (<= -1 (- r x) 1) (abs x) (reduced nil)))
-                  (map #(abs (- % (nearest-gapful %)))  (range 100 2345))))
+  (let [abs (fn [n] (if (neg? n) (- n) n))]
+    (assert (reduce (fn [r x] (if (<= -1 (- r x) 1) x (reduced false)))
+                    (map #(abs (- % (nearest-gapful2 %)))  (range 100 2345)))))
   true)
 
 
+
+
+
+
+
+
+
+
+
+
+    
+(defn rgap [n]
+  (when (> n 99)
+    (let [hi (first-digit n)
+          lo (rem n 10)
+          dd (+ lo (* 10 hi))]
+      [n (rem n dd) (- n (nearest-gapful n))])))
+
+
+(defn first-digit [n]
+  (if (< n 10)
+    n
+    (recur (quot n 10))))
+
+
+(defn gapful1? [n]
+  (when (> n 99)
+    (let [hi (first-digit n)
+          lo (rem n 10)
+          dd (+ lo (* 10 hi))]
+      (zero? (rem n dd)))))
+
+
+(defn mfdigit [n]
+  (if (zero? n)
+    0
+    (quot n (long (Math/pow 10 (long (Math/log10 n)))))))
+
+(defn fstr-digit [n]
+  (- (long (first (str n))) (long \0)))
 
 (defn digit [ch]
   (case ch
