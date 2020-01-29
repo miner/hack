@@ -31,7 +31,7 @@
 (defn test-gap []
   (let [abs (fn [n] (if (neg? n) (- n) n))]
     (assert (reduce (fn [r x] (if (<= -1 (- r x) 1) x (reduced false)))
-                    (map #(abs (- % (nearest-gapful2 %)))  (range 100 2345)))))
+                    (map #(abs (- % (nearest-gapful %)))  (range 100 2345)))))
   true)
 
 
@@ -45,6 +45,12 @@
 
 
 
+
+
+(defn first-digit [n]
+  (if (< n 10)
+    n
+    (recur (quot n 10))))
     
 (defn rgap [n]
   (when (> n 99)
@@ -52,12 +58,6 @@
           lo (rem n 10)
           dd (+ lo (* 10 hi))]
       [n (rem n dd) (- n (nearest-gapful n))])))
-
-
-(defn first-digit [n]
-  (if (< n 10)
-    n
-    (recur (quot n 10))))
 
 
 (defn gapful1? [n]
