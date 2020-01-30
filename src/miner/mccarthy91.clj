@@ -30,13 +30,14 @@
 
 
 
-
+#_
 (defn m91t [n]
   (print " " n)
   (if (> n 100)
       (- n 10)
 	  (m91t (m91t (+ n 11)))))
 
+#_
 (defn nr91t
   ([n] (nr91t 1 n))
   ([c n]
@@ -44,6 +45,8 @@
     (cond (zero? c) n
 	  	  (> n 100) (recur (dec c) (- n 10))
 		  :else (recur (inc c) (+ n 11)))))
+
+
 
 (defn seqnr91
   ([v] (seqnr91 1 v))
@@ -98,7 +101,16 @@
 
 (set! *unchecked-math* :warn-on-boxed)
 
+
+
 ;; fastest 8.880903 µs
+(defn nr91a
+  ([n] (nr91a 1 n))
+  ([^long c ^long n]
+    (cond (zero? c) n
+	  	  (> n 100) (recur (dec c) (- n 10))
+		  :else (recur (inc c) (+ n 11)))))
+
 
 ;; overhinting doesn't help
 (defn nr91aaa
@@ -107,14 +119,6 @@
     (cond (zero? c) n
 	  	  (> n 100) (recur (dec c) (- n 10))
 		  :else (recur (inc c) (+ n 11)))))
-
-(defn nr91a
-  ([n] (nr91a 1 n))
-  ([^long c ^long n]
-    (cond (zero? c) n
-	  	  (> n 100) (recur (dec c) (- n 10))
-		  :else (recur (inc c) (+ n 11)))))
-
 
 ;; about the same
 (defn nr91d [^long n]
