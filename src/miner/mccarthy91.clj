@@ -16,7 +16,14 @@
 	  (m91 (m91 (+ n 11)))))
 
 
+;; huge performance difference with hints
+(defn mh91 ^long [^long n]
+  (if (> n 100)
+      (- n 10)
+	  (mh91 (mh91 (+ n 11)))))
 
+;; keeping track of all the internal states
+;; v = [n], result is vector of all n values
 (defn seq91 [v]
   (let [n (peek v)]
     (if (> n 100)
@@ -26,6 +33,7 @@
           seq91
           seq91))))
 
+;; hinting doesn't help seq91, you've got to pay the collection tax
 
 
 
