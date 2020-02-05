@@ -1,28 +1,13 @@
 (ns miner.ibid)
 
 ;; https://gist.github.com/realgenekim/607bf5b4bdb1364df8cc5f94ee589610
+;; has a badly formatted version by Gene.
+;; Notice it has `vec` where it should be `vector` and needs some rearranging of parens to
+;; work.
 
-(def in ["a" "ibid" "ibid" "b"])
-
-;; bad version by Gene
-(defn gene-ibid 
-  ([in]
-   (gene-ibid (vec (first in)) (rest in)))
-  ([left right]
-   (println left right)
-   (if (empty? right)
-     ;; done
-     left
-     ;; else recurse
-     (if (= "ibid" (first right))
-       ;; repeat last left
-       (gene-ibid (conj left (last left))
-                  (rest right)
-                  (gene-ibid (conj left (first right))
-                             (rest right)))))))
 
 ;; hacked a bit by SEM, used Proctor "Ibid." notation
-(defn gibid 
+(defn gene-ibid 
   ([in]
    (gibid (vector (first in)) (rest in)))
   ([left right]
@@ -33,10 +18,19 @@
      ;; else recurse
      (if (= "Ibid." (first right))
        ;; repeat last left
-       (recur (conj left (peek left))
-              (rest right))
-       (recur (conj left (first right))
-              (rest right))))))
+       (recur (conj left (peek left)) (rest right))
+       (recur (conj left (first right)) (rest right))))))
+
+
+
+(defn g-ibid [in]
+  (loop [left []  right (seq in)]
+    (if (empty? right)
+      left
+      (recur (conj left (if (= "Ibid." (first right)) (peek left) (first right)))
+             (rest right)))))
+
+
 
 
 
