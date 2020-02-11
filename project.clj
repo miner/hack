@@ -43,7 +43,12 @@
              :clj17 {:dependencies [   
                                    [org.clojure/clojure "1.7.0"]
                                    ]}
-
+             :rebl {:dependencies [
+                                   [org.clojure/core.async "0.4.500"]
+                                   [REBL "0.9.220"]
+                                   ]
+                    :main cognitect.rebl}
+             
              :snapshot {:dependencies [[org.clojure/clojure "1.10.0-master-snapshot"]]}
              }
   :jvm-opts ["-Djdk.attach.allowAttachSelf"]

@@ -39,3 +39,10 @@
 	      buffer (or buffer (and replacement (.append ^StringBuilder (StringBuilder. len) s 0 index)))]
 	  (if buffer (.append ^StringBuilder buffer (or replacement ch)))
 	  (recur (inc index) buffer))))))
+
+
+;; convenience hack
+(defn abc [n]
+  {:pre [(<= 1 n 26)]}
+  (str (char (+ (dec (long \a)) n))))
+
