@@ -7,6 +7,33 @@
 ;; up the (time) order.  Or just pre-populate with the start and finish numbers to get a
 ;; full count of moving average.
 
+
+;; Probably best to use as much window as possible but clip to 0 and cnt.  Some of my
+;; solutions don't do that.  See `moving-avg` for my best effort.
+
+
+;; BEST SO FAR
+;; but assumes fixed size coll (not infinite, lazy)
+(defn moving-avg [w coll]
+  {:pre [(pos? w)]}
+  (let [offset (quot w -2)
+        vc (vec coll)
+        cnt (count vc)]
+    (for [i (range offset (+ cnt offset))
+          :let [start (max 0 i)
+                end (min cnt (+ i w))]]
+      (/ (reduce (fn [sum j] (+ sum (vc j))) 0 (range start end))
+         (- end start)))))
+
+
+
+
+
+
+
+
+
+
 ;; Moving average
 (defn simple-moving-average [n coll]
   (->> coll
@@ -14,7 +41,7 @@
        (map #(/ (reduce + %) n))))
 
 
-;; correcting for start-up lag by taking initial half window literally
+;; correcting for start-up lag by taking initial half window literally (non-averaged)
 (defn moving-average [n coll]
   (let [pre (quot (dec n) 2)
         wv (->> coll
@@ -66,7 +93,11 @@
 
 ;; reductions idea from Nazarii Bardiuk, but with my spin on it
 ;; Trying to be balanced with start up and ending partial windows.  Also careful about edge
-;; cases with empty or short coll vs wide window, etc.
+;; cases with empty or short coll vs wide window, etc.  Notice we're using the somewhat
+;; obscure Clojure PersistentQueue as our window collection.  The queue conjes to the end
+;; like a vector and pops from the front like a list.  It is Counted so calls to `count` are
+;; fast.
+
 (defn ma7 [n coll]
   (let [n2 (quot (inc n) 2)
         pre (take n2 coll)]
@@ -80,6 +111,120 @@
                        (concat (drop n2 coll) (repeat (dec n2) nil)))))))
 
 
+(defn qavg [w]
+  (/ (reduce + w) (count w)))
+
+
+(defn ma8 [n coll]
+  (let [n2 (quot (inc n) 2)
+        pre (take n2 coll)]
+    (if (< (count pre) n2)
+      pre
+      (pop (reduce (fn [resw x]
+                        (let [w (peek resw)
+                              w2 (cond (nil? x) (pop w)
+                                       (< (count w) n) (conj w x)
+                                       :else (conj (pop w) x))]
+                          (conj (pop resw) (qavg w2) w2)))
+                      [(qavg pre) (queue pre)]
+                      (concat (drop n2 coll) (repeat (dec n2) nil)))))))
+
+;; but not the same -- needs review
+(defn ma9 [n coll]
+  (let [n2 (quot (inc n) 2)
+        pre (take (dec n2) coll)]
+    (if (< (count pre) (dec n2))
+      pre
+      (pop (reduce (fn [resw x]
+                        (let [w (peek resw)
+                              w2 (cond (nil? x) (pop w)
+                                       (< (count w) n) (conj w x)
+                                       :else (conj (pop w) x))]
+                          (conj (pop resw) (qavg w2) w2)))
+                      [(queue pre)]
+                      (concat (drop n2 coll) (repeat  n2 nil)))))))
+
+
+
+
+
+(defn ma81 [n coll]
+  (let [window (take n coll)]
+    (if (< (count window) n)
+      coll
+      (let [n2 (quot n 2)
+            vwin (reduce (fn [res x] (conj res (conj (pop (peek res)) x)))
+                         [(queue window)]
+                         (drop n coll))]
+        (map qavg (concat (take n2 (drop n2 (reductions conj [] coll)))
+                          vwin
+                          (take (- (dec n) n2) (rest (iterate pop (peek vwin))))))))))
+
+
+
+
+
+(defn w82 [n coll]
+  (let [window (take n coll)]
+    (if (< (count window) n)
+      coll
+      (let [n2 (quot n 2)
+            n1 (- n n2)
+            vwin (reduce (fn [res x] (conj res (conj (pop (peek res)) x)))
+                         [(queue window)]
+                         (drop n coll))]
+        (println "n1 =" n1 ", n2 =" n2)
+        (map seq (concat (reductions conj (vec (take n1 coll)) (take (dec n2) (drop n1 coll)))
+                          vwin
+                          (take (dec n1) (rest (iterate pop (peek vwin))))))))))
+
+
+
+;; pretty good 
+(defn OKw82 [n coll]
+  (let [window (take n coll)]
+    (if (< (count window) n)
+      coll
+      (let [n2 (quot n 2)
+            n1 (- n n2)
+            vwin (reduce (fn [res x] (conj res (conj (pop (peek res)) x)))
+                         [(queue window)]
+                         (drop n coll))]
+        (println "n1 =" n1 ", n2 =" n2)
+        (map seq (concat (reductions conj (vec (take n1 window)) (drop n1 window))
+                          (rest vwin)
+                          (take (dec n1) (rest (iterate pop (peek vwin))))))))))
+
+
+
+(defn GOODw82 [n coll]
+  (let [window (take n coll)]
+    (if (< (count window) n)
+      coll
+      (let [n2 (quot n 2)
+            n1 (- n n2)
+            vwin (reduce (fn [res x] (conj res (conj (pop (peek res)) x)))
+                         [(queue window)]
+                         (drop n coll))]
+        (println "n1 =" n1 ", n2 =" n2)
+        (map seq (concat (take n2 (reductions conj (vec (take n1 coll)) (drop n1 coll)))
+                          vwin
+                          (take (dec n1) (rest (iterate pop (peek vwin))))))))))
+
+
+(defn SAVEw82 [n coll]
+  (let [window (take n coll)]
+    (if (< (count window) n)
+      coll
+      (let [n2 (quot n 2)
+            n1 (- n n2)
+            vwin (reduce (fn [res x] (conj res (conj (pop (peek res)) x)))
+                         [(queue window)]
+                         (drop n coll))]
+        (println "n1 =" n1 ", n2 =" n2)
+        (map seq (concat (take n2 (drop n1 (reductions conj [] coll)))
+                          vwin
+                          (take (dec n1) (rest (iterate pop (peek vwin))))))))))
 
 ;; if you don't like to see ratios printed you can add (map ratio) to the above funtion
 (defn deratio [rat]
@@ -94,13 +239,14 @@
 
 (def xyz (mapcat #(repeat 3 %) (range 100)))
 
+;; skipping ends to allow different interpretations
 (defn smoke-avg
   ([] (smoke-avg moving-average))
   ([moving]
    (assert (= (moving 1 (range 100)) (range 100)))
-   (assert (= (moving 5 (range 100)) (range 100)))
-   (assert (= (moving 4 (interleave (repeat 10 10) (repeat 10 12)))
-              '(10 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 10 12)))
+   (assert (= (take 90 (drop 5 (moving 5 (range 100)))) (range 5 95)))
+   (assert (= (take 16 (drop 2 (moving 4 (interleave (repeat 10 10) (repeat 10 12)))))
+              (repeat 16 11)))
    true))
 
 
@@ -132,6 +278,29 @@
            (reductions (fn [w x] (conj (if (< (count w) n) w (pop w)) x))
                        (queue (take n2 coll))
                        (elongate (drop n2 coll) (dec n2)))))))
+
+
+
+
+;; a bit slower to allocate subvecs
+(defn mva1 [n coll]
+  (let [n2 (quot n 2)
+        vc (vec coll)
+        cnt (count vc)]
+    (for [i (range (- n2) (- cnt n2))
+          :let [sv (subvec vc (max 0 i) (min cnt (+ i n)))]]
+      (/ (reduce + sv) (count sv)))))
+
+
+(defn wva [n coll]
+  (let [n2 (quot n -2)
+        vc (vec coll)
+        cnt (count vc)]
+    (for [i (range n2 (+ cnt n2))]
+      [(max 0 i) (min cnt (+ i n))])))
+
+
+
 
 
 
@@ -185,6 +354,11 @@
          (map avg)
          (map double))))
 
+
+
+
+
+         
 
 
 
