@@ -29,7 +29,28 @@
 
 
 
+(defn running-sum [n coll]
+  (loop [res [(reduce + (take n coll))]
+         subs coll
+         adds (drop n coll)]
 
+    (if (seq adds)
+      (recur (conj res (+ (peek res) (- (first adds) (first subs))))
+             (rest subs)
+             (rest adds))
+      res)))
+
+;; works, tiny bit faster, but ugly
+(defn ravg [n coll]
+  (let [n2 (quot n 2)
+        vsum (running-sum n coll)
+        sn (peek vsum)]
+    (concat (for [j (range (inc n2) n)]
+              (/ (reduce + (take j coll)) j))
+            (map #(/ % n) vsum)
+            (let [ending (drop (dec (count vsum)) coll)]
+              (for [j (range 1 (- n n2))]
+                (/ (reduce - sn (take j ending)) (- n j)))))))
 
 
 
