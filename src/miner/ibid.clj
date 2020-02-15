@@ -9,7 +9,7 @@
 ;; hacked a bit by SEM, used Proctor "Ibid." notation
 (defn gene-ibid 
   ([in]
-   (gibid (vector (first in)) (rest in)))
+   (gene-ibid (vector (first in)) (rest in)))
   ([left right]
    ;;(println left right)
    (if (empty? right)
@@ -84,6 +84,19 @@
    true))
                            
 
+(defn ibid [authors]
+  (reduce (fn [result auth] (conj result (if (= auth "Ibid.") (peek result) auth)))
+          []
+          authors))
+
+
+(defn ibid-safe [authors]
+  {:pre [(not= (first authors) "Ibid.")]}
+  (ibid authors))
+
+
+
+
 (defn ibids [authors]
   (reduce (fn [res auth]
             (if (= auth "Ibid.")
@@ -102,7 +115,7 @@
 (defn ibidc [authors]
   (reduce (fn [res auth]
             (cond (not= auth "Ibid.") (conj res auth)
-                  (not (peek res)) (throw (ex-info "Found `Ibid.` with no previous author"
+                  (nil? (peek res)) (throw (ex-info "Found `Ibid.` with no previous author"
                                                    {:original authors :partial-result res}))
                    :else (conj res (peek res))))
           []
