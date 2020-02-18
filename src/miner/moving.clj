@@ -25,7 +25,33 @@
       (/ (reduce (fn [sum j] (+ sum (vc j))) 0 (range start end))
          (- end start)))))
 
+;; OK, but not faster.  Seems more complicated.
+(defn mavg [w coll]
+  {:pre [(pos? w)]}
+  (let [vc (vec coll)
+        offset (quot w -2)
+        cnt (count vc)
+        endi (+ cnt offset)]
+    (loop [sum (reduce + 0 (subvec vc 0 (+ w (dec offset)))) i offset res []]
+      (if (< i endi)
+        (let [start (max 0 i)
+              end (min cnt (+ i w))
+              sum1 (long (- (+ sum (nth vc (dec (+ i w)) 0)) (nth vc (dec i) 0)))]
+          ;;(println "i" i  "sum" sum1  "  " start end)
+          (recur sum1 (inc i) (conj res (/ sum1 (- end start)))))
+        res))))
 
+
+
+
+(defn ben [mav]
+  (+ (reduce + (mav 1 (range 10 1000)))
+     (reduce + (mav 6 (range 100 10000)))
+     (reduce + (mav 7 (range 1000 20000)))))
+
+
+
+;; WRONG when n is bigger than (count coll)
 ;; works, tiny bit faster, but a bit ugly
 (defn ravg [n coll]
   (let [vsum (loop [res [(reduce + (take n coll))]
@@ -39,7 +65,7 @@
         sn (peek vsum)
         ending (drop (dec (count vsum)) coll)
         n2 (quot n 2)]
-    (concat (for [j (range (inc n2) n)]
+    (concat (for [j (range (- n n2) n)]
               (/ (reduce + (take j coll)) j))
             (map #(/ % n) vsum)
             (for [j (range 1 (- n n2))]
