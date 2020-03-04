@@ -64,8 +64,8 @@
    (apply str (map #(caesar-char % offset) message))))
 
 ;; the classic default is 13, so calling it twice returns original
-(defn caesar
-  ([message] (caesar message 13))
+(defn caesar-classic
+  ([message] (caesar-classic message 13))
   ([message offset]
    (let [cch (fn [ch]
                (let [ic (long ch)
@@ -109,8 +109,8 @@
 
 
 ;; fastest
-(defn tcaesar
-  ([message] (tcaesar message 13))
+(defn caesar
+  ([message] (caesar message 13))
   ([message offset]
    (let [rotch (fn [ch]
                  (let [ic (long ch)
