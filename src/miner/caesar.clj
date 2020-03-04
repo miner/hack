@@ -1,3 +1,4 @@
+(ns miner.caesar)
 
 ;; http://clojurebridge.github.io/community-docs/docs/exercises/caesar-cipher/
 ;; I don't love their code.  Should make a suggestion or file a github issue for them.
@@ -52,15 +53,104 @@
         iz (long \z)
         iA (long \A)
         iZ (long \Z)]
-    (cond (<= ia ic iz)   (char (+ ia (mod (+ (- ic ia) offset) (- iz ia))))
-        (<= iA ic iZ)   (char (+ iA (mod (+ (- ic iA) offset) (- iZ iA))))
-        :else ch)))
+    ;; (assert (= 26 (inc (- iz ia)) (inc (- iZ iA))))
+    (cond (<= ia ic iz)   (char (+ ia (mod (+ (- ic ia) offset) 26)))
+          (<= iA ic iZ)   (char (+ iA (mod (+ (- ic iA) offset) 26)))
+          :else ch)))
 
-;; fastest and reasonably clear
+(defn caesar-good
+  ([message] (caesar-good message 13))
+  ([message offset]
+   (apply str (map #(caesar-char % offset) message))))
+
+;; the classic default is 13, so calling it twice returns original
 (defn caesar
   ([message] (caesar message 13))
   ([message offset]
-   (apply str (map #(caesar-char % offset) message))))
+   (let [cch (fn [ch]
+               (let [ic (long ch)
+                     ia (long \a)
+                     iz (long \z)
+                     iA (long \A)
+                     iZ (long \Z)]
+                 ;; (assert (= 26 (inc (- iz ia)) (inc (- iZ iA))))
+                 (cond (<= ia ic iz)   (char (+ ia (mod (+ (- ic ia) offset) 26)))
+                       (<= iA ic iZ)   (char (+ iA (mod (+ (- ic iA) offset) 26)))
+                       :else ch)))]
+     (apply str (map cch message)))))
+
+
+
+;; faster, surprisingly
+(defn tca
+  ([message] (tca message 13))
+  ([message offset]
+   (let [cha (fn [^long aint ^long i] (char (+ aint (mod (+ (- i aint) offset) 26))))
+         cch (fn [ch]
+               (let [ic (long ch)
+                     ia (long \a)
+                     iz (long \z)
+                     iA (long \A)
+                     iZ (long \Z)]
+                 ;; (assert (= 26 (inc (- iz ia)) (inc (- iZ iA))))
+                 (cond (<= ia ic iz)   (cha ia ic)
+                       (<= iA ic iZ)   (cha iA ic)
+                       :else ch)))]
+     (transduce (map cch) str message))))
+
+
+;; `rfstr` is a "reducing step function" for transduce, no arg for init, expects
+;; chars, returns final result string
+
+(defn rfstr
+  ([] (StringBuilder.))
+  ([sb] (.toString ^StringBuilder sb))
+  ([sb ch] (.append ^StringBuilder sb ^char ch)))
+
+
+;; fastest
+(defn tcaesar
+  ([message] (tcaesar message 13))
+  ([message offset]
+   (let [rotch (fn [ch]
+                 (let [ic (long ch)
+                       ia (long \a)
+                       iz (long \z)
+                       iA (long \A)
+                       iZ (long \Z)]
+                   (cond (<= ia ic iz)  (char (+ ia (mod (+ (- ic ia) offset) 26)))
+                         (<= iA ic iZ)  (char (+ iA (mod (+ (- ic iA) offset) 26)))
+                         :else ch)))]
+     (transduce (map rotch) rfstr message))))
+
+
+
+;; looks nice but slower
+(defn tca1
+  ([message] (tca1 message 13))
+  ([message offset]
+   (let [ia (long \a)
+         iz (long \z)
+         iA (long \A)
+         iZ (long \Z)
+         rot (fn [^long aint ^long i] (+ aint (mod (+ (- i aint) offset) 26)))
+         ciaz (fn [i] (if (<= ia i iz) (rot ia i) i))
+         ciAZ (fn [i] (if (<= iA i iZ) (rot iA i) i))]
+     (transduce (comp (map long) (map ciaz) (map ciAZ) (map char)) rfstr  message))))
+
+ 
+
+
+
+
+(defn smoke-caesar [cstr]
+  (assert (every? #(= (cstr (cstr %)) %) ["foobar" "FooBar" "baz23" "_BAZ$BB?"]))
+  (assert (every? #(= (cstr (cstr %)) %) ["Well, isn't that special?", "Can you spell Antidisestablishmentarianism? Maybe with a clue."]))
+  (assert (every? #(= (cstr (cstr "FooBar9" %) (- %)) "FooBar9") (range 100)))
+
+  true)
+
+
 
 
 
