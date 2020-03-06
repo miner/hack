@@ -47,6 +47,8 @@
     (apply str (map #(shifted-map % %) message)))))
 
 
+
+
 (defn caesar-char [ch offset]
   (let [ic (long ch)
         ia (long \a)
@@ -80,25 +82,6 @@
      (apply str (map cch message)))))
 
 
-
-;; faster, surprisingly
-(defn tca
-  ([message] (tca message 13))
-  ([message offset]
-   (let [cha (fn [^long aint ^long i] (char (+ aint (mod (+ (- i aint) offset) 26))))
-         cch (fn [ch]
-               (let [ic (long ch)
-                     ia (long \a)
-                     iz (long \z)
-                     iA (long \A)
-                     iZ (long \Z)]
-                 ;; (assert (= 26 (inc (- iz ia)) (inc (- iZ iA))))
-                 (cond (<= ia ic iz)   (cha ia ic)
-                       (<= iA ic iZ)   (cha iA ic)
-                       :else ch)))]
-     (transduce (map cch) str message))))
-
-
 ;; `rfstr` is a "reducing step function" for transduce, no arg for init, expects
 ;; chars, returns final result string
 
@@ -106,7 +89,6 @@
   ([] (StringBuilder.))
   ([sb] (.toString ^StringBuilder sb))
   ([sb ch] (.append ^StringBuilder sb ^char ch)))
-
 
 ;; fastest
 (defn caesar
@@ -124,6 +106,24 @@
      (transduce (map rotch) rfstr message))))
 
 
+;; faster than expected
+(defn tca
+  ([message] (tca message 13))
+  ([message offset]
+   (let [cha (fn [^long aint ^long i] (char (+ aint (mod (+ (- i aint) offset) 26))))
+         cch (fn [ch]
+               (let [ic (long ch)
+                     ia (long \a)
+                     iz (long \z)
+                     iA (long \A)
+                     iZ (long \Z)]
+                 ;; (assert (= 26 (inc (- iz ia)) (inc (- iZ iA))))
+                 (cond (<= ia ic iz)   (cha ia ic)
+                       (<= iA ic iZ)   (cha iA ic)
+                       :else ch)))]
+     (transduce (map cch) str message))))
+
+
 
 ;; looks nice but slower
 (defn tca1
@@ -138,7 +138,28 @@
          ciAZ (fn [i] (if (<= iA i iZ) (rot iA i) i))]
      (transduce (comp (map long) (map ciaz) (map ciAZ) (map char)) rfstr  message))))
 
- 
+
+(defn comp1
+  "Like comp but functions can take only one arg"
+  ([] identity)
+  ([f] f)
+  ([f g] (fn ([x] (f (g x)))))
+  ([f g h] (fn ([x] (f (g (h x))))))
+  ([f g h & fs]
+   (reduce comp1 (comp1 f g h) fs)))
+
+;; comp1 helps a bit
+(defn tca11
+  ([message] (tca11 message 13))
+  ([message offset]
+   (let [ia (long \a)
+         iz (long \z)
+         iA (long \A)
+         iZ (long \Z)
+         rot (fn [^long aint ^long i] (+ aint (mod (+ (- i aint) offset) 26)))
+         ciaz (fn [i] (if (<= ia i iz) (rot ia i) i))
+         ciAZ (fn [i] (if (<= iA i iZ) (rot iA i) i))]
+     (transduce (comp1 (map long) (map ciaz) (map ciAZ) (map char)) rfstr  message))))
 
 
 
@@ -187,3 +208,31 @@
   ([message] (caesarch message 13))
   ([message offset]
    (apply str (map #(caesar-ch % offset) message))))
+
+
+
+;; https://gist.github.com/ericnormand/153d3d219a13040158a93f4558bfacdb
+;; Eric Normand's solution
+
+(def lower (clojure.string/lower-case "abcdefghijklmnopqrstuvwxyz"))
+(def upper (clojure.string/upper-case "abcdefghijklmnopqrstuvwxyz"))
+
+(defn rotate [n letters]
+  (->> letters
+       (cycle)
+       (drop (mod n (count letters)))
+       (zipmap letters)))
+
+(defn ->ring [n]
+  (merge (rotate n lower) (rotate n upper)))
+
+(defn encrypt [n s]
+  (let [ring (->ring n)]
+    (->> s
+         (map #(get ring % %))
+         (clojure.string/join))))
+
+;; SEM: Eric adapted to my arg style for testing
+(defn eric
+  ([msg] (eric msg 13))
+  ([msg n] (encrypt n msg)))
