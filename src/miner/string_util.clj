@@ -46,3 +46,39 @@
   {:pre [(<= 1 n 26)]}
   (str (char (+ (dec (long \a)) n))))
 
+
+
+
+;; Per Clojure guidance: don't extend a protocol that you don't own to a type that you don't
+;; own.  But what about Java types?  Well, you could be changing things for other people,
+;; maybe dangerous?
+
+#_
+(extend-protocol clojure.core.protocols/IKVReduce
+  java.lang.String
+  (kv-reduce [^String s f init]
+    (let [cnt (.length s)]
+      (loop [i 0 res init]
+        (if (< i cnt)
+          (let [ret (f res i (.charAt s i))]
+            (if (reduced? ret)
+              @ret
+              (recur (inc i) ret)))
+          res)))))
+
+
+;; Unfinished ideas about making String reversible.  Really want rseq to work, but would
+;; need a new protocol and method that defaults to rseq for implementation.
+#_
+(defprotocol IReversible
+  (rev-seq [coll]))
+
+;; String Iterable 
+;; should return an IReduceInit to be fast?
+
+
+;; faster for later
+;;[revsb (.reverse (StringBuilder phrase))]
+
+
+
