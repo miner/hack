@@ -20,16 +20,6 @@
 ;; recursion costs.
 
 
-;; (seq amap) introduce extra level of depth with map-entries so we `(dec d)` to compensate.
-;; Be careful about empty map!  (seq {}) ==> nil so it needs special case, too.
-
-(defn depth-WORKS
-  ([val] (depth-WORKS val 0))
-  ([val d]
-   (cond (map? val) (if-let [ents (seq val)] (recur ents (dec d)) (inc d))
-         (coll? val) (reduce (fn [r x] (max r (depth-WORKS x (inc d)))) (inc d) val)
-         :else d)))
-
 
 
 ;; Eric's solution.  Slower than mine.
@@ -64,12 +54,68 @@
    (let [nested (take 100 (iterate list 0))]
      (assert (= (fdepth nested) 100))
      (assert (= (fdepth (list :a nested :b {:a [nested :x]} :c nested)) 103)))
+
+   ;; borrowed tests from gist
+   (assert (= 0 (fdepth 0)))
+
+   (assert (= 1 (fdepth [])))
+   (assert (= 2 (fdepth [ [] ])))
+   (assert (= 3 (fdepth [[0] [2] [1 [2]]])))
+
+   (assert (= 1 (fdepth (list))))
+   (assert (= 2 (fdepth (list (list)) )))
+   (assert (= 3 (fdepth (list (list 0) (list 2) (list 1 (list 2))))))
+
+   (assert (= 1 (fdepth #{})))
+   (assert (= 2 (fdepth #{ #{} })))
+   (assert (= 3 (fdepth #{#{0} #{2} #{1 #{2}}})))
+
+   (assert (= 1 (fdepth {})))
+   (assert (= 2 (fdepth {:a {}})))
+   (assert (= 4 (fdepth {:a {:a 0
+                            :b {:a 2}
+                            :c {:a 1
+                                :b {:a 2}}}})))
+   
+   (assert (= 5 (fdepth #{[0]
+                         {:a [1
+                              (list 2
+                                    3
+                                    [4])]}})))
+
+   (assert (= 0 (fdepth 0)))
+   (assert (= 0 (fdepth nil)))
+   (assert (= 0 (fdepth "string")))
+   
+   (assert (= 1 (fdepth '(1 2))))
+   (assert (= 1 (fdepth [])))
+   (assert (= 1 (fdepth {:a :b})))
+   (assert (= 1 (fdepth #{\a \b})))
+   (assert (= 1 (fdepth (seq "string"))))
+   
+   (assert (= 2 (fdepth [1 [2]])))
+   (assert (= 2 (fdepth {:a [1]})))
+   (assert (= 2 (fdepth {[:a] 1})))
+   (assert (= 2 (fdepth {[:a] [1]})))
+   (assert (= 2 (fdepth {{} [1]})))
+   (assert (= 3 (fdepth {{[] 1} [1]})))
+   (assert (= 3 (fdepth [[0] [2] [1 [2]]])))
+   
    true))
 
 
 
 
 
+;; (seq amap) introduce extra level of depth with map-entries so we `(dec d)` to compensate.
+;; Be careful about empty map!  (seq {}) ==> nil so it needs special case, too.
+
+(defn depth-WORKS
+  ([val] (depth-WORKS val 0))
+  ([val d]
+   (cond (map? val) (if-let [ents (seq val)] (recur ents (dec d)) (inc d))
+         (coll? val) (reduce (fn [r x] (max r (depth-WORKS x (inc d)))) (inc d) val)
+         :else d)))
 
 
 (defn depth-OK
