@@ -186,3 +186,78 @@
          :else  (apply max (map #(rdep % (inc d)) coll)))))
 
 
+
+
+;;; ----------------------------------------------------------------------
+
+
+;; Maybe related -- sum of depths
+;; https://stackoverflow.com/questions/59515105/how-to-calculate-the-sum-of-all-depths-in-a-tree-using-basic-recur
+
+;; a leaf node is anything that's not a vector. And a node with children is a vector of form:
+;; [value [child1 child2 ...]
+
+;; sum of depths including intermediate nodes (see smoke-sum for examples)
+
+;; accepted answer
+(defn sum-depths
+  ([tree]
+   (sum-depths tree 0))
+  ([node depth]
+   (if-not (vector? node)
+     depth
+     (do
+       (apply
+        +
+        depth
+        (for [child-node (second node)]
+          (sum-depths child-node (inc depth))))))))
+
+
+;; SEM slightly hacked
+;; much faster, will stack overflow on very deep tree
+(defn sum-depths2
+  ([tree]   (sum-depths2 tree 0))
+  ([node depth]
+   (if (vector? node)
+     (reduce (fn [r child-node] (+ r (sum-depths2 child-node (inc depth))))
+             depth
+             (peek node))
+     depth)))
+
+
+
+;; not so fast, but can handle very deep tree without stack overflow
+;; Transducer with into is a bit faster than old-fashioned mapcat, and maybe count on vector
+;; is a win.  (Again, slightly hacked version of Stack Overflow answer)
+(defn sum-depths3 [tree]
+  (loop [depth 0 nodes [tree] total 0]
+    (if (empty? nodes)
+      total
+      (recur (inc depth)
+             (into [] (comp (filter vector?) (mapcat peek)) nodes)
+             (+ total (* (count nodes) depth))))))
+
+
+
+
+
+;; DEEP tree -- will cause stack overflow on recursive versions
+(def tree
+  (loop [i 0 t [:a [:b]]]
+    (if (< i 10000)
+      (recur (inc i)
+             [:a [t]])
+      t)))
+
+
+(defn smoke-sum [fsum-depths]
+  (assert (= (fsum-depths [:root [:a1 [:b1 [:a2 :b2]] :c1]])
+             7))
+
+  (assert (= (fsum-depths ["COM" [["B" [["C" [["D" [["E" ["F" ["J" [["K" ["L"]]]]]] "I"]]]]
+                                        ["G" ["H"]]]]]])
+             42))
+
+
+  true)
