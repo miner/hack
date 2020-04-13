@@ -24,7 +24,7 @@
 
 
 
-(defn choose-indices [cnt choose]
+(defn OLD-choose-indices [cnt choose]
   ;; {:pre [(pos-int? choose) (<= choose cnt)]}
   (loop [i (dec choose) res (map vector (range cnt))]
     (if (zero? i)
@@ -33,6 +33,22 @@
              (mapcat (fn [prev] (map #(conj prev %)
                                      (range (inc (peek prev)) cnt)))
                      res)))))
+
+
+(defn choose-indices [cnt choose]
+ ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+ (loop [i (dec choose) res (mapv vector (range cnt))]
+   (if (zero? i)
+     res
+     (recur (dec i)
+            (into []
+                  (mapcat (fn [prev]
+                            (eduction (map #(conj prev %)) (range (inc (peek prev)) cnt))))
+                  res)))))
+
+
+
+
 
 
 ;; map only while adding,
@@ -138,3 +154,238 @@
 ;; (let [[f :as xs] #{1 2 3}] xs)
 ;; Execution error (UnsupportedOperationException) at user/eval2925 (REPL:1).
 ;; nth not supported on this type: PersistentHashSet
+
+
+
+;; SEM hacked version of c.c/distinct
+
+(defn dist-orig [coll]
+   (let [step (fn step [xs seen]
+                (lazy-seq
+                  ((fn [[f :as xs] seen]
+                     (when-let [s (seq xs)]
+                       (if (contains? seen f)
+                         (recur (rest s) seen)
+                         (cons f (step (rest s) (conj seen f))))))
+                   xs seen)))]
+       (step coll #{})))
+
+(defn dist1 [coll]
+   (let [step (fn step [xs seen]
+                (lazy-seq
+                  ((fn [[f :as xs] seen]
+                     (when-let [s (seq xs)]
+                       (if (contains? seen f)
+                         (recur (rest s) seen)
+                         (cons f (step (rest s) (conj seen f))))))
+                   xs seen)))]
+     (if (set? coll)
+       (seq coll)
+       (step coll #{}))))
+
+;; SEM run built-in for transducer
+(defn dist
+  ([] (distinct))
+  ([coll]
+  (let [step (fn step [xs seen]
+               (lazy-seq
+                ((fn [xs seen]
+                   (when-let [s (seq xs)]
+                     (let [f (first s)]
+                       (if (contains? seen f)
+                         (recur (rest s) seen)
+                         (cons f (step (rest s) (conj seen f)))))))
+                 xs seen)))]
+    (step coll #{}))))
+
+(defn dist2 [coll]
+  (let [step (fn step [xs seen]
+               (lazy-seq
+                ((fn [xs seen]
+                   (when-let [s (seq xs)]
+                     (let [f (first s)]
+                       (if (contains? seen f)
+                         (recur (rest s) seen)
+                         (cons f (step (rest s) (conj seen f)))))))
+                 xs seen)))]
+    (if (set? coll)
+      (seq coll)
+      (step coll #{}))))
+
+
+(defn assert-result
+  ([f x expected] (assert (= (f x) expected)) true)
+  ([f x expected & more] (and (assert-result f x expected) (apply assert-result f more))))
+
+(defn smoke-dist [dist]
+  (assert-result dist
+                 [1 2 3]   [1 2 3]
+                 [1 2 1 2 3]   [1 2 3]
+                 [] []
+                 [1 1 1]   [1]
+                 #{1 2 3}  (seq #{1 2 3})
+                 (repeat 100 :x)  [:x]
+                 (take 100 (cycle [:a :b]))  [:a :b]
+                 (range 100)  (range 100)))
+
+   
+;; benchmark code from Tonksi
+;; https://gist.github.com/tonsky/97dfe1f9c48eccafc983a49c7042fb21
+;; in CLJ-
+(require '[criterium.core :as c])
+
+(defn format-time [estimate]
+  (let [mean (first estimate)
+        [factor unit] (c/scale-time mean)]
+    (c/format-value mean factor unit)))
+
+
+(defmacro race [body1 body2]
+ `(let [_#        (assert (= ~body1 ~body2))
+        results1# (c/quick-benchmark ~body1 {})
+        results2# (c/quick-benchmark ~body2 {})
+        percent#  (->> (/ (first (:mean results2#))
+                          (first (:mean results1#)))
+                       (* 100)
+                       (- 100)
+                       (int))]
+    
+    (println ~(pr-str body1) "\t"
+             (format-time (:mean results1#)) "=>" (format-time (:mean results2#))
+             (str "(" (- percent#) "%)"))))
+
+
+(defn transient-distinct
+  "Returns a lazy sequence of the elements of coll with duplicates removed.
+  Returns a stateful transducer when no collection is provided."
+  {:added "1.0"
+   :static true}
+  ([]
+   (fn [rf]
+     (let [seen ^clojure.lang.ITransientSet (transient #{})]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (if (.contains seen input)
+            result
+            (do (conj! seen input)
+                (rf result input))))))))
+  ([coll]
+   (let [step (fn step [xs seen]
+                (lazy-seq
+                  ((fn [[f :as xs] ^clojure.lang.ITransientSet seen]
+                     (when-let [s (seq xs)]
+                       (if (.contains seen f)
+                         (recur (rest s) seen)
+                         (cons f (step (rest s) (conj! seen f))))))
+                   xs seen)))]
+     (step coll (transient #{})))))
+
+
+(defn zdist
+  "Returns a lazy sequence of the elements of coll with duplicates removed.
+  Returns a stateful transducer when no collection is provided."
+  {:added "1.0"
+   :static true}
+  ([]
+   (fn [rf]
+     (let [seen ^clojure.lang.ITransientSet (transient #{})]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (if (.contains seen input)
+            result
+            (do (conj! seen input)
+                (rf result input))))))))
+  ([coll]
+   (let [step (fn step [xs seen]
+                (lazy-seq
+                  ((fn [xs ^clojure.lang.ITransientSet seen]
+                     (when-let [s (seq xs)]
+                       (let [f (first s)]
+                       (if (.contains seen f)
+                         (recur (rest s) seen)
+                         (cons f (step (rest s) (conj! seen f)))))))
+                   xs seen)))]
+     (step coll (transient #{})))))
+
+
+(defn ydist
+  "Returns a lazy sequence of the elements of coll with duplicates removed.
+  Returns a stateful transducer when no collection is provided."
+  {:added "1.0"
+   :static true}
+  ([]
+   (fn [rf]
+     (let [seen (transient #{})]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (if (contains? seen input)
+            result
+            (do (conj! seen input)
+                (rf result input))))))))
+  ([coll]
+   (let [step (fn step [xs seen]
+                (lazy-seq
+                  ((fn [xs seen]
+                     (when-let [s (seq xs)]
+                       (let [f (first s)]
+                       (if (contains? seen f)
+                         (recur (rest s) seen)
+                         (cons f (step (rest s) (conj! seen f)))))))
+                   xs seen)))]
+     (step coll (transient #{})))))
+
+
+
+
+
+;; SEM hacked
+(defn tonski-bench []
+  (doseq [size [10 100 1000 10000]
+          :let [coll (vec (repeatedly size #(rand-int 1000)))]]
+    (println size "elements")
+
+    (print "distinct vs dist ")
+    (race (doall (distinct coll))
+          (doall (dist coll)))
+
+    (print "distinct vs zdist ")
+    (race (doall (distinct coll))
+          (doall (zdist coll)))
+
+    (print"transient-distinct vs zdist ")    
+    (race (doall (transient-distinct coll))
+          (doall (zdist coll)))
+
+    (print"ydist vs zdist ")    
+    (race (doall (ydist coll))
+          (doall (zdist coll)))
+
+    #_
+    (race (into [] (distinct) coll)
+          (into [] (transient-distinct) coll))))
+
+
+;; [old results]
+;; 10 elements
+;; (doall (distinct coll)) 	 5.773439 µs => 4.179092 µs (-27%)
+;; (into [] (distinct) coll) 	 3.238236 µs => 1.943254 µs (-39%)
+;; 
+;; 100 elements
+;; (doall (distinct coll)) 	 67.725764 µs => 42.129993 µs (-37%)
+;; (into [] (distinct) coll) 	 35.702741 µs => 16.495947 µs (-53%)
+;; 
+;; 1000 elements
+;; (doall (distinct coll)) 	 540.652739 µs => 399.053873 µs (-26%)
+;; (into [] (distinct) coll) 	 301.423077 µs => 164.025500 µs (-45%)
+;; 
+;; 10000 elements
+;; (doall (distinct coll)) 	 3.439137 ms => 3.058872 ms (-11%)
+;; (into [] (distinct) coll) 	 1.437390 ms => 848.277178 µs (-40%)
+
+ 

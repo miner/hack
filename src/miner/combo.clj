@@ -192,6 +192,123 @@
 
 
 
+;; BEST SO FAR
+(defn sem-choose [cnt choose]
+ ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+ (loop [i (dec choose) res (mapv vector (range cnt))]
+   (if (zero? i)
+     res
+     (recur (dec i)
+            (into []
+                  (mapcat (fn [prev]
+                            (eduction (map #(conj prev %)) (range (inc (peek prev)) cnt))))
+                  res)))))
+
+
+;; nesting eduction is not faster, probably too much rework as eduction is not cached
+
+
+
+(defn sem-choose-WAS [cnt choose]
+ ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+ (loop [i (unchecked-dec choose) res (map vector (range cnt))]
+   (if (zero? i)
+     res
+     (recur (unchecked-dec i)
+            (mapcat (fn [prev] (map #(conj prev %)
+                                    (range (unchecked-inc (peek prev)) cnt)))
+                    res)))))
+
+
+
+;; faster with transducers
+(defn sem-choose1 [cnt choose]
+ ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+ (loop [i (dec choose) res (map vector (range cnt))]
+   (if (zero? i)
+     res
+     (recur (dec i)
+            (into []
+                  (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))))
+                  res)))))
+
+;; best so far, nested transducers
+(defn sem-choose2 [cnt choose]
+ ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+ (loop [i (dec choose) res (map vector (range cnt))]
+   (if (zero? i)
+     res
+     (recur (dec i)
+            (into []
+                  (mapcat (fn [prev]
+                            (into []
+                                  (map #(conj prev %))
+                                  (range (inc (peek prev)) cnt))))
+                  res)))))
+
+;; how can I pipeline the nested transducers?
+
+
+;; unchecked is only slightly faster
+(defn sem-choose2 [cnt choose]
+ ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+ (loop [i (unchecked-dec choose) res (map vector (range cnt))]
+   (if (zero? i)
+     res
+     (recur (unchecked-dec i)
+            (into [] (mapcat (fn [prev] (map #(conj prev %)
+                                    (range (unchecked-inc (peek prev)) cnt))))
+                    res)))))
+
+
+
+;; Rosetta code
+;; https://rosettacode.org/wiki/Combinations#Clojure
+
+#_
+(defn combinations
+  "If m=1, generate a nested list of numbers [0,n)
+   If m>1, for each x in [0,n), and for each list in the recursion on [x+1,n), cons the two"
+  [m n]
+  (letfn [(comb-aux
+	   [m start]
+	   (if (= 1 m)
+	     (for [x (range start n)]
+	       (list x))
+	     (for [x (range start n)
+		   xs (comb-aux (dec m) (inc x))]
+	       (cons x xs))))]
+    (comb-aux m 0)))
+
+;; SEM swapped args for consistency with other code
+(defn rchoose
+  "If m=1, generate a nested list of numbers [0,n)
+   If m>1, for each x in [0,n), and for each list in the recursion on [x+1,n), cons the two"
+  [n m]
+  (letfn [(comb-aux [m start]
+            (if (= 1 m)
+              (for [x (range start n)] (list x))
+              (for [x (range start n)
+                    xs (comb-aux (dec m) (inc x))]
+                (cons x xs))))]
+    (comb-aux m 0)))
+
+;; slower
+(defn rchoose2
+  "If m=1, generate a nested list of numbers [0,n)
+   If m>1, for each x in [0,n), and for each list in the recursion on [x+1,n), cons the two"
+  [n m]
+  (letfn [(comb-aux [m start]
+            (if (zero? m)
+              (list ())
+              (for [x (range start n)
+                    xs (comb-aux (dec m) (inc x))]
+                (cons x xs))))]
+    (comb-aux m 0)))
+
+
+
+
 ;;;;;; JUNK
 
 ;; disabled by COMMENT
