@@ -20,21 +20,35 @@
 
 
 
+;; self-contained, without libraries, somewhat slower.
+;; gen-indices is similar to mc/combinations for (range n) -- that is, returning just the
+;; indicies of the combinations. Returns set of sets as specified.
+(defn sb-sums [nums sum]
+  (let [v (vec nums)
+        cnt (count v)
+        gen-indices (fn [choose]
+                      ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+                      (loop [i (dec choose) res (mapv vector (range cnt))]
+                        (if (zero? i)
+                          res
+                          (recur (dec i)
+                                 (into []
+                                       (mapcat (fn [prev]
+                                                 (eduction (map #(conj prev %))
+                                                           (range (inc (peek prev)) cnt))))
+                                       res)))))]
+    (into (if (zero? sum) #{#{}} #{})
+          (comp
+           (mapcat gen-indices)
+           (filter #(zero? (reduce (fn [r i] (- r (v i))) sum %)))
+           (map #(map v %))
+           (map set))
+          (range 1 (inc cnt)))))
 
 
 
 
-(defn OLD-choose-indices [cnt choose]
-  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
-  (loop [i (dec choose) res (map vector (range cnt))]
-    (if (zero? i)
-      res
-      (recur (dec i)
-             (mapcat (fn [prev] (map #(conj prev %)
-                                     (range (inc (peek prev)) cnt)))
-                     res)))))
-
-
+;; like mc/combinations for just the item indices
 (defn choose-indices [cnt choose]
  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
  (loop [i (dec choose) res (mapv vector (range cnt))]
@@ -62,6 +76,11 @@
            (filter #(zero? (reduce (fn [r i] (- r (v i))) sum %)))
            (map #(map v %)))
           (range 1 (inc cnt)))))
+
+
+
+
+
 
 
 ;; all sets all the time
@@ -136,6 +155,20 @@
      true)))
 
 
+
+
+
+
+
+(defn OLD-choose-indices [cnt choose]
+  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+  (loop [i (dec choose) res (map vector (range cnt))]
+    (if (zero? i)
+      res
+      (recur (dec i)
+             (mapcat (fn [prev] (map #(conj prev %)
+                                     (range (inc (peek prev)) cnt)))
+                     res)))))
 
 
 
