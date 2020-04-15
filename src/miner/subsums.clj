@@ -6,10 +6,49 @@
 
 ;; challenge
 
+;; (inspired by Eric Normand)
+;; Eager, not "standard" order, but fast.
+;; Consider clojure.math.combinatorics/subsets if you want lazy and standard order.
+(defn power-seqs [coll]
+  (reduce (fn [res x] (into res (map #(conj % x)) res)) (list ()) coll))
+
+(defn subset-sums1 [nums sum]
+  (into #{} 
+        (comp (filter #(zero? (reduce - sum %)))
+              (map set))
+        (power-seqs nums)))
+
+
+;; fast
+(defn subset-sums [nums sum]
+  (into #{} 
+        (comp (filter #(zero? (reduce - sum %)))
+              (map set))
+        (reduce (fn [ss x] (into ss (map #(conj % x)) ss)) (list ()) nums)))
+
+;; add comment to
+;; https://gist.github.com/ericnormand/6e1a9d9135fc4f5eb7776066e4db9de7
+
+(defn mc-subset-sums [nums sum]
+  (into #{} 
+        (comp (filter #(zero? (reduce - sum %)))
+              (map set))
+        (mc/subsets (vec nums))))
+
+
+;; pretty good and clear, but translated into transducer (above) is faster
+(defn subset-sums10 [nums sum]
+  (->> nums
+       power-seqs
+       (filter #(zero? (reduce - sum %)))
+       (map set)
+       set))
+
+
 #_
 (require '[clojure.math.combinatorics :as mc])
 
-(defn subset-sums [nums sum]
+(defn subset-sums11 [nums sum]
   (->> nums
        vec
        mc/subsets
@@ -17,7 +56,11 @@
        (map set)
        set))
 
-
+(defn subset-sums22 [nums sum]
+  (->> nums
+       vec
+       mc/subsets
+       (filter #(= sum (reduce + 0 %)))))
 
 
 ;; self-contained, without libraries, somewhat slower.
@@ -44,6 +87,32 @@
            (map #(map v %))
            (map set))
           (range 1 (inc cnt)))))
+
+
+
+
+
+(defn sb-sums0 [nums sum]
+  (let [v (vec nums)
+        cnt (count v)
+        gen-indices (fn [choose]
+                      ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+                      (loop [i (dec choose) res (mapv vector (range cnt))]
+                        (if (zero? i)
+                          res
+                          (recur (dec i)
+                                 (into []
+                                       (mapcat (fn [prev]
+                                                 (eduction (map #(conj prev %))
+                                                           (range (inc (peek prev)) cnt))))
+                                       res)))))]
+    (into (if (zero? sum) [()] [])
+          (comp
+           (mapcat gen-indices)
+           (filter #(zero? (reduce (fn [r i] (- r (v i))) sum %)))
+           (map #(map v %)))
+          (range 1 (inc cnt)))))
+
 
 
 
@@ -137,7 +206,8 @@
 
 
 
-
+(defn set= [a b]
+  (= (set (map set a)) (set (map set b))))
 
 ;; SEM: Note Eric gave two incomplete examples!
 
@@ -155,7 +225,61 @@
      true)))
 
 
+(defn ben-subs [subset-sums]
+  (reduce (fn [r ss] (reduce + r ss))
+          0
+          (concat (subset-sums #{1 2 3} 0)
+                (subset-sums #{1 2 3 4 5} 6)
+                (subset-sums #{1 2 3 5 6 7} 7)
+                (subset-sums #{0 1 -1} 0)
+                (subset-sums (range 10) 42))))
 
+
+
+;; https://gist.github.com/ericnormand/6e1a9d9135fc4f5eb7776066e4db9de7
+;; Eric's solution
+(defn Esubsets [s]
+  (loop [ret #{#{}} rem s]
+    (if (empty? rem)
+      ret
+      (let [[f & rst] rem]
+        (recur (into ret (map #(conj % f)) ret) rst)))))
+
+(defn Esubset-sums [s n]
+  (->> s
+       Esubsets
+       (filter #(= n (reduce + 0 %)))
+       set))
+
+
+
+
+(defn semsets1 [s]
+  (loop [ret #{#{}} rem (seq s)]
+    (if (seq rem)
+      (recur (into ret (map #(conj % (first rem))) ret) (rest rem))
+      ret)))
+
+(defn semsets [coll]
+  (loop [ret #{#{}} rem (seq coll)]
+    (if rem
+      (recur (into ret (map #(conj % (first rem))) ret) (next rem))
+      ret)))
+
+
+
+
+(defn subseqs1 [coll]
+  (loop [ret (list ()) rem (seq coll)]
+    (if rem
+      (recur (into ret (map #(conj % (first rem))) ret) (next rem))
+      ret)))
+
+
+(defn sb-sums10 [nums sum]
+  (->> nums
+       subseqs
+       (filter #(zero? (reduce - sum %)))))
 
 
 
