@@ -207,6 +207,20 @@
 
 ;; nesting eduction is not faster, probably too much rework as eduction is not cached
 
+;; maybe faster but maybe not
+(defn sem-choose-ix [cnt choose]
+  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+  (reduce (fn [vv _]
+            (into []
+                  (mapcat (fn [prev]
+                            (map #(conj prev %)
+                                 (range (inc (peek prev)) cnt))))
+                  vv))
+          (mapv vector (range cnt))
+          (range (dec choose))))
+
+
+
 
 
 (defn sem-choose-WAS [cnt choose]

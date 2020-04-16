@@ -29,6 +29,9 @@
 ;; add comment to
 ;; https://gist.github.com/ericnormand/6e1a9d9135fc4f5eb7776066e4db9de7
 
+
+
+
 (defn mc-subset-sums [nums sum]
   (into #{} 
         (comp (filter #(zero? (reduce - sum %)))
@@ -128,6 +131,48 @@
                   (mapcat (fn [prev]
                             (eduction (map #(conj prev %)) (range (inc (peek prev)) cnt))))
                   res)))))
+
+;; faster
+(defn choose-ix [cnt choose]
+  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+  (reduce (fn [vv _]
+            (into []
+                  (mapcat (fn [prev]
+                            (map #(conj prev %)
+                                 (range (inc (peek prev)) cnt))))
+                  vv))
+          (mapv vector (range cnt))
+          (range (dec choose))))
+
+(defn choose-iz [cnt choose]
+  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+  (reduce (fn [vv _]
+            (into []
+                  (mapcat (fn [prev]
+                            (map #(conj prev %)
+                                 (range (inc (peek prev)) cnt))))
+                  vv))
+          (mapv vector (range cnt))
+          (repeat (dec choose) nil)))
+
+
+
+
+(defn iter [n f1 init]
+  (reduce (fn [res _] (f1 res)) init (range n)))
+
+(defn choose-i [cnt choose]
+  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
+  (iter (dec choose)
+        (fn [vv]
+          (into []
+                (mapcat (fn [prev]
+                          (map #(conj prev %)
+                               (range (inc (peek prev)) cnt))))
+                vv))
+        (mapv vector (range cnt))))
+
+
 
 
 
