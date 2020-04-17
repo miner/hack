@@ -222,7 +222,6 @@
 
 
 
-
 (defn sem-choose-WAS [cnt choose]
  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
  (loop [i (unchecked-dec choose) res (map vector (range cnt))]
