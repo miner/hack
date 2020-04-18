@@ -54,3 +54,35 @@
 (defn whence-kv [pred2 kvs]
   (reduce-kv (fn [_ k v] (when (pred2 k v) (reduced k))) nil kvs))
 
+
+
+;; https://whynotsoftware.github.io/wnaf-list-index-of/
+(defn list-index-of
+  [list element]
+  (let [r (reduce
+            (fn [n x] (if (= x element) (reduced n) (inc n)))
+            0 list)]
+    (when (not= r (count list))
+      r)))
+
+;; I don't like it -- taking the count of a list is O(N)
+;; try neg state, reduced change sign
+
+(defn nindex-of  [coll element]
+  (when (seq coll)
+    (let [i (reduce (fn [n x] (if (= x element) (reduced (- n)) (inc n))) 0 coll)]
+      (when-not (pos? i)
+        (- i)))))
+
+
+(defn nindex-of2  [coll element]
+  (let [i (reduce (fn [n x] (if (= x element) (reduced (dec (- n))) (dec n))) -1 coll)]
+    (when-not (neg? i)
+      i)))
+
+
+;; Question about the order of args?
+(defn li-index-of [coll val]
+  (first (keep-indexed #(when (= val %2) %1) coll)))
+
+
