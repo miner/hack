@@ -10,6 +10,11 @@
           [3 4 5]
           [6 7 8]])
 
+;; clever bit by g7s
+;; for our purposes, I translated into a faster transducer version, but same idea
+(defn transpose [matrix-2d]
+  (apply mapv vector matrix-2d))
+
 (def xxx [[:x :o :x]
           [:o :x :o]
           [:o :x :x]])
@@ -36,7 +41,7 @@
 
 
 
-;; best, fastest especially with large boards (10x10)
+;; best, (almost) fastest especially with large boards (10x10)
 ;; inspired by g7s solution
 
 (defn winner [board]
@@ -49,26 +54,7 @@
         :draw)))
 
 
-
 ;; can be faster with faster winr but uglier
-
-(defn wr [row]
-  (loop [res (first row) row (next row)]
-    (cond (nil? row) res
-          (nil? res) nil
-          (= res (first row)) (recur res (next row))
-          :else nil)))
-    
-(defn winner99 [board]
-  (let [winr wr
-        dim (count board)]
-    (or (winr (map nth board (range dim)))
-        (winr (map nth board (range (dec dim) -1 -1)))
-        (first (sequence (keep winr) board))
-        (first (apply sequence (comp (map list) (keep winr)) board))
-        :draw)))
-
-
 
 ;; FASTEST but not my top pick.
 ;; slightly faster with ugly winr
@@ -81,50 +67,19 @@
         (first (apply sequence (comp (map list) (keep winr)) board))
         :draw)))
 
-(defn winner95 [board]
-  (let [winr (fn [r] (reduce #(if (= % %2) %1 (reduced nil)) (first r) (rest r)))
-        dim (count board)]
-    (or (winr (map nth board (range dim)))
-        (winr (map nth board (range (dec dim) -1 -1)))
-        (first (sequence (keep winr) board))
-        (first (apply sequence (comp (map list) (keep winr)) board))
-        :draw)))
-
-
-;; not so fast
-(defn rwinr [row]
-  (reduce (fn [res x] (if (= res x) res (reduced nil))) (first row) (rest row)))
-
-
 ;;; BUT benchmark is sensitive to row/diag test order.
 
-;; fastest, slightly
-(defn winner5 [board]
-  (let [winr (fn [row] (let [x (first row)] (when (every? #(= x %) (rest row)) x)))]
-    (or (first (keep winr board))
-        (let [dim (count board)
-              rng (range dim)]
-          (or (winr (for [i rng] (get-in board [i i])))
-              (winr (for [i rng] (get-in board [(- (dec dim) i) i])))
-              (first (keep (fn [col] (winr (map #(get-in board [% col]) rng))) rng))))
-        :draw)))
+(defn wr [row]
+  (loop [res (first row) row (next row)]
+    (cond (nil? row) res
+          (nil? res) nil
+          (= res (first row)) (recur res (next row))
+          :else nil)))
+
+;; reduce version wasn't any faster
 
 
-
-(defn winner53 [board]
-  (let [winr (fn [row] (let [x (first row)] (when (every? #(= x %) (rest row)) x)))]
-    (or (first (keep winr board))
-        (let [dim (count board)
-              rng (range dim)]
-          (or (winr (for [i rng] (get-in board [i i])))
-              (winr (for [i rng] (get-in board [(- (dec dim) i) i])))
-              (first (keep winr (apply map list board)))
-              :draw)))))
-
-
-
-
-;; prettier
+;; `for` not as elegant
 (defn winner6 [board]
   (let [winr (fn [row] (when (apply = row) (first row)))]
     (or (first (keep winr board))
@@ -137,7 +92,7 @@
 
 
 ;; from gist comment by g7s
-;; I think it's clever.  But slightly slower than my winner5
+;; I think it's clever.  But somewhat slower than it could be.  See my winner for an improvement
 (defn winner-g7s
   [rows]
   (let [cols   (apply map vector rows)
@@ -149,153 +104,7 @@
         :draw)))
 
 
-;; my mods -- now fastest but actually a bit slower on my benchmark with 10x10
-(defn winner7 [board]
-  (let [winr (fn [r] (let [x (first r)] (when (every? #(= x %) (rest r)) x)))
-        dim (count board)]
-    (or (winr (map get board (range dim)))
-        (winr (map get board (range (dec dim) -1 -1)))
-        (first (keep winr board))
-        (first (keep winr (apply map list board)))
-        :draw)))
 
-
-(defn winner8t [board]
-  (let [winr (fn [r] (let [x (first r)] (when (every? #(= x %) (rest r)) x)))
-        dim (count board)]
-    (or (winr (map get board (range dim)))
-        (winr (map get board (range (dec dim) -1 -1)))
-        (first (sequence (keep winr) board))
-        (first (sequence (keep winr) (apply map list board)))
-        :draw)))
-
-
-;; much faster with transducers
-(defn winner9t [board]
-  (let [winr (fn [r] (let [x (first r)] (when (every? #(= x %) (rest r)) x)))
-        dim (count board)]
-    (or (winr (map get board (range dim)))
-        (winr (map get board (range (dec dim) -1 -1)))
-        (first (sequence (keep winr) board))
-        (first (sequence (keep winr) (apply sequence (map list) board)))
-        :draw)))
-
-
-
-
-
-
-
-(defn winner72 [board]
-  (let [winr (fn [row] (let [x (first row)] (when (every? #(= x %) (rest row)) x)))]
-    (or (first (keep winr board))
-        (let [dim (count board)]
-          (or (first (keep winr (apply map list board)))
-              (winr (map get board (range dim)))
-              (winr (map get board (range (dec dim) -1 -1)))))
-        :draw)))
-
-(defn winner71 [board]
-  (let [winr (fn [row] (when (apply = row) (first row)))]
-    (or (first (keep winr board))
-        (let [dim (count board)]
-          (or (first (keep winr (apply map list board)))
-              (winr (map get board (range dim)))
-              (winr (map get board (range (dec dim) -1 -1)))))
-        :draw)))
-
-
-
-(defn winner0 [board]
-  (let [dim (count board)
-        cols (for [col (range dim)]
-               (map #(get-in board [% col]) (range dim)))
-        diag1 (for [i (range dim)] (get-in board [i i]))
-        diag2 (for [i (range dim)] (get-in board [(- (dec dim) i) i]))]
-    (or (ffirst (filter #(apply = %)
-                        (concat board cols (list diag1 diag2))))
-        :draw)))
-
-
-
-
-
-(defn winner1 [board]
-  (let [dim (count board)]
-    (or (ffirst (filter #(apply = %) board))
-        (ffirst (filter #(apply = %)
-                        (for [col (range dim)]
-                          (map #(get-in board [% col]) (range dim)))))
-        (when (apply = (for [i (range dim)] (get-in board [i i])))
-          (get-in board [0 0]))
-        (when (apply = (for [i (range dim)] (get-in board [(- (dec dim) i) i])))
-          (get-in board [(dec dim) 0]))
-        :draw)))
-
-
-
-(defn winner2 [board]
-  (let [dim (count board)]
-    (or (ffirst (filter #(apply = %) board))
-        (ffirst (filter (fn [col] (apply = (map #(get-in board [% col]) (range dim))))
-                        (range dim)))
-        (when (apply = (for [i (range dim)] (get-in board [i i])))
-          (get-in board [0 0]))
-        (when (apply = (for [i (range dim)] (get-in board [(- (dec dim) i) i])))
-          (get-in board [(dec dim) 0]))
-        :draw)))
-
-
-
-(defn winr [row]
-  (let [x (first row)]
-    (when (every? #(= x %) (rest row))
-      x)))
-
-
-(defn winner3 [board]
-  (let [dim (count board)]
-    (or (first (keep winr board))
-        (first (keep (fn [col] (winr (map #(get-in board [% col]) (range dim))))
-                       (range dim)))
-        (winr (for [i (range dim)] (get-in board [i i])))
-        (winr (for [i (range dim)] (get-in board [(- (dec dim) i) i])))
-        :draw)))
-
-
-(defn winner4 [board]
-    (or (first (keep winr board))
-        (let [dim (count board)
-              rng (range dim)]
-          (or (first (keep (fn [col] (winr (map #(get-in board [% col]) rng))) rng))
-              (winr (for [i rng] (get-in board [i i])))
-              (winr (for [i rng] (get-in board [(- (dec dim) i) i])))))
-        :draw))
-
-
-
-
-
-
-
-(defn winrow [row]
-  (when (apply = row) (peek row)))
-
-(defn winv [v is]
-  (when-first [i is]
-    (when (apply = (map v is))
-      (v i))))
-
-(defn winnerOK [board]
-  (or (first (map winrow board))
-      (let [v (into [] cat board)
-            vwin #(winv v %)
-            cnt (count v)
-            dim (count board)]
-        (or (first (keep vwin (for [col (range dim)] (range col cnt dim))))
-            (vwin (range 0 cnt (inc dim)))
-            (vwin (range (dec dim) (dec cnt) (dec dim)))))
-      :draw))
 
 
 (defn smoke-tsmall [winner]
