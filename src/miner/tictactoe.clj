@@ -41,10 +41,21 @@
 
 
 
-;; best, (almost) fastest especially with large boards (10x10)
+;; my favorite, fastest with large boards (10x10)
+;; every? expr slightly faster than apply =
 ;; inspired by g7s solution
-
 (defn winner [board]
+  (let [winr (fn [[x & xs]] (when (every? #(= x %) xs) x))
+        dim (count board)]
+    (or (winr (map nth board (range dim)))
+        (winr (map nth board (range (dec dim) -1 -1)))
+        (first (sequence (keep winr) board))
+        (first (apply sequence (comp (map list) (keep winr)) board))
+        :draw)))
+
+
+;; pretty good
+(defn winner-good [board]
   (let [winr #(when (apply = %) (first %))
         dim (count board)]
     (or (winr (map nth board (range dim)))
@@ -58,14 +69,9 @@
 
 ;; FASTEST but not my top pick.
 ;; slightly faster with ugly winr
-(defn winner93 [board]
-  (let [winr (fn [r] (when-let [x (first r)] (when (every? #(= x %) (rest r)) x)))
-        dim (count board)]
-    (or (winr (map nth board (range dim)))
-        (winr (map nth board (range (dec dim) -1 -1)))
-        (first (sequence (keep winr) board))
-        (first (apply sequence (comp (map list) (keep winr)) board))
-        :draw)))
+
+
+
 
 ;;; BUT benchmark is sensitive to row/diag test order.
 
@@ -140,6 +146,7 @@
                       [:o :o :x]
                       [:x :x :o]])
              :draw))
+  (assert (= (winner [[:x]]) :x))
   (assert (= (winner [[:x :x :x :x :x :x :x :x :x nil]
                       [:x :x :x :x :x :x :x :x :x nil]
                       [:x :x :x :x :x :x :x :x :x :o]
@@ -148,8 +155,8 @@
                       [:x :x :x :x :x :x :x :x :x :o]
                       [:x :x :x :x :x :x :x :x :x :o]
                       [:x :x :x :x :x :x :x :x :x :o]
-                      [:o :x :x :x :x :x :x :x :x :o]
-                      [:x :o :o :o :o :o :o :o :o :x]])
+                      [:x :x :x :x :x :x :x :x :x :x]
+                      [:x :o :o :o :o :o :o :o :o :o]])
              :x))
   (assert (= (winner [[:x :x :x :x :x :x :x :x :x nil]
                       [:x :x :x :x :x :x :x :x :x nil]
