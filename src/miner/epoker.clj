@@ -140,6 +140,7 @@
                   (into [hand-kind] (map srank) sorted-ranks)))))
 
 
+;; lift let to top, maybe slower?
 
 (defn escore2 [hand]
   ;;{:pre [(valid-hand? hand)]}
@@ -167,83 +168,6 @@
                       sorted-ranks))))
 
 
-(defn nscore [hand]
-  ;;{:pre [(valid-hand? hand)]}
-  (let [nranks (map nrank hand)
-        priorities (sort-by (fn [[nrk cnt]] (- (* -100 cnt) nrk)) (frequencies nranks))
-        sorted-ranks (map key priorities)
-        flush? (apply = (map peek hand))
-        low-ace-straight? (= sorted-ranks [14 5 4 3 2])
-        regular-straight? (= sorted-ranks (take 5 (iterate dec (first sorted-ranks))))
-        kind-counts (map val priorities)
-        max-kind (first kind-counts)]
-    (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [1000]
-          (and low-ace-straight? flush?) [900 (second sorted-ranks)]
-          (and regular-straight? flush?) [900 (first sorted-ranks)]
-          flush? (into [600] sorted-ranks)
-          low-ace-straight? [500 (second sorted-ranks)]
-          regular-straight? [500 (first sorted-ranks)]
-          :else (into (cond (= max-kind 4) [800]
-                            (= kind-counts [3 2]) [700]
-                            (= max-kind 3) [400]
-                            (= kind-counts [2 2 1]) [300]
-                            (= max-kind 2) [200]
-                            :else [100])
-                      sorted-ranks))))
-
-
-
-(defn nscore2 [hand]
-  ;;{:pre [(valid-hand? hand)]}
-  (let [nranks (map nrank hand)
-        priorities (sort-by (fn [[nrk cnt]] (- (* -100 cnt) nrk)) (frequencies nranks))
-        sorted-ranks (map key priorities)
-        flush? (apply = (map peek hand))
-        low-ace-straight? (= sorted-ranks [14 5 4 3 2])
-        regular-straight? (= sorted-ranks (take 5 (iterate dec (first sorted-ranks))))
-        kind-counts (map val priorities)
-        max-kind (first kind-counts)]
-    (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [1000 0 0 0 0 0]
-          (and low-ace-straight? flush?) [900 (second sorted-ranks) 0 0 0 0]
-          (and regular-straight? flush?) [900 (first sorted-ranks) 0 0 0 0]
-          flush? (into [600] sorted-ranks)
-          low-ace-straight? [500 (second sorted-ranks) 0 0 0 0]
-          regular-straight? [500 (first sorted-ranks) 0 0 0 0]
-          :else (into (cond (= max-kind 4) [800]
-                            (= kind-counts [3 2]) [700]
-                            (= max-kind 3) [400]
-                            (= kind-counts [2 2 1]) [300]
-                            (= max-kind 2) [200]
-                            :else [100])
-                      (take 5 (concat sorted-ranks (repeat 0)))))))
-
-
-
-
-(defn nscore21 [hand]
-  ;;{:pre [(valid-hand? hand)]}
-  (let [nranks (map nrank hand)
-        priorities (sort-by (fn [[nrk cnt]] (- (* -100 cnt) nrk)) (frequencies nranks))
-        sorted-ranks (map key priorities)
-        flush? (apply = (map peek hand))
-        low-ace-straight? (= sorted-ranks [14 5 4 3 2])
-        regular-straight? (= sorted-ranks (take 5 (iterate dec (first sorted-ranks))))
-        kind-counts (map val priorities)
-        max-kind (first kind-counts)]
-    (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [1000 0 0 0 0 0]
-          (and low-ace-straight? flush?) [900 (second sorted-ranks) 0 0 0 0]
-          (and regular-straight? flush?) [900 (first sorted-ranks) 0 0 0 0]
-          flush? (into [600] sorted-ranks)
-          low-ace-straight? [500 (second sorted-ranks) 0 0 0 0]
-          regular-straight? [500 (first sorted-ranks) 0 0 0 0]
-          :else (into (cond (= max-kind 4) [800]
-                            (= kind-counts [3 2]) [700]
-                            (= max-kind 3) [400]
-                            (= kind-counts [2 2 1]) [300]
-                            (= max-kind 2) [200]
-                            :else [100])
-                      (take 5 (concat sorted-ranks (repeat 0)))))))
-
 
 
 
@@ -255,13 +179,11 @@
 
 (defn decode6b [^long n]
   (loop [ds () r n]
-    (if (= (count ds) 6)
-      (vec ds)
+    (if (zero? r)
+      (into [] (take-while pos?) ds)
       (recur (conj ds (bit-and r 0xFF)) (bit-shift-right r 8)))))
 
-
-
-(defn nscore4 [hand]
+(defn nscore [hand]
   ;;{:pre [(valid-hand? hand)]}
   (let [nranks (map nrank hand)
         priorities (sort-by (fn [[nrk cnt]] (- (* -100 cnt) nrk)) (frequencies nranks))
@@ -271,19 +193,19 @@
         regular-straight? (= sorted-ranks (take 5 (iterate dec (first sorted-ranks))))
         kind-counts (map val priorities)
         max-kind (first kind-counts)]
-    (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [(:royal-flush isym)]
-          (and low-ace-straight? flush?) [(:straight-flush isym) (second sorted-ranks)]
-          (and regular-straight? flush?) [(:straight-flush isym) (first sorted-ranks)]
-          flush? (into [(:flush isym)] sorted-ranks)
-          low-ace-straight? [(:straight isym) (second sorted-ranks)]
-          regular-straight? [(:straight isym) (first sorted-ranks)]
-          :else (into (cond (= max-kind 4) [(:four-of-a-kind isym)]
-                            (= kind-counts [3 2]) [(:full-house isym)]
-                            (= max-kind 3) [(:three-of-a-kind isym)]
-                            (= kind-counts [2 2 1]) [(:two-pair isym)]
-                            (= max-kind 2) [(:pair isym)]
-                            :else [(:high-card isym)])
-                      sorted-ranks))))
+    (encode6b (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [(:royal-flush isym)]
+                    (and low-ace-straight? flush?) [(:straight-flush isym) (second sorted-ranks)]
+                    (and regular-straight? flush?) [(:straight-flush isym) (first sorted-ranks)]
+                    flush? (into [(:flush isym)] sorted-ranks)
+                    low-ace-straight? [(:straight isym) (second sorted-ranks)]
+                    regular-straight? [(:straight isym) (first sorted-ranks)]
+                    :else (into (cond (= max-kind 4) [(:four-of-a-kind isym)]
+                                      (= kind-counts [3 2]) [(:full-house isym)]
+                                      (= max-kind 3) [(:three-of-a-kind isym)]
+                                      (= kind-counts [2 2 1]) [(:two-pair isym)]
+                                      (= max-kind 2) [(:pair isym)]
+                                      :else [(:high-card isym)])
+                                sorted-ranks)))))
 
 
 
@@ -291,32 +213,38 @@
   (mapv isym v))
 
 (defn decode-score [n]
-  (mapv isym (remove zero? (decode6b n))))
+  (decode-vec (decode6b n)))
 
 
-
+(defn enscore [hand]
+  (decode-score (nscore hand)))
 
 
 (defn winning-hand [a b]
-  (if (pos-int? (first (remove zero? (map compare (nscore a) (nscore b)))))
+  (if (> (nscore a) (nscore b))
     a
     b))
 
 
-
 (defn compare-hands [a b]
-  (let [cs (remove zero? (map compare (nscore a) (nscore b)))]
-    (cond (empty? cs) 0
-          (pos? (first cs)) 1
-          :else -1)))
+  (compare (nscore a) (nscore b)))
+
+(defn winhand [a b]
+  (let [c (compare-hands a b)]
+    (cond (zero? c) (list :Tie (enscore a))
+          (pos? c) (list :First (enscore a) :beats (enscore b))
+          :else (list :Second (enscore b) :beats (enscore a)))))
 
 
 
-;; BUG in old xscore (deleted) -- need to have final score cards sorted by freq + rank 
+
+
+
+
+;; FIXED BUG in old xscore (deleted) -- need to have final score cards sorted by freq + rank 
 ;; use the card ranks to make an extended score that can properly `compare` to others
 
-
-;; STILL BUGGY:  if it's a low ace in a straight, it's a 1 not a 14.  Gotta special case
+;; FIXED BUG:  if it's a low ace in a straight, it's a 1 not a 14.  Gotta special case
 ;; that.
 
 
@@ -434,29 +362,4 @@
     (if (= (count ds) 6)
       (vec ds)
       (recur (conj ds (bit-and r 0xF)) (bit-shift-right r 4)))))
-
-#_
-(defn nscore3 [hand]
-  ;;{:pre [(valid-hand? hand)]}
-  (let [nranks (map nrank hand)
-        priorities (sort-by (fn [[nrk cnt]] (- (* -100 cnt) nrk)) (frequencies nranks))
-        sorted-ranks (map key priorities)
-        flush? (apply = (map peek hand))
-        low-ace-straight? (= sorted-ranks [14 5 4 3 2])
-        regular-straight? (= sorted-ranks (take 5 (iterate dec (first sorted-ranks))))
-        kind-counts (map val priorities)
-        max-kind (first kind-counts)]
-    (encode6v (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [10]
-                     (and low-ace-straight? flush?) [9 (second sorted-ranks)]
-                     (and regular-straight? flush?) [9 (first sorted-ranks)]
-                     flush? (into [6] sorted-ranks)
-                     low-ace-straight? [5 (second sorted-ranks)]
-                     regular-straight? [5 (first sorted-ranks)]
-                     :else (into (cond (= max-kind 4) [8]
-                                       (= kind-counts [3 2]) [7]
-                                       (= max-kind 3) [4]
-                                       (= kind-counts [2 2 1]) [3]
-                                       (= max-kind 2) [2]
-                                       :else [1])
-                                 sorted-ranks)))))
 
