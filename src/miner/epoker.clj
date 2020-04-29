@@ -171,19 +171,8 @@
 
 
 
-;; 6 bytes (255) encoded into one long
-(defn encode6b [v]
-  (reduce-kv (fn [s i b] (bit-or s (bit-shift-left b (- 40 (bit-shift-left i 3))))) 0 v))
 
-
-
-(defn decode6b [^long n]
-  (loop [ds () r n]
-    (if (zero? r)
-      (into [] (take-while pos?) ds)
-      (recur (conj ds (bit-and r 0xFF)) (bit-shift-right r 8)))))
-
-(defn nscore [hand]
+(defn vscore [hand]
   ;;{:pre [(valid-hand? hand)]}
   (let [nranks (map nrank hand)
         priorities (sort-by (fn [[nrk cnt]] (- (* -100 cnt) nrk)) (frequencies nranks))
@@ -193,7 +182,7 @@
         regular-straight? (= sorted-ranks (take 5 (iterate dec (first sorted-ranks))))
         kind-counts (map val priorities)
         max-kind (first kind-counts)]
-    (encode6b (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [(:royal-flush isym)]
+    (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [(:royal-flush isym)]
                     (and low-ace-straight? flush?) [(:straight-flush isym) (second sorted-ranks)]
                     (and regular-straight? flush?) [(:straight-flush isym) (first sorted-ranks)]
                     flush? (into [(:flush isym)] sorted-ranks)
@@ -205,20 +194,30 @@
                                       (= kind-counts [2 2 1]) [(:two-pair isym)]
                                       (= max-kind 2) [(:pair isym)]
                                       :else [(:high-card isym)])
-                                sorted-ranks)))))
+                                sorted-ranks))))
 
 
+;; 6 bytes (255) encoded into one long
+(defn encode6b [v]
+  (reduce-kv (fn [s i b] (bit-or s (bit-shift-left b (- 40 (bit-shift-left i 3))))) 0 v))
+
+(defn decode6b [^long n]
+  (loop [ds () r n]
+    (if (zero? r)
+      (into [] (take-while pos?) ds)
+      (recur (conj ds (bit-and r 0xFF)) (bit-shift-right r 8)))))
+
+(defn nscore [hand]
+  (encode6b (vscore hand)))
 
 (defn decode-vec [v]
   (mapv isym v))
 
+(defn enscore [hand]
+  (decode-vec (vscore hand)))
+
 (defn decode-score [n]
   (decode-vec (decode6b n)))
-
-
-(defn enscore [hand]
-  (decode-score (nscore hand)))
-
 
 (defn winning-hand [a b]
   (if (> (nscore a) (nscore b))
