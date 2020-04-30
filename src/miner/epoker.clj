@@ -170,9 +170,7 @@
 
 
 
-
-
-(defn vscore [hand]
+(defn vscore1 [hand]
   ;;{:pre [(valid-hand? hand)]}
   (let [nranks (map nrank hand)
         priorities (sort-by (fn [[nrk cnt]] (- (* -100 cnt) nrk)) (frequencies nranks))
@@ -197,18 +195,131 @@
                                 sorted-ranks))))
 
 
+
+(defn vscore [hand]
+  ;;{:pre [(valid-hand? hand)]}
+  (let [priorities (sort-by (fn [[nrk cnt]] (- (* -100 cnt) nrk))
+                            (frequencies (map isym (map first hand))))
+        sorted-ranks (map key priorities)
+        flush? (apply = (map peek hand))
+        low-ace-straight? (= sorted-ranks [14 5 4 3 2])
+        regular-straight? (= sorted-ranks (take 5 (iterate dec (first sorted-ranks))))
+        kind-counts (map val priorities)
+        max-kind (first kind-counts)]
+    (cond (and flush? (= sorted-ranks [14 13 12 11 10])) [(:royal-flush isym)]
+                    (and low-ace-straight? flush?) [(:straight-flush isym) (second sorted-ranks)]
+                    (and regular-straight? flush?) [(:straight-flush isym) (first sorted-ranks)]
+                    flush? (into [(:flush isym)] sorted-ranks)
+                    low-ace-straight? [(:straight isym) (second sorted-ranks)]
+                    regular-straight? [(:straight isym) (first sorted-ranks)]
+                    :else (into (cond (= max-kind 4) [(:four-of-a-kind isym)]
+                                      (= kind-counts [3 2]) [(:full-house isym)]
+                                      (= max-kind 3) [(:three-of-a-kind isym)]
+                                      (= kind-counts [2 2 1]) [(:two-pair isym)]
+                                      (= max-kind 2) [(:pair isym)]
+                                      :else [(:high-card isym)])
+                                sorted-ranks))))
+
+
+
+
 ;; 6 bytes (255) encoded into one long
 (defn encode6b [v]
   (reduce-kv (fn [s i b] (bit-or s (bit-shift-left b (- 40 (bit-shift-left i 3))))) 0 v))
+
+
+
+;; orig
+(defn enc6b [v]
+  (reduce-kv (fn [s i b] (+ s (bit-shift-left b (* 8 (- 5 i))))) 0 v))
+
+;; unrolled is twice as fast
+(defn unc6b [v]
+  (bit-or (bit-shift-left (nth v 0 0) 40)
+          (bit-shift-left (nth v 1 0) 32)
+          (bit-shift-left (nth v 2 0) 24)
+          (bit-shift-left (nth v 3 0) 16)
+          (bit-shift-left (nth v 4 0) 8)
+          (nth v 5 0)))
+
+;; SEM:  write a macro to do unrolling
+;; bindings must have compile-time constant seqs
+
+#_
+(unroll bit-or [i (range 6) off [40 32 34 16 8 0]]
+        (bit-shift-left (nth v i 0) off))
+
+
+(defn const-seq? [coll]
+  (and (seqable? coll)
+       (or (= (first coll) 'range)
+           (every? number? coll))))
+
+#_  ;; unfinished
+(defmacro unroll [sumf bindings form]
+  (assert (and (vector? bindings) (even? (count bindings))))
+  (assert (symbol? sumf))
+  (let [vrs (take-nth 2 binding)
+        seqs (take-nth 2 (rest bindings))]
+    ;; bind the constant seqs
+    ;; make the forms#
+    `(~sumf @~forms#)))
+    
+
+
+;;; bit-or about the same as unchecked-add
+
+
+
+;;; NO, too slow
+(defn un6b [v]
+  (case (count v)
+    0 0
+    1 (bit-shift-left (nth v 0) 40)
+    2 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32))
+    3 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32)
+              (bit-shift-left (nth v 2) 24))
+    4 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32)
+              (bit-shift-left (nth v 2) 24)
+              (bit-shift-left (nth v 3) 16))
+    5 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32)
+              (bit-shift-left (nth v 2) 24)
+              (bit-shift-left (nth v 3) 16)
+              (bit-shift-left (nth v 4) 8))
+    6 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32)
+              (bit-shift-left (nth v 2) 24)
+              (bit-shift-left (nth v 3) 16)
+              (bit-shift-left (nth v 4) 8)
+              (nth v 5))))
+
+
 
 (defn decode6b [^long n]
   (loop [ds () r n]
     (if (zero? r)
       (into [] (take-while pos?) ds)
-      (recur (conj ds (bit-and r 0xFF)) (bit-shift-right r 8)))))
+      (recur (conj ds (bit-and r 0xFF)) (unsigned-bit-shift-right r 8)))))
 
-(defn nscore [hand]
-  (encode6b (vscore hand)))
+
+
+;; not really faster, but uglier
+(defn dec6b [^long n]
+  (loop [ds () r n]
+    (if (zero? r)
+      (reduce conj [] ds)
+      (let [b (bit-and r 0xFF)
+            r2 (unsigned-bit-shift-right r 8)]
+        (if (zero? b)
+          (recur ds r2)
+          (recur (conj ds b) r2))))))
+
+
+
 
 (defn decode-vec [v]
   (mapv isym v))
