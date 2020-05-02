@@ -233,6 +233,10 @@
 (defn enc6b [v]
   (reduce-kv (fn [s i b] (+ s (bit-shift-left b (* 8 (- 5 i))))) 0 v))
 
+(defn nscore [hand]
+  (encode6b (vscore hand)))
+
+
 ;; unrolled is twice as fast
 (defn unc6b [v]
   (bit-or (bit-shift-left (nth v 0 0) 40)
@@ -246,56 +250,52 @@
 ;; bindings must have compile-time constant seqs
 
 #_
-(unroll bit-or [i (range 6) off [40 32 34 16 8 0]]
-        (bit-shift-left (nth v i 0) off))
-
-
 (defn const-seq? [coll]
   (and (seqable? coll)
        (or (= (first coll) 'range)
            (every? number? coll))))
 
-#_  ;; unfinished
-(defmacro unroll [sumf bindings form]
-  (assert (and (vector? bindings) (even? (count bindings))))
-  (assert (symbol? sumf))
-  (let [vrs (take-nth 2 binding)
-        seqs (take-nth 2 (rest bindings))]
-    ;; bind the constant seqs
-    ;; make the forms#
-    `(~sumf @~forms#)))
-    
+
+(defn constify [coll]
+  (or (and (seqable? coll)
+           (every? number? (rest coll))
+           (cond (empty? coll) coll
+                 (number? (first coll)) coll
+                 (= (first coll) 'range) (apply range (rest coll))
+                 (= (first coll) `range) (apply range (rest coll))
+                 ;; support repeat maybe
+                 ;; probably not iterate or map
+                 :else nil))
+      (throw (ex-info "Expected a constant seq expr" {:bad coll}))))
+
+
+
+
+(require '[clojure.template :as ct])
+
+(defmacro unroll
+  ([bindings form] `(unroll do ~bindings ~form))
+  ([sumf bindings form]
+   (assert (and (vector? bindings) (even? (count bindings))))
+   ;;   (assert (every? const-seq? (take-nth 2 (rest bindings))))
+   (assert (symbol? sumf))
+   (let [params# (vec (take-nth 2 bindings))
+         intlvs# (apply map vector (map constify (take-nth 2 (rest bindings))))]
+     `(~sumf ~@(map (fn [args]
+                      (clojure.template/apply-template params# form args))
+                    intlvs#)))))
+
+
+(defn u6b [v]
+  (unroll bit-or
+          [i (range 6) sh [40 32 34 16 8 0]]
+          (bit-shift-left (nth v i 0) sh)))
+
+
 
 
 ;;; bit-or about the same as unchecked-add
 
-
-
-;;; NO, too slow
-(defn un6b [v]
-  (case (count v)
-    0 0
-    1 (bit-shift-left (nth v 0) 40)
-    2 (bit-or (bit-shift-left (nth v 0) 40)
-              (bit-shift-left (nth v 1) 32))
-    3 (bit-or (bit-shift-left (nth v 0) 40)
-              (bit-shift-left (nth v 1) 32)
-              (bit-shift-left (nth v 2) 24))
-    4 (bit-or (bit-shift-left (nth v 0) 40)
-              (bit-shift-left (nth v 1) 32)
-              (bit-shift-left (nth v 2) 24)
-              (bit-shift-left (nth v 3) 16))
-    5 (bit-or (bit-shift-left (nth v 0) 40)
-              (bit-shift-left (nth v 1) 32)
-              (bit-shift-left (nth v 2) 24)
-              (bit-shift-left (nth v 3) 16)
-              (bit-shift-left (nth v 4) 8))
-    6 (bit-or (bit-shift-left (nth v 0) 40)
-              (bit-shift-left (nth v 1) 32)
-              (bit-shift-left (nth v 2) 24)
-              (bit-shift-left (nth v 3) 16)
-              (bit-shift-left (nth v 4) 8)
-              (nth v 5))))
 
 
 
@@ -306,17 +306,6 @@
       (recur (conj ds (bit-and r 0xFF)) (unsigned-bit-shift-right r 8)))))
 
 
-
-;; not really faster, but uglier
-(defn dec6b [^long n]
-  (loop [ds () r n]
-    (if (zero? r)
-      (reduce conj [] ds)
-      (let [b (bit-and r 0xFF)
-            r2 (unsigned-bit-shift-right r 8)]
-        (if (zero? b)
-          (recur ds r2)
-          (recur (conj ds b) r2))))))
 
 
 
@@ -404,6 +393,21 @@
 
 
 
+(defn smoke-nscores []
+  (let [full-ten-queen
+        [[10 :diamonds] [10 :spades] [:queen :hearts] [:queen :diamonds] [10 :clubs]]
+        full-queen-ten
+        [[10 :diamonds] [:queen :spades] [:queen :hearts] [:queen :diamonds] [10 :clubs]]]
+    (assert (= (winning-hand full-queen-ten full-ten-queen) full-queen-ten))
+    (assert (= (winning-hand full-ten-queen full-queen-ten) full-queen-ten)))
+  true)
+
+
+
+
+
+
+
 
 
 
@@ -459,6 +463,17 @@
 (defn encode6v [v]
   (reduce-kv (fn [s i b] (bit-or s (bit-shift-left b (- 20 (bit-shift-left i 2))))) 0 v))
 
+;; not really faster, but uglier
+(defn dec6b [^long n]
+  (loop [ds () r n]
+    (if (zero? r)
+      (reduce conj [] ds)
+      (let [b (bit-and r 0xFF)
+            r2 (unsigned-bit-shift-right r 8)]
+        (if (zero? b)
+          (recur ds r2)
+          (recur (conj ds b) r2))))))
+
 
 (defn decode6hex [n]
   (loop [ds () r n]
@@ -472,4 +487,42 @@
     (if (= (count ds) 6)
       (vec ds)
       (recur (conj ds (bit-and r 0xF)) (bit-shift-right r 4)))))
+
+(defmacro unroll-SAVE
+  ([bindings form] `(unroll-SAVE do ~bindings ~form))
+  ([sumf bindings form]
+   (assert (and (vector? bindings) (even? (count bindings))))
+   ;; (assert (every? const-seq? (take-nth 2 (rest bindings))))
+   (assert (symbol? sumf))
+   (let [vrs# (vec (take-nth 2 bindings))
+         intlvs# (apply map vector (map constify (take-nth 2 (rest bindings))))]
+     `(~sumf ~@(map (fn [args#]
+                      (clojure.template/apply-template vrs# form args#))
+                    intlvs#)))))
+
+;;; NO, too slow
+(defn BADun6b [v]
+  (case (count v)
+    0 0
+    1 (bit-shift-left (nth v 0) 40)
+    2 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32))
+    3 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32)
+              (bit-shift-left (nth v 2) 24))
+    4 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32)
+              (bit-shift-left (nth v 2) 24)
+              (bit-shift-left (nth v 3) 16))
+    5 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32)
+              (bit-shift-left (nth v 2) 24)
+              (bit-shift-left (nth v 3) 16)
+              (bit-shift-left (nth v 4) 8))
+    6 (bit-or (bit-shift-left (nth v 0) 40)
+              (bit-shift-left (nth v 1) 32)
+              (bit-shift-left (nth v 2) 24)
+              (bit-shift-left (nth v 3) 16)
+              (bit-shift-left (nth v 4) 8)
+              (nth v 5))))
 
