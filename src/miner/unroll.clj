@@ -24,6 +24,13 @@
                  :else nil))
       (throw (ex-info "Expected a constant seq expr" {:bad coll}))))
 
+;; sumf default to do so it just sequences the forms
+;; bindings are locals for form, values must be compile time constant seqs
+;; form looks like normal code, can use local names from bindings which are applied in parallel
+;; to make a number of code forms with substituted constants.  Like `map` the process stops
+;; when the shortest seq value is exhausted.  However, infinite sequences are not supported
+;; in any position as they are not compile-time constants.  `range` expressions have magic
+;; support assuming all args are compile time constant numbers. 
 (defmacro unroll
   ([bindings form] `(unroll do ~bindings ~form))
   ([sumf bindings form]
@@ -55,7 +62,7 @@
 
 
 ;;; UNFINISHED idea to use backtick
-
+#_
 (defmacro unroll2
   ([bindings form] `(unroll2 do ~bindings ~form))
   ([sumf bindings form]

@@ -33,10 +33,10 @@
   (let [into! (fn [tv coll] (reduce conj! tv coll))
         cnt (count string)
         find-vow (fn [i]
-                   (when (< i cnt)
-                     (case (nth string i)
-                       (\a \e \i \o \u \A \E \I \O \U) i
-                       (recur (inc i)))))]
+                   (case (nth string i nil)
+                     nil nil
+                     (\a \e \i \o \u \A \E \I \O \U) i
+                     (recur (inc i))))]
     (when-let [z0 (find-vow 0)]
       (loop [z1 z0
              z2 (find-vow (inc z0))
