@@ -223,22 +223,19 @@
 
 
 
-;; 6 bytes (255) encoded into one long
-(defn encode6b [v]
-  (reduce-kv (fn [s i b] (bit-or s (bit-shift-left b (- 40 (bit-shift-left i 3))))) 0 v))
-
-
-
 ;; orig
-(defn enc6b [v]
+(defn orig-enc6b [v]
   (reduce-kv (fn [s i b] (+ s (bit-shift-left b (* 8 (- 5 i))))) 0 v))
 
-(defn nscore [hand]
-  (encode6b (vscore hand)))
+(defn improved-encode6b [v]
+  (reduce-kv (fn [s i b] (bit-or s (bit-shift-left b (- 40 (bit-shift-left i 3))))) 0 v))
+
+;;; bit-or about the same as unchecked-add
 
 
+;; 6 bytes (255) encoded into one long
 ;; unrolled is twice as fast
-(defn unc6b [v]
+(defn encode6b [v]
   (bit-or (bit-shift-left (nth v 0 0) 40)
           (bit-shift-left (nth v 1 0) 32)
           (bit-shift-left (nth v 2 0) 24)
@@ -248,55 +245,16 @@
 
 ;; SEM:  write a macro to do unrolling
 ;; bindings must have compile-time constant seqs
-
-#_
-(defn const-seq? [coll]
-  (and (seqable? coll)
-       (or (= (first coll) 'range)
-           (every? number? coll))))
-
-
-(defn constify [coll]
-  (or (and (seqable? coll)
-           (every? number? (rest coll))
-           (cond (empty? coll) coll
-                 (number? (first coll)) coll
-                 (= (first coll) 'range) (apply range (rest coll))
-                 (= (first coll) `range) (apply range (rest coll))
-                 ;; support repeat maybe
-                 ;; probably not iterate or map
-                 :else nil))
-      (throw (ex-info "Expected a constant seq expr" {:bad coll}))))
+;; see hack/miner/unroll.clj
 
 
 
 
-(require '[clojure.template :as ct])
-
-(defmacro unroll
-  ([bindings form] `(unroll do ~bindings ~form))
-  ([sumf bindings form]
-   (assert (and (vector? bindings) (even? (count bindings))))
-   ;;   (assert (every? const-seq? (take-nth 2 (rest bindings))))
-   (assert (symbol? sumf))
-   (let [params# (vec (take-nth 2 bindings))
-         intlvs# (apply map vector (map constify (take-nth 2 (rest bindings))))]
-     `(~sumf ~@(map (fn [args]
-                      (clojure.template/apply-template params# form args))
-                    intlvs#)))))
-
-
-(defn u6b [v]
-  (unroll bit-or
-          [i (range 6) sh [40 32 34 16 8 0]]
-          (bit-shift-left (nth v i 0) sh)))
 
 
 
-
-;;; bit-or about the same as unchecked-add
-
-
+(defn nscore [hand]
+  (encode6b (vscore hand)))
 
 
 (defn decode6b [^long n]
@@ -488,17 +446,6 @@
       (vec ds)
       (recur (conj ds (bit-and r 0xF)) (bit-shift-right r 4)))))
 
-(defmacro unroll-SAVE
-  ([bindings form] `(unroll-SAVE do ~bindings ~form))
-  ([sumf bindings form]
-   (assert (and (vector? bindings) (even? (count bindings))))
-   ;; (assert (every? const-seq? (take-nth 2 (rest bindings))))
-   (assert (symbol? sumf))
-   (let [vrs# (vec (take-nth 2 bindings))
-         intlvs# (apply map vector (map constify (take-nth 2 (rest bindings))))]
-     `(~sumf ~@(map (fn [args#]
-                      (clojure.template/apply-template vrs# form args#))
-                    intlvs#)))))
 
 ;;; NO, too slow
 (defn BADun6b [v]

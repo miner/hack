@@ -22,6 +22,8 @@
                  [org.clojure/tools.trace "0.7.10"]
                  ;; [org.clojure/core.match "0.2.2"]
                  [org.clojure/core.match "1.0.0"]
+                 [org.clojure/tools.macro "0.1.2"]
+                 [backtick "0.3.4"]
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.clojure-goes-fast/clj-memory-meter "0.1.2"]
