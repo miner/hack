@@ -301,9 +301,9 @@
 ;; SEM hacked for caps and simplified head with nil-punning (initial head is special anyway)
 ;; g7s key insight about subvec for backtracking is still the core idea, but the initial
 ;; build up is stack of nils so head as nil is also marker for initial bit.  case expr is
-;; faster than set.  Better than 25% speed improvement.  I like the look of this one.
-;; Thumbs up!
-(defn g7s-nvs-Better
+;; faster than set.  Better than 25% speed improvement over orig g7s.  I like the look of
+;; this one.  Thumbs up!
+(defn g7s-nvs
   [s]
   (reduce
    (fn [acc c]
