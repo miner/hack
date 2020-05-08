@@ -30,6 +30,29 @@
 
 
 
+(defn mvows [string]
+  (let [cnt (count string)
+        vow? (fn [i]
+               (case (nth string i)
+                 (\a \e \i \o \u \A \E \I \O \U) true
+                 false))]
+    (reduce (fn [res i]
+              (let [z (:z (meta res))]
+                (cond (= i cnt) (into res (range (- cnt z)))
+                      (vow? i) (if z
+                                 (let [d (- i z)
+                                       h (quot (inc d) 2)]
+                                   (-> res
+                                       (into (range h))
+                                       (into (range (- d h) 0 -1))
+                                       (with-meta {:z i})))
+                                 (with-meta (vec (range i 0 -1)) {:z i}))
+                      :else res)))
+            []
+            (range (inc cnt)))))
+
+
+
 ;;; sem state should be previous vowel index -- might be reinventing
 ;;;
 
