@@ -107,7 +107,7 @@
 
 
                 
-;; no Java interop, slightly slower
+;; no Java interop, slightly slower, about 16 us vs nvows 11
 (defn nvows3 [string]
   (let [into! (fn [tv coll] (reduce conj! tv coll))
         cnt (count string)
@@ -126,6 +126,47 @@
             (recur z2 (find-vow (inc z2))
                    (-> res (into! (range h)) (into! (range (- d h) 0 -1)))))
           (persistent! (into! res (range (- cnt z1)))))))))
+
+;; without transients  30us vs. nvows 11us
+(defn nvows5 [string]
+  (let [cnt (.length ^String string)
+        find-vow (fn [i]
+                   (when (< i cnt)
+                     (case (.charAt ^String string i)
+                       (\a \e \i \o \u \A \E \I \O \U) i
+                       (recur (inc i)))))]
+    (when-let [z0 (find-vow 0)]
+      (loop [z1 z0
+             z2 (find-vow (inc z0))
+             res (vec (range z0 0 -1))]
+        (if z2
+          (let [d (- z2 z1)
+                h (quot (inc d) 2)]
+            (recur z2 (find-vow (inc z2))
+                   (-> res (into (range h)) (into (range (- d h) 0 -1)))))
+          (into res (range (- cnt z1))))))))
+
+;; without transients or Java interop, about 35 us vs nvows 11
+(defn nvows6 [string]
+  (let [cnt (count string)
+        find-vow (fn [i]
+                   (when (< i cnt)
+                     (case (nth string i)
+                       (\a \e \i \o \u \A \E \I \O \U) i
+                       (recur (inc i)))))]
+    (when-let [z0 (find-vow 0)]
+      (loop [z1 z0
+             z2 (find-vow (inc z0))
+             res (vec (range z0 0 -1))]
+        (if z2
+          (let [d (- z2 z1)
+                h (quot (inc d) 2)]
+            (recur z2 (find-vow (inc z2))
+                   (-> res (into (range h)) (into (range (- d h) 0 -1)))))
+          (into res (range (- cnt z1))))))))
+
+
+
 
 
 ;; not faster to use -1 for missing vowel
