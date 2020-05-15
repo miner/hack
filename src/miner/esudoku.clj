@@ -17,8 +17,6 @@
 (defn xpose [v2d]
   (apply sequence (map list) v2d))
 
-
-
 (defn sub-squares [board]
   (for [i (range 3)
         j (range 3)]
@@ -72,25 +70,6 @@
                           xfail1)
                     nothing?
                     board))))
-
-
-
-(defn sv9? [board]
-  (let [transpose (fn [rows] (apply sequence (map list) rows))
-        xfail1 (comp (map sort) (remove #(= % [1 2 3 4 5 6 7 8 9])) (take 1))
-        nothing? (fn  ([] nil)  ([r] (nil? r))  ([r x] false))]
-    (and (transduce xfail1 nothing? board)
-         (transduce xfail1 nothing? (transpose board))
-         (transduce (comp (partition-all 3)
-                          (mapcat transpose)
-                          cat
-                          (partition-all 9)
-                          xfail1)
-                    nothing?
-                    board))))
-
-
-
 
 
 
@@ -242,32 +221,39 @@
          [ 6 2 5 9 4 8 1 3 7 ]
          [ 8 7 3 5 1 2 9 6 4 ]])
 
+(def good [[ 1 5 2 4 8 9 3 7 6 ]
+           [ 7 3 9 2 5 6 8 4 1 ]
+           [ 4 6 8 3 7 1 2 9 5 ]
+           [ 3 8 7 1 2 4 6 5 9 ]
+           [ 5 9 1 7 6 3 4 2 8 ]
+           [ 2 4 6 8 9 5 7 1 3 ]
+           [ 9 1 4 6 3 7 5 8 2 ]
+           [ 6 2 5 9 4 8 1 3 7 ]
+           [ 8 7 3 5 1 2 9 6 4 ]])
+
+(def tgood (transpose good))
+
+(def bad  [[ 1 1 2 4 8 9 3 7 6 ]
+           [ 7 3 9 2 5 6 8 4 1 ]
+           [ 4 6 8 3 7 1 2 9 5 ]
+           [ 3 8 7 1 2 4 6 5 9 ]
+           [ 5 9 1 7 6 3 4 2 8 ]
+           [ 2 4 6 8 9 5 7 1 3 ]
+           [ 9 1 4 6 3 7 5 8 2 ]
+           [ 6 2 5 9 4 8 1 3 7 ]
+           [ 8 7 3 5 1 2 9 6 4 ]])
+
+(def tbad (transpose bad))
+
+
 
 (defn smoke-sud
   ([] (smoke-sud sudoku-valid?))
   ([sudoku-valid?]
-   (let [good [[ 1 5 2 4 8 9 3 7 6 ]
-               [ 7 3 9 2 5 6 8 4 1 ]
-               [ 4 6 8 3 7 1 2 9 5 ]
-               [ 3 8 7 1 2 4 6 5 9 ]
-               [ 5 9 1 7 6 3 4 2 8 ]
-               [ 2 4 6 8 9 5 7 1 3 ]
-               [ 9 1 4 6 3 7 5 8 2 ]
-               [ 6 2 5 9 4 8 1 3 7 ]
-               [ 8 7 3 5 1 2 9 6 4 ]]
-         bad  [[ 1 1 2 4 8 9 3 7 6 ]
-               [ 7 3 9 2 5 6 8 4 1 ]
-               [ 4 6 8 3 7 1 2 9 5 ]
-               [ 3 8 7 1 2 4 6 5 9 ]
-               [ 5 9 1 7 6 3 4 2 8 ]
-               [ 2 4 6 8 9 5 7 1 3 ]
-               [ 9 1 4 6 3 7 5 8 2 ]
-               [ 6 2 5 9 4 8 1 3 7 ]
-               [ 8 7 3 5 1 2 9 6 4 ]]]
-     (assert (sudoku-valid? good))
-     (assert (sudoku-valid? (transpose good)))
-     (assert (not (sudoku-valid? bad) ))
-     (assert (not (sudoku-valid? (transpose bad) ))))
+   (assert (sudoku-valid? good))
+   (assert (sudoku-valid? tgood))
+   (assert (not (sudoku-valid? bad) ))
+   (assert (not (sudoku-valid? tbad) ))
    true))
 
 
