@@ -15,18 +15,19 @@
           :else :imperfect)))
 
 
+
 ;; faster with explicit indexing
 (defn classify5 [v2]
   (let [sym? (fn [v]
                (let [cnt (count v)
                      end (dec cnt)]
                  (or (zero? cnt)
-                 (reduce (fn [res i]
-                              (if (= (v i) (v (- end i)))
-                                true
-                                (reduced false)))
-                            true
-                            (range (inc (quot cnt 2)))))))
+                     (reduce (fn [res i]
+                               (if (= (v i) (v (- end i)))
+                                 true
+                                 (reduced false)))
+                             true
+                             (range (inc (quot cnt 2)))))))
         horz? (every? sym? v2)
         vert? (sym? v2)]
     (cond (and horz? vert?) :perfect
@@ -35,41 +36,7 @@
           :else :imperfect)))
 
 
-
-
-(when-not (satisfies?   clojure.core.protocols/IKVReduce (subvec [1] 0))
-  (extend-type clojure.lang.APersistentVector$SubVector
-    clojure.core.protocols/IKVReduce
-    (kv-reduce
-      [subv f init]
-      (let [cnt (.count subv)]
-        (loop [k 0 ret init]
-          (if (< k cnt)
-            (let [val (.nth subv k)
-                  ret (f ret k val)]
-              (if (reduced? ret)
-                @ret
-                (recur (inc k) ret)))
-            ret))))))
-
-(defn classify8 [v2]
-  (let [sym? (fn [v]
-               (let [cnt (count v)
-                     off (dec cnt)]
-                 (or (zero? cnt)
-                     (reduce-kv (fn [res i x]
-                                  (if (= x (v (- off i)))
-                                    true
-                                    (reduced false)))
-                                true
-                                (subvec v 0 (inc (quot cnt 2)))))))
-        horz? (every? sym? v2)
-        vert? (sym? v2)]
-    (cond (and horz? vert?) :perfect
-          horz? :horizontal
-          vert? :vertical
-          :else :imperfect)))
-
+;; pretty fast but not quite
 (defn classify9 [v2]
   (let [sym? (fn [v]
                (let [cnt (count v)
@@ -86,14 +53,14 @@
 
 
 
-;; g7s solution slightly faster
+;; g7s solution slightly faster my initial version
+;;  but bug with empty vector.  SEM added (seq) to fix.
 (defn symmetric
   [v]
   (let [len (count v)
         mid (quot len 2)]
-    (or (= len 1)
-        (= (subvec v 0 mid)
-           (rseq (subvec v (- len mid) len))))))
+        (= (seq (subvec v 0 mid))
+           (rseq (subvec v (- len mid) len)))))
 
 
 (defn gclassify
@@ -175,3 +142,46 @@
      (criterium.core/quick-bench (smoke-sym f)))
    (println)))
 
+
+
+
+
+
+
+
+
+
+;;;;;;;;;;;
+
+(when-not (satisfies?   clojure.core.protocols/IKVReduce (subvec [1] 0))
+  (extend-type clojure.lang.APersistentVector$SubVector
+    clojure.core.protocols/IKVReduce
+    (kv-reduce
+      [subv f init]
+      (let [cnt (.count subv)]
+        (loop [k 0 ret init]
+          (if (< k cnt)
+            (let [val (.nth subv k)
+                  ret (f ret k val)]
+              (if (reduced? ret)
+                @ret
+                (recur (inc k) ret)))
+            ret))))))
+
+(defn classify8 [v2]
+  (let [sym? (fn [v]
+               (let [cnt (count v)
+                     off (dec cnt)]
+                 (or (zero? cnt)
+                     (reduce-kv (fn [res i x]
+                                  (if (= x (v (- off i)))
+                                    true
+                                    (reduced false)))
+                                true
+                                (subvec v 0 (inc (quot cnt 2)))))))
+        horz? (every? sym? v2)
+        vert? (sym? v2)]
+    (cond (and horz? vert?) :perfect
+          horz? :horizontal
+          vert? :vertical
+          :else :imperfect)))
