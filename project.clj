@@ -34,6 +34,8 @@
                  [org.clojure/alpha.spec "0.2.177-SNAPSHOT"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
+  :global-vars {*warn-on-reflection* true
+                *unchecked-math* :warn-on-boxed}
   :profiles {:dev  {:dependencies [[org.clojure/clojure "1.10.1"]
                                    ;; [org.clojure/core.async "0.4.474"]
                                    ;;[clj-ns-browser "1.3.0" ]

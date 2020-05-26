@@ -1,11 +1,12 @@
 (ns miner.esymmetry)
 
+;; https://gist.github.com/ericnormand/c888c22c27e0a6c4edec6e83c5069f1a
 
-;; don't need it
-;; (defn transpose [v2] (vec (apply sequence (map vector) v2)))
+;; UPDATE from Eric Normand: I have horizontal and vertical switched accidentally, but I won't
+;; change it since people have already submitted.
 
 
-
+;; submitted
 (defn classify [v2]
   (let [horz? (every? (fn [row] (= (seq row) (rseq row))) v2)
         vert? (= (seq v2) (rseq v2))]
@@ -14,15 +15,42 @@
           vert? :vertical
           :else :imperfect)))
 
+;; pretty good for a bit more work
+(defn classify2 [v2]
+  (let [sym? (fn [v] (let [cnt (count v)
+                           half (quot cnt 2)]
+                       (= (seq (subvec v 0 half))
+                          (rseq (subvec v (- cnt half) cnt)))))
+        horz? (every? sym? v2)
+        vert? (sym? v2)]
+    (cond (and horz? vert?) :perfect
+          horz? :horizontal
+          vert? :vertical
+          :else :imperfect)))
+
+;; fastest with loop indexing
+(defn classify4 [v2]
+  (let [sym? (fn [v]
+               (loop [eq true  start 0  end (dec (count v))]
+                 (if (and (> end start) eq)
+                   (recur (= (v start) (v end)) (inc start) (dec end) )
+                   eq)))
+        horz? (every? sym? v2)
+        vert? (sym? v2)]
+    (cond (and horz? vert?) :perfect
+          horz? :horizontal
+          vert? :vertical
+          :else :imperfect)))
 
 
-;; faster with explicit indexing
+
+;; explicit indexing in reduce, pretty fast
 (defn classify5 [v2]
   (let [sym? (fn [v]
                (let [cnt (count v)
                      end (dec cnt)]
                  (or (zero? cnt)
-                     (reduce (fn [res i]
+                     (reduce (fn [res ^long i]
                                (if (= (v i) (v (- end i)))
                                  true
                                  (reduced false)))
@@ -150,7 +178,7 @@
 
 
 
-
+;;; Actually fast, but too much overhead to have to fix the subvec bug.
 ;;;;;;;;;;;
 
 (when-not (satisfies?   clojure.core.protocols/IKVReduce (subvec [1] 0))
@@ -173,7 +201,7 @@
                (let [cnt (count v)
                      off (dec cnt)]
                  (or (zero? cnt)
-                     (reduce-kv (fn [res i x]
+                     (reduce-kv (fn [res ^long i x]
                                   (if (= x (v (- off i)))
                                     true
                                     (reduced false)))
@@ -185,3 +213,89 @@
           horz? :horizontal
           vert? :vertical
           :else :imperfect)))
+
+
+(defn classify81 [v2]
+  (let [sym? (fn [v]
+               (let [cnt (count v)
+                     off (dec cnt)]
+                     (reduce-kv (fn [res ^long i x]
+                                  (if (= x (v (- off i)))
+                                    true
+                                    (reduced false)))
+                                true
+                                (when (pos? cnt)
+                                  (subvec v 0 (inc (quot cnt 2)))))))
+        horz? (every? sym? v2)
+        vert? (sym? v2)]
+    (cond (and horz? vert?) :perfect
+          horz? :horizontal
+          vert? :vertical
+          :else :imperfect)))
+
+
+
+
+
+;; don't need it
+;; (defn transpose [v2] (vec (apply sequence (map vector) v2)))
+
+
+
+(defn classify3 [v2]
+  (let [sym? (fn [v]
+               (let [cnt (count v)
+                     end (dec cnt)]
+                 (loop [res true i (if (pos? end) (quot cnt 2) -1)]
+                   (cond (neg? i) res
+                         res (recur (= (v i) (v (- end i))) (dec i))
+                         :else false))))
+        horz? (every? sym? v2)
+        vert? (sym? v2)]
+    (cond (and horz? vert?) :perfect
+          horz? :horizontal
+          vert? :vertical
+          :else :imperfect)))
+
+;; slight variations on v3
+(defn classify32 [v2]
+  (let [sym? (fn [v]
+               (let [cnt (count v)
+                     end (dec cnt)]
+                 (loop [res true i (if (zero? cnt) -1 (quot cnt 2))]
+                   (cond (neg? i) res
+                         res (recur (= (v i) (v (- end i))) (dec i))
+                         :else false))))
+        horz? (every? sym? v2)
+        vert? (sym? v2)]
+    (cond (and horz? vert?) :perfect
+          horz? :horizontal
+          vert? :vertical
+          :else :imperfect)))
+
+
+(defn classify31 [v2]
+  (let [sym? (fn [v]
+               (let [cnt (count v)]
+                 (or (zero? cnt)
+                     (let [off (dec cnt)]
+                       (loop [res true i (quot cnt 2)]
+                         (cond (neg? i) res
+                               res (recur (= (v i) (v (- off i))) (dec i))
+                               :else false))))))
+        horz? (every? sym? v2)
+        vert? (sym? v2)]
+    (cond (and horz? vert?) :perfect
+          horz? :horizontal
+          vert? :vertical
+          :else :imperfect)))
+
+
+
+
+#_
+(defn same
+  ([] nil)
+  ([a] a)
+  ([a b] (when (= a b) a))
+  ([a b & more] (reduce (fn [a b] (if (= a b) a (reduced nil))) (same a b) more)))
