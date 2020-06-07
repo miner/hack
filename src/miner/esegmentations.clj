@@ -34,6 +34,26 @@
       (append-words word segmentation))))
 
 
+;; westcott solution
+;; SEM added type hint
+(defn append-segment [segments s dict]
+  (for [len (range 1 (inc (.length ^String s)))
+        :let [segment (subs s 0 len)]
+        :when (contains? dict segment)]
+    [(conj segments segment) (subs s len)]))
+
+(defn segmentations* [items dict]
+  (lazy-seq
+    (loop [[item & more] items]
+      (if-let [[segments s] item]
+        (if (empty? s)
+          (cons (clojure.string/join " " segments) (segmentations* more dict))
+          (recur (concat (append-segment segments s dict) more)))))))
+
+(defn w-segmentations [s dict]
+  (segmentations* [[[] s]] (set dict)))
+
+
 ;;;;;;;;;;;;;;;;;;;;  My stuff ;;;;;;;;;;;;;;;;;
 
 
@@ -59,9 +79,34 @@
 ;; state [words... index-remaining]
 
 ;;; my favorite so far -- much faster if dict is already a set of words (not just a collection)
-;; only a bit faster with Java interop and hints, doesn't seem worth it
+;;; only a bit faster with Java interop and hints, doesn't seem worth it
 
+;; the "working" item on the stack is a vector of words + index of remaining string
+;; slight faster than keeping "remaining" as string.
+;; dict should be a set for performance, but code will convert any collection to set if
+;; necessary since that was the original specification.
 (defn segmentations [string dict]
+  (let [dict (set dict)
+        word? (fn [w] (contains? dict w))
+        cnt (count string)]
+    (loop [stack [[0]] res nil]
+      (if-let [working (peek stack)]
+        (let [words (pop working)
+              index (peek working)]
+          (if (= index cnt)
+            (recur (pop stack) (conj res (str/join " " words)))
+            (recur (into (pop stack)
+                         (keep (fn [end]
+                                 (let [w (subs string index end)]
+                                   (when (word? w)
+                                     (conj words w end)))))
+                         (range cnt index -1))
+                   res)))
+        res))))
+
+
+
+(defn xsegmentations [string dict]
   (let [dict (set dict)
         word? (fn [w] (contains? dict w))
         cnt (count string)]
@@ -78,29 +123,6 @@
                          (range cnt index -1))
                    res)))
         res))))
-
-
-
-;; SAVE THIS ONE
-(defn segmentations99 [string dict]
-  (let [dict (set dict)
-        cnt (count string)]
-    (loop [stack [[0]] res []]
-      (if-let [working (peek stack)]
-        (let [words (pop working)
-              index (peek working)]
-          (if (= index cnt)
-            (recur (pop stack) (conj res (str/join " " words)))
-            (recur (into (pop stack)
-                         (comp (map #(subs string index %))
-                               (filter #(contains? dict %))
-                               (map #(conj words % (+ index (count %)))))
-                         (range (inc index) (inc cnt)))
-                   res)))
-        res))))
-
-
-
 
 
 
