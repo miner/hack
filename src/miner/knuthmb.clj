@@ -22,9 +22,10 @@
 
 
 ;;; my best, fast enough
-;;; k int, ka atom holding int
+;;; for A, k is int, then wrapped in atom for B
+;;; The atom is necessary to allow later modification when B is invoked later.
 ;;; xN are nullary functions so they can be invoked like B
-;;; alternative is to test fn? when adding, but that's slower
+;;; alternative is to test fn?/int? when adding, but that's slower
 (defn kmb
   ([] (kmb 10))
   ([k]
@@ -38,43 +39,6 @@
            c-1 (constantly -1)
            c0 (constantly 0)]
        (A k c1 c-1 c-1 c1 c0)))))
-
-
-
-(defn kmb008
-  ([] (kmb008 10))
-  ([k]
-   (letfn [(A [k x1 x2 x3 x4 x5]
-             (let [ka (atom k)]
-               (letfn [(B [] (A (swap! ka dec) B x1 x2 x3 x4))]
-                 (if-not (pos? k)
-                   (+ (x4) (x5))
-                   (B)))))]
-     (let [c1 (constantly 1)
-           c-1 (constantly -1)
-           c0 (constantly 0)]
-       (A k c1 c-1 c-1 c1 c0)))))
-
-
-
-
-
-
-(defn kmb77
-  ([] (kmb77 10))
-  ([k]
-   (letfn [(A [k x1 x2 x3 x4 x5]
-             (let [k (atom k)]
-               (letfn [(B [] (A (swap! k dec) B x1 x2 x3 x4))]
-                 (if-not (pos? @k)
-                   (+ (x4) (x5))
-                   (B)))))]
-     (let [c1 (constantly 1)
-           c-1 (constantly -1)
-           c0 (constantly 0)]
-       (A k c1 c-1 c-1 c1 c0)))))
-
-
 
 
 ;; slower
@@ -94,90 +58,18 @@
                      (B)))))]
        (A k 1 -1 -1 1 0)))))
 
-(defn kmb11
-  ([] (kmb11 10))
-  ([k]
-   (let [f+ (fn [x y] (+ (if (fn? x) (x) x)
-                         (if (fn? y) (y) y)))]
-     (letfn [(A [k x1 x2 x3 x4 x5]
-               (let [k (atom k)]
-                 (letfn [(B []
-                           (swap! k dec)
-                           (A @k B x1 x2 x3 x4))]
-                   (if-not (pos? @k)
-                     (f+ x4 x5)
-                     (B)))))]
-       (A k 1 -1 -1 1 0)))))
 
-
-;;; good, faster
-(defn kmb12
-  ([] (kmb12 10))
-  ([k]
-   (let [f+ (fn [x y] (+ (if (fn? x) (x) x)
-                         (if (fn? y) (y) y)))]
-     (letfn [(A [k x1 x2 x3 x4 x5]
-               (let [ka (atom k)]
-                 (letfn [(B [] (A (swap! ka dec) B x1 x2 x3 x4))]
-                   (if-not (pos? @ka)
-                     (f+ x4 x5)
-                     (B)))))]
-       (A k 1 -1 -1 1 0)))))
-
-
-
-(defn kmb13
-  ([] (kmb13 10))
-  ([k]
-   (let [f+ (fn [x y] (+ (if (fn? x) (x) x)
-                         (if (fn? y) (y) y)))]
-     (letfn [(A [k x1 x2 x3 x4 x5]
-               (let [ka (atom k)]
-                 (letfn [(B [] (A (swap! ka dec) B x1 x2 x3 x4))]
-                   (if-not (pos? k)
-                     (f+ x4 x5)
-                     (B)))))]
-       (A k 1 -1 -1 1 0)))))
-
-
-
-
-
-;; pretty good
-(defn kmb1
-  ([] (kmb1 10))
+(defn kmb3
+  ([] (kmb3 10))
   ([k]
    (let [fval (fn [x] (if (fn? x) (x) x))]
      (letfn [(A [k x1 x2 x3 x4 x5]
-               (let [k (atom k)]
-                 (letfn [(B []
-                           (swap! k dec)
-                           (A @k B x1 x2 x3 x4))]
-                   (if-not (pos? @k)
-                     (+ (fval x4) (fval x5))
+               (if-not (pos? k)
+                 (+ (fval x4) (fval x5))
+                 (let [k (atom k)]
+                   (letfn [(B [] (A (swap! k dec) B x1 x2 x3 x4))]
                      (B)))))]
        (A k 1 -1 -1 1 0)))))
-
-
-
-
-
-(defn kmb0
-  ([] (kmb0 10))
-  ([k]
-   (letfn [(A [k x1 x2 x3 x4 x5]
-             (let [k (atom @k)]
-               (letfn [(B []
-                         (swap! k dec)
-                         (A k B x1 x2 x3 x4))]
-                 (if-not (pos? @k)
-                   (+ (x4) (x5))
-                   (B)))))]
-     (let [c1 (constantly 1)
-           c-1 (constantly -1)
-           c0 (constantly 0)]
-       (A (atom k) c1 c-1 c-1 c1 c0)))))
-
 
 
 
