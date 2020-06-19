@@ -238,3 +238,9 @@
 
 ;; (set! *unchecked-math* false)
 
+
+
+;;; Extension idea, not implemented
+;;; "Miracle Sudoku"
+;;; has extra constraints on adjacent cells and knight's move away
+;;; https://benjamincongdon.me/blog/2020/05/23/Solving-the-Miracle-Sudoku-in-Prolog/
