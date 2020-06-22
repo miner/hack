@@ -20,12 +20,7 @@
     (sequence (filter (fn [x] (= (freqs x) 1))) coll)))
 
 
-
-(defn uni3 [coll]
-  (let [freqs (frequencies coll)]
-    (sequence (filter (fn [x] (= (freqs x) 1))) coll)))
-
-
+;; classic style
 (defn uniques2 [coll]
   (let [freqs (frequencies coll)]
     (filter (fn [x] (= (get freqs x) 1)) coll)))
@@ -35,15 +30,6 @@
   (let [freqs (frequencies coll)]
     (into [] (filter (fn [x] (= (get freqs x) 1))) coll)))
 
-
-(defn uni [coll]
-  (loop [onces [] mults #{} xs (seq coll)]
-    (if xs
-      (let [x (first xs)]
-        (if (contains? mults x)
-          (recur (into [] (remove #{x}) onces) mults (next xs))
-          (recur (conj onces x) (conj mults x) (next xs))))
-      onces)))
   
 (defn smoke-un
   ([] (smoke-un uniques))
