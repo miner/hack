@@ -11,7 +11,8 @@
 (defn uni4 [coll]
   (let [freqs (reduce (fn [counts x]
                         (assoc! counts x (inc (get counts x 0))))
-                      (transient {}) coll)]
+                      (transient {})
+                      coll)]
     (sequence (filter (fn [x] (= (freqs x) 1))) coll)))
 
 
