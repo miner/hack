@@ -6,6 +6,12 @@
 ;; y = ax^2 + bx + c  -- represent as vector of [a b c]
 ;; roots are where y=0
 
+
+;; useful info
+;; https://courses.lumenlearning.com/boundless-algebra/chapter/graphs-of-quadratic-functions/
+
+
+
 ;; ninjure
 (defn quad-ninjure [a b c]
   (let [discriminant (- (* b b) (* 4 a c))]
