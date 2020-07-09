@@ -3,7 +3,8 @@
 ;; Quadratic formula
 ;; https://gist.github.com/ericnormand/46a47b418aaa41604f8d226ee3e9ab09
 
-
+;; y = ax^2 + bx + c  -- represent as vector of [a b c]
+;; roots are where y=0
 
 ;; ninjure
 (defn quad-ninjure [a b c]
@@ -25,7 +26,7 @@
         (list (/ (- drt b) a2)
               (/ (- (+ b drt)) a2))))))
 
-
+;; My favorite
 (defn quad [a b c]
   (let [discr (- (* b b) (* 4.0 a c))]
     (when-not (neg? discr)
@@ -39,6 +40,7 @@
 ;; slightly faster
 (set! *unchecked-math* :warn-on-boxed)
 
+;; needs hints
 (defn quad7 [^long a ^long b ^long c]
   (let [discr (- (* b b) (* 4.0 a c))]
     (when-not (neg? discr)
@@ -47,6 +49,7 @@
         (list (/ (- b drt) na2)
               (/ (+ b drt) na2))))))
 
+(set! *unchecked-math* nil)
 
 
 (defn smoke-quad [quad]
@@ -58,3 +61,22 @@
   (assert (= (set (quad 2 4 2)) #{-1.0}))
   true)
 
+
+;; y = ax^2 + bx + c
+
+;; x-coord of vertext is -b/2a
+
+(defn vertex [^long a ^long b ^long c]
+  (let [x (/ b (* -2.0 a))
+        y (+ (* a x x) (* b x) c)]
+    [x y]))
+
+
+(defn y-intercept [a b c]
+  [0.0 (double c)])
+
+
+(defn roots->abc
+  ([r0] (roots->abc r0 r0))
+  ([r1 r2]
+   [1.0 (- (+ r1 r2)) (* r1 r2)]))
