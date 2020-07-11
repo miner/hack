@@ -8,7 +8,7 @@
                  [org.clojure/data.int-map "0.2.4"]
                  [org.clojure/data.avl "0.1.0"]
                  [org.clojure/core.rrb-vector "0.1.1"]
-                 [org.clojure/core.async "1.0.567"]
+                 [org.clojure/core.async "1.2.603"]
                  [org.clojure/tools.macro "0.1.5"]
                  [org.clojure/data.priority-map "1.0.0"]
                  [com.datomic/datomic-free "0.9.5697"  :exclusions [joda-time]]
@@ -22,7 +22,7 @@
                  [org.clojure/tools.trace "0.7.10"]
                  ;; [org.clojure/core.match "0.2.2"]
                  [org.clojure/core.match "1.0.0"]
-                 [org.clojure/tools.macro "0.1.2"]
+                 [org.clojure/tools.macro "0.1.5"]
                  [backtick "0.3.4"]
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "0.3.12"]
@@ -39,7 +39,7 @@
   :profiles {:dev  {:dependencies [[org.clojure/clojure "1.10.1"]
                                    ;; [org.clojure/core.async "0.4.474"]
                                    ;;[clj-ns-browser "1.3.0" ]
-                                   [criterium "0.4.5"]]}
+                                   [criterium "0.4.6"]]}
              :clj18 {:dependencies [   
                                    [org.clojure/clojure "1.8.0"]
                                    ]}
@@ -48,7 +48,7 @@
                                    [org.clojure/clojure "1.7.0"]
                                    ]}
              :rebl {:dependencies [
-                                   [org.clojure/core.async "1.0.567"]
+                                   [org.clojure/core.async "1.2.603"]
                                    [REBL "0.9.220"]
                                    ]
                     :main cognitect.rebl}
