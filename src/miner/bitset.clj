@@ -3,9 +3,18 @@
 ;; SEM experiment.  Using a long as a "set" of bits containing 0-63.
 ;; For serious work, look at java.util.BitSet but beware that it's mutable and not thread-safe.
 
+;; set-like functions but with names beginning with b
+
+(def ^:const b-all -1)
+
+(def ^:const b-empty 0)
+
+
 (defn bcount [^long b]
   (Long/bitCount b))
 
+(def bempty? zero?)
+  
 (defn bconj
   ([b i] (bit-set b i))
   ([b i & more] (reduce bit-set (bit-set b i) more)))
@@ -14,24 +23,52 @@
   ([b i]  (bit-clear b i))
   ([b i & more] (reduce bit-clear (bit-clear b i) more)))
 
+(defn bcontains?
+  ([b i] (bit-test b i))
+  ([b i & more] (and (bit-test b i)
+                     (empty? (sequence (remove #(bit-test b %)) more)))))
+  
 (def bunion bit-or)
 
 (def bdifference bit-and-not)
 
 (def bintersection bit-and)
 
+(defn bcomplement [n]
+  (bit-xor n b-all))
+
 ;; returns seq of single bit longs (powers of 2) from n
-(defn bsingles ^longs [^long n]
+(defn bsingles [^long n]
   (loop [n n bs ()]
     (if (zero? n)
       bs
       (let [h (Long/lowestOneBit n)]
         (recur (bit-and-not n h) (conj bs h))))))
 
-;; convert to conventional set of longs
-(defn bset [n]
-  (into  #{} (map #(Long/numberOfTrailingZeros %)) (bsingles n)))
+;; returns vector of marked bit indices
+(defn bindices [^long n]
+  (loop [n n bs (transient [])]
+    (if (zero? n)
+      (persistent! bs)
+      (let [h (Long/highestOneBit n)]
+        (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros h)))))))
 
+;; convert to conventional set of longs (indices of marked bits)
+(defn bset [^long n]
+  (loop [n n bs (transient #{})]
+    (if (zero? n)
+      (persistent! bs)
+      (let [h (Long/lowestOneBit n)]
+        (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros h)))))))
+
+;; returns index of high bit 63-0 or nil if n=0
+(defn high-bit [^long n]
+  (when-not (zero? n)
+    (Long/numberOfTrailingZeros (Long/highestOneBit n))))
+
+(defn low-bit [^long n]
+  (when-not (zero? n)
+    (Long/numberOfTrailingZeros (Long/lowestOneBit n))))
 
 (defn bsingle? [^long n]
   (= (Long/bitCount n) 1))
