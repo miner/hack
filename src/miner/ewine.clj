@@ -37,34 +37,6 @@
 
 
 
-(defn red-wine [wines]
-  (if-let [rws (seq (rest wines))]
-    (-> (reduce (fn [[a b :as ab] w]
-                  (let [wp (:price w)]
-                    (cond (>= wp (:price b)) ab
-                          (< wp (:price a)) [w a]
-                          :else [a w])))
-                [(first wines)
-                 {:price Double/MAX_VALUE}]
-                rws)
-        peek
-        :name)
-    (:name (first wines))))
-
-
-
-
-
-(defn slow-mwine [wines]
-  (when (seq wines)
-    (let [low (apply min-key :price wines)]
-      (:name (or (apply min-key #(if (= low %) Double/MAX_VALUE (:price %)) wines)
-                 low)))))
-
-
-
-
-
 
 
 (defn wlt [wa wb]
