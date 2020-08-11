@@ -1,13 +1,22 @@
-(ns miner.efactor)
+(ns miner.efactor
+  (:require [clojure.string :as str]))
 
 ;; Eric Challenge: stringify prime factorization given factors
 
 ;; https://gist.github.com/ericnormand/087eab23272b3ed0d7a8e3007b699a1d
 
+#_
+(require '[clojure.string :as str])
 
 ;; Works with unordered factors
 ;; faster with transducers
 (defn factors->string [factors]
+  (str (reduce * 1 factors) " = "
+       (str/join " x "  (sequence (map (fn [[f cnt]] (if (= cnt 1) f (str f "^" cnt))))
+                                  (sort (frequencies factors))))))
+
+
+(defn sifact [factors]
   (apply str (reduce * 1 factors) " = "
          (sequence (comp (map (fn [[f cnt]] (if (= cnt 1) f (str f "^" cnt))))
                          (interpose " x "))
@@ -16,58 +25,25 @@
 
 
 
-
-(defn zfact [factors]
-  (apply str (reduce * 1 factors) " = "
-         (into [] (comp (map (fn [[f cnt]]
-                                  (if (> cnt 1)
-                                    (str f "^" cnt)
-                                    f)))
-                         (interpose " x "))
-                   (sort (frequencies factors)))))
-
-
-
 ;; sequence version
 (defn strfact [factors]
   (let [fcnts (frequencies factors)]
     (apply str (reduce * 1 factors) " = "
-           (interpose " x " (map (fn [[f cnt]]
-                                   (if (> cnt 1)
-                                     (str f "^" cnt)
-                                     f))
+           (interpose " x " (map (fn [[f cnt]] (if (= cnt 1) f (str f "^" cnt)))
                                  (sort fcnts))))))
 
 
 
 ;; assuming factors is vector in order, but not faster
-(defn gfact [factors]
-  (let [gs (reduce (fn [res x] (let [g (peek res)]
-                                 (if (and g (= (peek g) x))
-                                   (conj (pop res) (conj g x))
-                                   (conj res [x]))))
-                   []
-                   factors)]
-    (apply str (reduce * 1 factors) " = "
-           (interpose " x " (map (fn [vf] (let [cnt (count vf)]
-                                            (if (> cnt 1)
-                                             (str (peek vf) "^" cnt)
-                                             (peek vf))))
-                                 gs)))))
-
-
-
 (defn pbfact [factors]
-  (let [gs (into [] (partition-by identity) factors)]
-    (apply str (reduce * 1 factors) " = "
-           (interpose " x " (map (fn [fs] (let [cnt (count fs)]
-                                            (if (> cnt 1)
-                                             (str (peek fs) "^" cnt)
-                                             (peek fs))))
-                                 gs)))))
-
-
-
+  (apply str (reduce * 1 factors) " = "
+         (sequence (comp (partition-by identity)
+                         (map (fn [fs] (let [cnt (count fs)]
+                                         (if (= cnt 1)
+                                           (peek fs)
+                                           (str (peek fs) "^" cnt)))))
+                         (interpose " x ") )
+                   factors)))
 
 
 
