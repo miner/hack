@@ -8,12 +8,12 @@
 
 (defn binary-search [x vord]
   (loop [lo 0  hi (count vord)]
-    (when (< lo hi)
-      (let [i (quot (+ hi lo) 2)
-            v (vord i)]
-        (cond (= x v) true
-              (> v x) (recur lo i)
-              :else (recur (inc i) hi))))))
+    (and (< lo hi)
+         (let [i (quot (+ hi lo) 2)
+               v (vord i)]
+           (cond (= x v) true
+                 (> v x) (recur lo i)
+                 :else (recur (inc i) hi))))))
 
 
 
