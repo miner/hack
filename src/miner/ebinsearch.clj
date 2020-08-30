@@ -5,15 +5,14 @@
 ;; You can assume you're passed a sorted vector.
 
 
-
 (defn binary-search [x vord]
   (loop [lo 0  hi (count vord)]
     (and (< lo hi)
          (let [i (quot (+ hi lo) 2)
                v (vord i)]
            (cond (= x v) true
-                 (> v x) (recur lo i)
-                 :else (recur (inc i) hi))))))
+                 (< v x) (recur (inc i) hi)
+                 :else (recur lo i))))))
 
 
 
