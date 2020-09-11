@@ -24,6 +24,54 @@
 
 
 
+;; Variation from Eric Normand's Challenge
+;; https://gist.github.com/ericnormand/ef7ffcfb451e1a97a1ce54955e60c0c5
+;;
+;; NO CONDITIONALS: you're not going to write any conditionals or loops. Just to be clear,
+;; that means no if, when, cond, or case expressions.  Write a function that is passed a
+;; sequence of integers.  For each integer, if it's divisible by 3, print "Fizz". If it's
+;; divisible by 5, print "Buzz". If it's divisible by both 3 and 5,
+;; print "FizzBuzz". Finally, if it's divisible by neither, print the number itself. Each
+;; printing should be on a separate line.
+
+
+;; Is it cheating to use or/and as conditionals?  Gray area, but I don't think that should
+;; be allowed.
+
+
+(defn fb [n]
+  (let [f (zero? (rem n 3))
+        b (zero? (rem n 5))]
+    (or (and f b "FizzBuzz")
+        (and f "Fizz")
+        (and b "Buzz")
+        n)))
+
+;; nested vectors are faster than nested maps with integer keys
+(defn nfb [n]
+  (-> [["FizzBuzz" "Buzz" "Buzz"]]
+      (nth (mod n 5) ["Fizz"])
+      (nth (mod n 3) n)))
+
+#_  ;; my older version
+(defn nfb0 [n]
+  (-> [["FizzBuzz" "Fizz" "Fizz" "Fizz" "Fizz"] ["Buzz"] ["Buzz"]]
+      (nth (mod n 3))
+      (nth (mod n 5) n)))
+
+
+;; all in one solution
+(defn print-fizzbuzz [coll]
+  (let [fb (fn [n]
+             (-> [["FizzBuzz" "Buzz" "Buzz"]]
+                 (nth (mod n 5) ["Fizz"])
+                 (nth (mod n 3) n)))]
+    (doseq [x (map fb coll)]
+      (println x))))
+
+
+
+
 ;; Some implementers like to start at index 0, most start at 1.  For Clojure, it's natural
 ;; to start with 0.
 
