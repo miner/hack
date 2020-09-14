@@ -53,21 +53,53 @@
       (nth (mod n 5) ["Fizz"])
       (nth (mod n 3) n)))
 
-#_  ;; my older version
-(defn nfb0 [n]
-  (-> [["FizzBuzz" "Fizz" "Fizz" "Fizz" "Fizz"] ["Buzz"] ["Buzz"]]
-      (nth (mod n 3))
-      (nth (mod n 5) n)))
+
+
+;; from Tamas Szabo
+(defn fb-szabo [x]
+  (["FizzBuzz" x x "Fizz" x "Buzz" "Fizz" x x "Fizz" "Buzz" x "Fizz" x x]
+   (mod x 15)))
+
+;; slightly faster but OR is not allowed!
+(defn zorfb [n]
+  (or (["FizzBuzz" nil nil "Fizz" nil "Buzz" "Fizz" nil nil "Fizz" "Buzz" nil "Fizz" nil nil]
+       (mod n 15))
+      n))
+
+;; (nth [a]/nil 0 b)  is equivalent of (or a b) but a bit slower
+(def zfb-table [["FizzBuzz"] nil nil ["Fizz"] nil ["Buzz"] ["Fizz"] nil nil ["Fizz"] ["Buzz"]
+                nil ["Fizz"] nil nil])
+
+(defn zfb [n]
+  (nth (zfb-table (mod n 15)) 0 n))
+
+;; kind of silly to avoid OR but it works
+
+(defn slow-zmfb [n]
+  (get {0 "FizzBuzz" 3 "Fizz" 5 "Buzz" 6 "Fizz" 9 "Fizz" 10 "Buzz" 12 "Fizz"}
+       (mod n 15)
+       n))
+
+;; case is slightly slower than zorfb -- that surprizes me
+(defn cfb [n]
+  (case (int (mod n 15))
+    0 "FizzBuzz"
+    (3 6 9 12) "Fizz"
+    (5 10) "Buzz"
+    n))
+
+
+
+;; comments said to avoid and/or and doseq, not sure what to say about run! but it seems OK
 
 
 ;; all in one solution
-(defn print-fizzbuzz [coll]
+(defn pfizzbuzz [coll]
   (let [fb (fn [n]
              (-> [["FizzBuzz" "Buzz" "Buzz"]]
                  (nth (mod n 5) ["Fizz"])
                  (nth (mod n 3) n)))]
-    (doseq [x (map fb coll)]
-      (println x))))
+    (run! #(println (fb %)) coll)))
 
 
 
