@@ -71,9 +71,18 @@
 
 
 
+;;; SEM: But Eric does not have the correct dates for the seasons.
+
+;;; The 21st of the month is a better average day for the soltices.  These are better dates,
+;;; and make a more interesting problem.
+
+;; Start        End          North  South
+;; March 20     June 20      Spring Autumn
+;; June 21      September 22 Summer Winter
+;; September 23 December 20  Autumn Spring
+;; December 21  March 19     Winter Summer
 
 
-;;;; JUNK
 
 (def months [:january :february :march :april :may :june :july :august :september :october
              :november :december])
@@ -84,11 +93,62 @@
   (+ (* 100 (get month-indices month)) day))
 
 
-(def raw-season-data [[:march 1 :may 31 :spring :autumn]
-                      [:june 1 :august 31 :summer :winter]
-                      [:september 1 :november 30 :autumn :spring]
-                      [:december 1 :february 29 :winter :summer]])
-
+(def raw-season-data [[:march 20 :june 20 :spring :autumn]
+                      [:june 21 :september 22 :summer :winter]
+                      [:september 23 :december 20 :autumn :spring]
+                      [:december 21 :march 19 :winter :summer]])
 
 (defn between? [a b x]
   (<= a x b))
+
+
+(defn season [hemi month day]
+  (let [ind (date-index month day)]
+    (if (= hemi :south)
+      (cond (between? 101 319 ind) :summer
+            (between? 320 620 ind) :autumn
+            (between? 621 922 ind) :winter
+            (between? 923 1220 ind) :spring
+            (between? 1221 1231 ind) :summer)
+      (cond (between? 101 319 ind) :winter
+            (between? 320 620 ind) :spring
+            (between? 621 922 ind) :summer
+            (between? 923 1220 ind) :autumn
+            (between? 1221 1231 ind) :winter))))
+
+
+
+
+(defn season2 [hemi month day]
+  (let [ind (date-index month day)]
+    (if (= hemi :south)
+      (condp >= ind
+        319 :summer
+        620 :autumn
+        922 :winter
+        1220 :spring
+        :summer)
+      (condp >= ind
+        319 :winter
+        620 :spring
+        922 :summer
+        1220 :autumn
+        :winter))))
+
+
+(defn season3 [hemi month day]
+  (let [ind (date-index month day)]
+    (if (= hemi :south)
+      (condp <= ind
+        1221 :summer
+        923 :spring
+        621 :winter
+        320 :autumn
+        :summer)
+      (condp <= ind
+        1221 :winter
+        923 :autumn
+        621 :summer
+        320 :spring
+        :winter))))
+
