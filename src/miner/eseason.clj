@@ -87,10 +87,10 @@
 (def months [:january :february :march :april :may :june :july :august :september :october
              :november :december])
 
-(def month-indices (into {} (map-indexed #(vector %2 (inc %1)) months)))
+(def month-indices (into {} (map-indexed #(vector %2 (* 100 (inc %1))) months)))
 
 (defn date-index [month day]
-  (+ (* 100 (get month-indices month)) day))
+  (+ (get month-indices month) day))
 
 
 (def raw-season-data [[:march 20 :june 20 :spring :autumn]
