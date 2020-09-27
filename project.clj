@@ -5,10 +5,10 @@
                  [com.velisco/wilkins "0.2.1"]
                  [com.velisco/strgen "0.1.8"]
                  [org.clojure/math.combinatorics "0.1.6"]
-                 [org.clojure/data.int-map "0.2.4"]
+                 [org.clojure/data.int-map "1.0.0"]
                  [org.clojure/data.avl "0.1.0"]
-                 [org.clojure/core.rrb-vector "0.1.1"]
-                 [org.clojure/core.async "1.2.603"]
+                 [org.clojure/core.rrb-vector "0.1.2"]
+                 [org.clojure/core.async "1.3.610"]
                  [org.clojure/tools.macro "0.1.5"]
                  [org.clojure/data.priority-map "1.0.0"]
                  [com.datomic/datomic-free "0.9.5697"  :exclusions [joda-time]]
@@ -26,7 +26,7 @@
                  [backtick "0.3.4"]
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "0.3.12"]
-                 [com.clojure-goes-fast/clj-memory-meter "0.1.2"]
+                 [com.clojure-goes-fast/clj-memory-meter "0.1.3"]
                  [com.clojure-goes-fast/clj-java-decompiler "0.3.0"]
                  [metrics-clojure "2.10.0"]
                  [net.cgrand/xforms "0.19.2"]
@@ -48,7 +48,7 @@
                                    [org.clojure/clojure "1.7.0"]
                                    ]}
              :rebl {:dependencies [
-                                   [org.clojure/core.async "1.2.603"]
+                                   [org.clojure/core.async "1.3.610"]
                                    [REBL "0.9.220"]
                                    ]
                     :main cognitect.rebl}
