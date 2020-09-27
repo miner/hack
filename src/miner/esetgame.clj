@@ -13,7 +13,7 @@
 ;;
 ;; Three cards form a set if all of the properties are total matches or total mismatches.
 
-(def properties #{:color :number :shading :shape})
+(def properties [:color :number :shading :shape])
 
 (def colors #{:red :purple :green})
 
@@ -108,6 +108,7 @@
 
 
 
+
 ;; not fast, but not bad
 (defn card-set47? [cards]
   ;;{:pre [(= (count cards) 3) (every? legal-card? cards)]}
@@ -131,7 +132,7 @@
   (every? (fn [prop] (apply set3? prop cards))
           properties))
 
-;; not faster to let all
+;; not much faster to let all
 
 (defn pset3? [p a b c]
   (let [pa (p a)
@@ -217,4 +218,86 @@
                             {:color :red    :number 3 :shape :diamond :shading :lines}
                             {:color :purple :number 3 :shape :diamond :shading :empty}])))
    true))
+
+
+
+
+;; @kolstae, pretty but kind of slow
+(defn kolstae-set? [cs]
+    (every? #{1 3}
+            (for [k [:color :number :shape :shading]]
+              (count (distinct (map k cs))))))
+
+;; my version is no better
+(defn kolset? [cs]
+  (nil? (first (for [k [:color :number :shape :shading]
+                :when (even? (count (distinct (map k cs))))]
+              k))))
+
+
+
+(defn dset? [cards]
+  (nil? (into nil
+              (comp (map #(mapv % cards)) (map set) (map count) (remove odd?) (take 1))
+              properties)))
+
+
+
+;; nil?-into-nil is faster than empty?-sequence
+;; make that a new idiom! for not-any? with xform
+
+(defn card-set57? [cards]
+  ;;{:pre [(= (count cards) 3) (every? legal-card? cards)]}
+  (let [xcount (fn [prop]
+                 (transduce (map prop)
+                            (completing conj! count)
+                            (transient #{})
+                            cards))]
+  (nil? (into nil (comp (map xcount) (remove odd?)) properties))))
+
+;; faster with (take 1)
+(defn card-set58? [cards]
+  ;;{:pre [(= (count cards) 3) (every? legal-card? cards)]}
+  (let [xcount (fn [prop]
+                 (transduce (map prop)
+                            (completing conj! count)
+                            (transient #{})
+                            cards))]
+  (nil? (into nil (comp (map xcount) (remove odd?) (take 1)) properties))))
+
+
+(defn card-set59? [cards]
+  ;;{:pre [(= (count cards) 3) (every? legal-card? cards)]}
+  (let [xcount (fn [prop]
+                 (transduce (map prop)
+                            (completing conj! count)
+                            (transient #{})
+                            cards))
+        none? (fn  ([] nil)  ([r] (nil? r))  ([r x] false))]
+    (transduce (comp (map xcount) (remove odd?) (take 1))
+               none?
+               properties)))
+
+
+
+
+
+
+
+;; using internal transient is a bit faster, especially for lots of args
+(defn tdistinct?
+  "Returns true if no two of the arguments are ="
+  {:tag Boolean
+   :static true}
+  ([x] true)
+  ([x y] (not (= x y)))
+  ([x y & more]
+   (if (not= x y)
+     (loop [s (transient #{x y}) [x & etc :as xs] more]
+       (if xs
+         (if (contains? s x)
+           false
+           (recur (conj! s x) etc))
+         true))
+     false)))
 
