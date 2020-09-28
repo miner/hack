@@ -92,15 +92,17 @@
       (if-not move
         stack
         (let [passenger (:passenger move)
-              dir (:direction move)]
+              dir (:direction move)
+              boat-side (conj (dir state) :boat passenger)
+              new-state (-> state
+                            (assoc :after move)
+                            (update (opposite-dir dir) disj :boat passenger)
+                            (assoc dir boat-side)
+                            (assoc :possible-moves (legal-moves (opposite-dir dir) boat-side)))]
           (conj stack
                 (update state :possible-moves pop)
-                (let [boat-side (conj (dir state) :boat passenger)]
-                  (-> state
-                      (assoc :after move)
-                      (update (opposite-dir dir) disj :boat passenger)
-                      (assoc dir boat-side)
-                      (assoc :possible-moves (legal-moves (opposite-dir dir) boat-side))))))))))
+                new-state))))))
+
 
 
 
@@ -108,11 +110,11 @@
 (defn wsc []
   (loop [stack [{:return all :across #{} :after nil :possible-moves (legal-moves :across all)}]]
     (let [state (peek stack)]
-      (println state)
+      #_(println state)
       (cond (nil? state) nil
             (some #(= (:return state) %) (map :return (pop stack)))
-                (do (println "REPEAT") (recur (pop stack)))
-            (solution? state)  (into () (map :after) stack)
+                (do #_(println "REPEAT") (recur (pop stack)))
+            (solution? state)  (pop (into [] (map :after) (rseq stack)))
             ;; SEM FIXME don't need to check this
             (empty? (:possible-moves state))
                 (do (println "EMPTY MOVES") (recur (pop stack)))
