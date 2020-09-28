@@ -97,12 +97,13 @@
               new-state (-> state
                             (assoc :after move)
                             (update (opposite-dir dir) disj :boat passenger)
-                            (assoc dir boat-side)
-                            (assoc :possible-moves (legal-moves (opposite-dir dir) boat-side)))]
-          (conj stack
+                            (assoc dir boat-side))]
+          (if (some #(= (:return new-state) %) (map :return stack))
+            (conj stack (update state :possible-moves pop))
+            (conj stack
                 (update state :possible-moves pop)
-                new-state))))))
-
+                (assoc new-state :possible-moves
+                       (legal-moves (opposite-dir dir) boat-side)))))))))
 
 
 
@@ -114,8 +115,6 @@
     (let [state (peek stack)]
       #_(println state)
       (cond (nil? state) solutions
-            (some #(= (:return state) %) (map :return (pop stack)))
-                (do #_(println "REPEAT") (recur (pop stack) solutions))
             (solution? state)  (recur (pop stack)
                                       (conj solutions (pop (into [] (map :after) (rseq stack)))))
             :else (recur (execute-first-move state (pop stack)) solutions)))))
