@@ -108,16 +108,16 @@
 
 ;; Finds one solution and quits
 (defn wsc []
-  (loop [stack [{:return all :across #{} :after nil :possible-moves (legal-moves :across all)}]]
+  (loop [stack [{:return all :across #{} :after nil
+                 :possible-moves (legal-moves :across all)}]
+         solutions nil]
     (let [state (peek stack)]
       #_(println state)
-      (cond (nil? state) nil
+      (cond (nil? state) solutions
             (some #(= (:return state) %) (map :return (pop stack)))
-                (do #_(println "REPEAT") (recur (pop stack)))
-            (solution? state)  (pop (into [] (map :after) (rseq stack)))
-            ;; SEM FIXME don't need to check this
-            (empty? (:possible-moves state))
-                (do (println "EMPTY MOVES") (recur (pop stack)))
-            :else (recur (execute-first-move state (pop stack)))))))
+                (do #_(println "REPEAT") (recur (pop stack) solutions))
+            (solution? state)  (recur (pop stack)
+                                      (conj solutions (pop (into [] (map :after) (rseq stack)))))
+            :else (recur (execute-first-move state (pop stack)) solutions)))))
 
 
