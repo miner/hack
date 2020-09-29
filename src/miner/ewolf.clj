@@ -45,77 +45,70 @@
 
 (def opposite-dir {:across :return :return :across})
 
-;; two sides of river, same as direction for simplicity
+;; two sides of river, same names as direction for simplicity
 ;; everybody starts on the :return side and moves to the :across side
 ;; move {:direction :across/:return :passenger (one-of all)}
 
 ;; generic state
-;; {:return #{characters} :across #{characters} :after move :possible-moves (moves)}
+;;  {:return #{characters} :across #{characters} :after passenger :possible-passengers (remainers)}
 ;; initial {:return all :across #{}}
 ;; goal {:return #{} :across all}
 
+;; the state :after says who moved to get to this state (i.e. after this passenger arrived)
 
-;; SEM FIXME :direction is implied by where the :boat is so we don't really need to track it
-;; We can recreate as we store a solution.
 
-(defn illegal-side? [side]
+(defn illegal-group? [side]
   (and (:sheep side)
        (or (:wolf side)
            (:cabbage side))))
 
-(defn legal-passengers [boatside]
-  (remove (fn [passenger] (illegal-side? (disj boatside passenger))) boatside))
-
-
-;; SEM FIXME a move could simply be a passenger, calculate the direction from state
-
+(defn legal-passengers [boat-group]
+  (remove (fn [passenger] (illegal-group? (disj boat-group passenger))) boat-group))
 
 
 (defn solution? [state]
   (= all (:across state)))
 
+;; returns new stack with first move of state executed if possible.
+;; if no moves left, state is discarded
+;; if move creates a duplicated state (checking :return group), move is discarded
 (defn execute-first-move [state stack]
-  (if (> (count stack) 200)
-    (throw (ex-info "Stack overflow" {:stack stack}))
-    (let [possibles (:possible-passengers state)
-          passenger (first possibles)]
-      (if-not passenger
-        stack
-        (let [dir (if (:boat (:return state)) :across :return)
-              boat-side (conj (dir state) :boat passenger)
-              new-state (-> state
-                            (assoc :after passenger)
-                            (update (opposite-dir dir) disj :boat passenger)
-                            (assoc dir boat-side))]
-          (if (some #(= (:return new-state) %) (map :return stack))
-            (conj stack (update state :possible-passengers rest))
-            (conj stack
-                (update state :possible-passengers rest)
-                (assoc new-state :possible-passengers
-                       (legal-passengers boat-side)))))))))
+  #_ (when (> (count stack) 200) (throw (ex-info "Stack overflow" {:stack stack})))
+  (if-let [passenger (first (:possible-passengers state))]
+    (let [dir (if (:boat (:return state)) :across :return)
+          dest-group (conj (dir state) :boat passenger)
+          new-state (-> state
+                        (assoc :after passenger)
+                        (update (opposite-dir dir) disj :boat passenger)
+                        (assoc dir dest-group))
+          ret (:return new-state)]
+      (if (some #(= ret (:return %)) stack)
+        (conj stack (update state :possible-passengers rest))
+        (conj stack
+              (update state :possible-passengers rest)
+              (assoc new-state :possible-passengers
+                     (legal-passengers dest-group)))))
+    stack))
 
 (defn create-move [i state]
   {:direction (if (even? i) :across :return)
    :passenger (let [pass (:after state)] (when (not= pass :boat) pass))})
 
-;; Finds one solution and quits
+(defn create-solution [stack]
+  (pop (into [] (map-indexed create-move) (rseq stack))))
+
+;; returns list of solutions (vectors of moves)
 (defn wsc []
   (loop [stack [{:return all :across #{} :after nil
                  :possible-passengers (legal-passengers all)}]
          solutions nil]
-    (let [state (peek stack)]
-      #_(println state)
-      (cond (nil? state) solutions
-            (solution? state)  (recur (pop stack)
-                                      (conj solutions
-                                            (pop (into [] (map-indexed create-move)
-                                                       (rseq stack)))))
-            :else (recur (execute-first-move state (pop stack)) solutions)))))
+    (if-let [state (peek stack)]
+      (if (solution? state)
+        (recur (pop stack) (conj solutions (create-solution stack)))
+        (recur (execute-first-move state (pop stack)) solutions))
+      solutions)))
 
-
-
-
-
+;; returns new state if move is legal, otherwise nil
 (defn execute-move [state move]
   (when state
     (let [passenger (or (:passenger move) :boat)
@@ -124,7 +117,7 @@
           remainers (disj (boatside state) :boat passenger)]
       (when (and (= dest (:direction move))
                  (passenger (boatside state))
-                 (not (illegal-side? remainers)))
+                 (not (illegal-group? remainers)))
         (-> state
             (assoc boatside remainers)
             (update dest conj :boat passenger))))))
@@ -140,7 +133,7 @@
   (let [result (wsc)]
     (assert (= (count result) 2))
     (assert (every? wsc-valid? result))
-    #_ (assert (every? #{[{:direction :across, :passenger :sheep}
+    (assert (every? #{[{:direction :across, :passenger :sheep}
                        {:direction :return, :passenger nil}
                        {:direction :across, :passenger :cabbage}
                        {:direction :return, :passenger :sheep}
@@ -157,30 +150,3 @@
                     result)))
   true)
 
-
-
-;;; JUNK
-
-(comment
-  
-(defn state-legal-moves [state]
-  (let [start (:return state)
-        destination (:across state)
-        dir (if (:boat start) :across :return)
-        boatside (if (:boat start) start destination)]
-    (legal-moves dir boatside)))
-
-
-(defn illegal-state? [state]
-  (let [start (:return state)
-        destination (:across state)
-        non-boat (if (:boat start) destination start)]
-    (not-any? #(subset? % non-boat) eaters)))
-
-
-(defn subset? [sub super]
-  (every? super sub))
-
-(def eaters [#{:wolf :sheep} #{:sheep :cabbage}])
-
-)
