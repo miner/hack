@@ -96,7 +96,7 @@
 
 (defn create-move [i state]
   {:direction (if (even? i) :across :return)
-   :passenger (:after state)})
+   :passenger (let [pass (:after state)] (when (not= pass :boat) pass))})
 
 ;; Finds one solution and quits
 (defn wsc []
@@ -113,33 +113,49 @@
             :else (recur (execute-first-move state (pop stack)) solutions)))))
 
 
+
+
+
+(defn execute-move [state move]
+  (when state
+    (let [passenger (or (:passenger move) :boat)
+          boatside (if (:boat (:return state)) :return :across)
+          dest (opposite-dir boatside)
+          remainers (disj (boatside state) :boat passenger)]
+      (when (and (= dest (:direction move))
+                 (passenger (boatside state))
+                 (not (illegal-side? remainers)))
+        (-> state
+            (assoc boatside remainers)
+            (update dest conj :boat passenger))))))
+    
+
+(defn wsc-valid? [moves]
+  (and (= (map :direction moves) (take (count moves) (cycle [:across :return])))
+       (solution? (reduce execute-move {:return all :across #{}} moves))))
+
+
+
 (defn smoke-wsc []
   (let [result (wsc)]
     (assert (= (count result) 2))
-    (assert (every? #{[{:direction :across, :passenger :sheep}
-                       {:direction :return, :passenger :boat}
+    (assert (every? wsc-valid? result))
+    #_ (assert (every? #{[{:direction :across, :passenger :sheep}
+                       {:direction :return, :passenger nil}
                        {:direction :across, :passenger :cabbage}
                        {:direction :return, :passenger :sheep}
                        {:direction :across, :passenger :wolf}
-                       {:direction :return, :passenger :boat}
+                       {:direction :return, :passenger nil}
                        {:direction :across, :passenger :sheep}]
                       [{:direction :across, :passenger :sheep}
-                       {:direction :return, :passenger :boat}
+                       {:direction :return, :passenger nil}
                        {:direction :across, :passenger :wolf}
                        {:direction :return, :passenger :sheep}
                        {:direction :across, :passenger :cabbage}
-                       {:direction :return, :passenger :boat}
+                       {:direction :return, :passenger nil}
                        {:direction :across, :passenger :sheep}]}
                     result)))
   true)
-
-
-
-
-
-
-
-
 
 
 
