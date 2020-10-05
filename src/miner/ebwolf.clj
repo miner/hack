@@ -1,4 +1,5 @@
-(ns miner.ewolf)
+(ns miner.ebwolf
+  (:use miner.bitset))
 
 ;; https://gist.github.com/ericnormand/3bcffa74da2cad97fcbfb908e347bcde
 
@@ -44,10 +45,87 @@
 
 
 ;; Four characters:
+(def bits [:boat :sheep :wolf :cabbage])
+
+(def bi (merge {0 0 1 1 2 2 3 3} (zipmap bits (range))))
+
+(def fields [:return :across :possible-passengers :after])
+
+(def bf (merge {:null 0 0 0 1 4 2 8 3 12} (zipmap fields (iterate #(+ (count bits) %) 0))))
+
+
+
+;; case doesn't seem to be any faster than simple map
+(defn cbi [kcharacter]
+  (case kcharacter
+    :boat 0
+    :sheep 1
+    :wolf 2
+    :cabbage 3))
+
+(defn cbf [kfield]
+  (case kfield
+    :return 0
+    :across 4
+    :possible-passengers 8
+    :after 12))
+
+
+
+
+
+
+;; a macro that takes one or two kw and returns long index
+;; [macro expansion does calc at compile-time]
+(defmacro XXXfldind
+  (^long [kf] (if (keyword? kf) (bf kf) `(bf ~kf)))
+  (^long [kf kb]
+   (if (and (keyword? kf) (keyword? kb))
+     (+ (bf kf) (bi kb))
+     `(+ (bf ~kf) (bi ~kb)))))
+
+;; SEM FIXME  -- macros all the way down if you want to optimize offset calcs!!!
+;; let's see if we can get it working for now.
+;; SEM FIXME -- future idea is optimize macro that looks for constants and pre-calcs them
+
+
+
+;; SEM FIXME use regular function for now, more convenient
+(defn fldind
+  (^long [kf] (bf kf))
+  (^long [kf kb] (+ (bf kf) (bi kb))))
+
+
+
+(defn bit? [state kfield kbit]
+  (bit-test state (fldind kfield kbit)))
+
+(defn setbit [state kfield kbit]
+  (bit-set state (fldind kfield kbit)))
+
+(defn clrbit [state kfield kbit]
+  (bit-clear state (fldind kfield kbit)))
+
+(defn field [state kfield]
+  (bit-and 0xF (bit-shift-right state (fldind kfield))))
+
+(defn setfield [state kfield val]
+  (let [shift (fldind kfield)]
+    (bit-or (bit-and-not state (bit-shift-left 0xF shift))
+            (bit-shift-left val shift))))
+
+
+
 
 (def all #{:boat :sheep :wolf :cabbage})
 
 (def opposite-dir {:across :return :return :across})
+
+(defn boat-side [state]
+  (if (bit-test state 0)
+    :return
+    :across))
+
 
 ;; two sides of river, same names as direction for simplicity
 ;; everybody starts on the :return side and moves to the :across side
@@ -61,50 +139,57 @@
 ;; the state :after says who moved to get to this state (i.e. after this passenger arrived)
 
 
-(defn illegal-group? [side]
-  (and (:sheep side)
-       (or (:wolf side)
-           (:cabbage side))))
+(defn illegal-group? [group]
+  (and (bit? group :null :sheep)
+       (or (bit? group :null :wolf)
+           (bit? group :null :cabbage))))
 
 (defn legal-passengers [boat-group]
-  (remove (fn [passenger] (illegal-group? (disj boat-group passenger))) boat-group))
-
+  (reduce (fn [group pbit]
+            (if (illegal-group? (bit-clear boat-group pbit))
+              (bit-clear group pbit)
+              group))
+          boat-group
+          (bindices boat-group)))
 
 (defn solution? [state]
-  (= all (:across state)))
+  (= 0xF0 (bit-and 0xFF state)))
 
 ;; returns new stack with first move of state executed if possible.
 ;; if no moves left, state is discarded
 ;; if move creates a duplicated state (checking :return group), move is discarded
 (defn execute-first-move [state stack]
-  #_ (when (> (count stack) 200) (throw (ex-info "Stack overflow" {:stack stack})))
-  (if-let [passenger (first (:possible-passengers state))]
-    (let [dir (if (:boat (:return state)) :across :return)
-          dest-group (conj (dir state) :boat passenger)
+  (when (> (count stack) 200) (throw (ex-info "Stack overflow" {:stack stack})))
+  (if-let [passenger (high-bit-index (field state :possible-passengers))]
+    (let [boat-dir (boat-side state)
+          dir (opposite-dir boat-dir)
           new-state (-> state
-                        (assoc :after passenger)
-                        (update (opposite-dir dir) disj :boat passenger)
-                        (assoc dir dest-group))
-          ret (:return new-state)]
-      (if (some #(= ret (:return %)) stack)
-        (conj stack (update state :possible-passengers rest))
+                        (setfield :after (bit-shift-left 1 passenger))
+                        (clrbit boat-dir :boat)
+                        (bit-clear (+ (bf boat-dir) passenger))
+                        (setbit dir :boat)
+                        (bit-clear (+ (bf dir) passenger)))
+          ret (field new-state :return)]
+      (if (some #(= ret (field :return %)) stack)
+        (conj stack (clrbit state :possible-passengers passenger))
         (conj stack
-              (update state :possible-passengers rest)
-              (assoc new-state :possible-passengers
-                     (legal-passengers dest-group)))))
+              (clrbit state :possible-passengers passenger)
+              (setfield new-state :possible-passengers
+                        (legal-passengers (field new-state dir))))))
     stack))
 
 (defn create-move [i state]
   {:direction (if (even? i) :across :return)
-   :passenger (let [pass (:after state)] (when (not= pass :boat) pass))})
+   :passenger (let [pass (high-bit-index (field state :after))]
+                (when-not (zero? pass)
+                  (nth bits pass)))})
 
 (defn create-solution [stack]
   (pop (into [] (map-indexed create-move) (rseq stack))))
 
 ;; returns list of solutions (vectors of moves)
 (defn wsc []
-  (loop [stack [{:return all :across #{} :after nil
-                 :possible-passengers (legal-passengers all)}]
+  (loop [stack [(setfield 0xF :possible-passengers (legal-passengers 0xF))]
          solutions nil]
     (if-let [state (peek stack)]
       (if (solution? state)
@@ -116,20 +201,23 @@
 (defn execute-move [state move]
   (when state
     (let [passenger (or (:passenger move) :boat)
-          boatside (if (:boat (:return state)) :return :across)
+          boatside (boat-side state)
           dest (opposite-dir boatside)
-          remainers (disj (boatside state) :boat passenger)]
+          remainers (-> (field state boatside)
+                        (clrbit :null :boat)
+                        (clrbit :null passenger))]
       (when (and (= dest (:direction move))
-                 (passenger (boatside state))
+                 (bit? state boatside passenger)
                  (not (illegal-group? remainers)))
         (-> state
-            (assoc boatside remainers)
-            (update dest conj :boat passenger))))))
+            (setfield boatside remainers)
+            (clrbit dest :boat)
+            (clrbit dest passenger))))))
     
 
 (defn wsc-valid? [moves]
   (and (= (map :direction moves) (take (count moves) (cycle [:across :return])))
-       (solution? (reduce execute-move {:return all :across #{}} moves))))
+       (solution? (reduce execute-move 0xF moves))))
 
 
 
