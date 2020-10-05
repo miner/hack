@@ -53,7 +53,8 @@
 
 (def bf (merge {:null 0 0 0 1 4 2 8 3 12} (zipmap fields (iterate #(+ (count bits) %) 0))))
 
-
+(defn statestr [state]
+  (partition 4 (mapv #(if (bit-test state %) (nth '[b s w c] (mod % 4)) '_) (range 16))))
 
 ;; case doesn't seem to be any faster than simple map
 (defn cbi [kcharacter]
@@ -72,6 +73,10 @@
 
 
 
+
+;;; SEM FIXME :after is redundant -- it's always the "first" move of the previous state
+;;;  also good to avoid the pop in create-solution
+;;;  Applies to original solution as well.
 
 
 
@@ -153,7 +158,8 @@
           (bindices boat-group)))
 
 (defn solution? [state]
-  (= 0xF0 (bit-and 0xFF state)))
+  (and state
+       (= 0xF0 (bit-and 0xFF state))))
 
 ;; returns new stack with first move of state executed if possible.
 ;; if no moves left, state is discarded
@@ -168,9 +174,9 @@
                         (clrbit boat-dir :boat)
                         (bit-clear (+ (bf boat-dir) passenger))
                         (setbit dir :boat)
-                        (bit-clear (+ (bf dir) passenger)))
+                        (bit-set (+ (bf dir) passenger)))
           ret (field new-state :return)]
-      (if (some #(= ret (field :return %)) stack)
+      (if (some #(= ret (field % :return)) stack)
         (conj stack (clrbit state :possible-passengers passenger))
         (conj stack
               (clrbit state :possible-passengers passenger)
@@ -181,7 +187,7 @@
 (defn create-move [i state]
   {:direction (if (even? i) :across :return)
    :passenger (let [pass (high-bit-index (field state :after))]
-                (when-not (zero? pass)
+                (when (pos-int? pass)
                   (nth bits pass)))})
 
 (defn create-solution [stack]
@@ -191,6 +197,7 @@
 (defn wsc []
   (loop [stack [(setfield 0xF :possible-passengers (legal-passengers 0xF))]
          solutions nil]
+    ;;(println stack)
     (if-let [state (peek stack)]
       (if (solution? state)
         (recur (pop stack) (conj solutions (create-solution stack)))
@@ -211,9 +218,14 @@
                  (not (illegal-group? remainers)))
         (-> state
             (setfield boatside remainers)
-            (clrbit dest :boat)
-            (clrbit dest passenger))))))
-    
+            (setbit dest :boat)
+            (setbit dest passenger))))))
+
+(defn execute-move1 [state move]
+  (let [new-state (execute-move state move)]
+    (println move)
+    (println (statestr new-state))
+    new-state))
 
 (defn wsc-valid? [moves]
   (and (= (map :direction moves) (take (count moves) (cycle [:across :return])))
