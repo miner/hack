@@ -61,7 +61,6 @@
 (def cabbage 3)
 (def next-move 4)
 
-
 (def opposite-dir {:across :return :return :across})
 
 ;; two sides of river, same names as direction for simplicity
@@ -105,6 +104,93 @@
 
 ;; returns list of solutions (vectors of moves)
 (defn wsc []
+  (loop [stack [[false false false false 3]]
+         ;; SEM FIXME assumes initial state is not a solution
+         solutions nil]
+    (if-let [state (peek stack)]
+      (let [pass (peek state)]
+        (if (neg-int? pass)
+          (let [stack (pop stack)
+                top (peek stack)]
+            (if top
+              (recur (conj (pop stack) (update top next-move dec)) solutions)
+              solutions))
+
+          (let [new-state (when (= (state boat) (state pass))
+                            (-> state
+                                (update boat not)
+                                (assoc next-move cabbage)
+                                (cond-> (not= pass boat) (update pass not))))]
+            (cond (illegal-state? new-state)
+                      (recur (conj (pop stack) (update state next-move dec)) solutions )
+                  
+                  (some #(= (pop new-state) (pop %)) stack)
+                      (recur (conj (pop stack) (update state next-move dec)) solutions)
+
+                  (solution? new-state)
+                      (recur (conj (pop stack) (update state next-move dec))
+                             (conj solutions (create-solution stack)))
+
+                  :else (recur (conj stack new-state) solutions)))))
+      solutions)))
+
+
+
+
+
+(def pass-index {:sheep sheep
+                 :cabbage cabbage
+                 :wolf wolf})
+
+;; returns new state if move is legal, otherwise nil
+(defn execute-move [state move]
+  (let [pind (pass-index (:passenger move))
+        boat-side (if (across? state boat) :across :return)
+        pass-side (if pind (if (across? state pind) :across :return) boat-side)]
+    (when (and (= (:direction move) (opposite-dir boat-side))
+               (= boat-side pass-side))
+      (-> state
+          (update boat not)
+          (cond-> pind (update pind not))))))
+
+(defn wsc-valid? [moves]
+  (and (= (map :direction moves) (take (count moves) (cycle [:across :return])))
+       (solution? (reduce execute-move [false false false false] moves))))
+
+
+
+(defn smoke-wsc []
+  (let [result (wsc)]
+    (assert (= (count result) 2))
+    (assert (every? wsc-valid? result))
+    (assert (every? #{[{:direction :across, :passenger :sheep}
+                       {:direction :return, :passenger nil}
+                       {:direction :across, :passenger :cabbage}
+                       {:direction :return, :passenger :sheep}
+                       {:direction :across, :passenger :wolf}
+                       {:direction :return, :passenger nil}
+                       {:direction :across, :passenger :sheep}]
+                      [{:direction :across, :passenger :sheep}
+                       {:direction :return, :passenger nil}
+                       {:direction :across, :passenger :wolf}
+                       {:direction :return, :passenger :sheep}
+                       {:direction :across, :passenger :cabbage}
+                       {:direction :return, :passenger nil}
+                       {:direction :across, :passenger :sheep}]}
+                    result)))
+  true)
+
+
+
+
+
+
+
+
+
+
+
+(defn debuggin-wsc []
   (loop [stack [[false false false false 3]]
          ;; SEM FIXME assumes initial state is not a solution
          solutions nil
@@ -156,41 +242,3 @@
                   :else (recur (conj stack new-state)
                                solutions (dec ctr))))))
       solutions)))
-
-
-
-
-;; returns new state if move is legal, otherwise nil
-(defn execute-move [state move]
-  nil)
-
-
-(defn wsc-valid? [moves]
-  false)
-
-;;  (and (= (map :direction moves) (take (count moves) (cycle [:across :return])))
-;;       (solution? (reduce execute-move {:return all :across #{}} moves))))
-
-
-
-(defn smoke-wsc []
-  (let [result (wsc)]
-    (assert (= (count result) 2))
-    (assert (every? wsc-valid? result))
-    (assert (every? #{[{:direction :across, :passenger :sheep}
-                       {:direction :return, :passenger nil}
-                       {:direction :across, :passenger :cabbage}
-                       {:direction :return, :passenger :sheep}
-                       {:direction :across, :passenger :wolf}
-                       {:direction :return, :passenger nil}
-                       {:direction :across, :passenger :sheep}]
-                      [{:direction :across, :passenger :sheep}
-                       {:direction :return, :passenger nil}
-                       {:direction :across, :passenger :wolf}
-                       {:direction :return, :passenger :sheep}
-                       {:direction :across, :passenger :cabbage}
-                       {:direction :return, :passenger nil}
-                       {:direction :across, :passenger :sheep}]}
-                    result)))
-  true)
-
