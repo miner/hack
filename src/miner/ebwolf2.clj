@@ -124,7 +124,8 @@
 
 
 (defn solution? [state]
-  (= cmask (bit-and state cmask)))
+  (when state
+    (= cmask (bit-and state cmask))))
 
 (defn create-move [i state]
   {:direction (if (even? i) :across :return)
@@ -154,6 +155,7 @@
                                 (bit-and-not move-mask)
                                 (bit-or cabbage)
                                 (cond-> (not= pass boat) (bit-flip pass))))]
+                
             (cond (not (legal-state? new-state))
                       (recur (conj (pop stack) (dec state)) solutions)
                   
@@ -174,14 +176,15 @@
 
 ;; returns new state if move is legal, otherwise nil
 (defn execute-move [state move]
-  (let [pind (pass-index (:passenger move))
-        boat-side (if (across? state boat) :across :return)
-        pass-side (if pind (if (across? state pind) :across :return) boat-side)]
-    (when (and (= (:direction move) (opposite-dir boat-side))
-               (= boat-side pass-side))
-      (-> state
-          (bit-flip boat)
-          (cond-> pind (bit-flip pind))))))
+  (when state
+    (let [pind (pass-index (:passenger move))
+          boat-side (if (across? state boat) :across :return)
+          pass-side (if pind (if (across? state pind) :across :return) boat-side)]
+      (when (and (= (:direction move) (opposite-dir boat-side))
+                 (= boat-side pass-side))
+        (-> state
+            (bit-flip boat)
+            (cond-> pind (bit-flip pind)))))))
 
 (defn wsc-valid? [moves]
   (and (= (map :direction moves) (take (count moves) (cycle [:across :return])))
