@@ -1,4 +1,4 @@
-(defproject hack "0.2.92-SNAPSHOT" 
+(defproject hack "0.2.93-SNAPSHOT" 
   :min-lein-version "2.0.0"
   :dependencies [
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
@@ -60,3 +60,4 @@
   ;; :bootclasspath true
   ;; :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   )
+

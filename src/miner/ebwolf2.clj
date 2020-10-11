@@ -54,9 +54,16 @@
 ;; that should make it easy to reverse last move
 
 ;;; NEW NEW IDEA:  bits in a long instead of a vector
-;;; next-move is lower 2 bits
+;;; next-move is lower 3 bits
 
-;; Four characters:
+;; There are only 16 states so they fit in a long easily.
+
+;; Four characters by bit index
+;; CWSBpas
+;; pas = 3 bits for index of passenger (bit to flip)
+
+
+
 
 (def boat 3)
 (def sheep 4)
@@ -87,9 +94,12 @@
                    (bs/bindices (bit-xor cmask (bit-and-not state move-mask))))
              (keep (fn [i] (nth '[nil nil nil B S W C] i nil))
                    (bs/bindices (bit-and state cmask)))
-             :next (nth '[nil nil nil B S W C] (bit-and state move-mask))))))
+             :next (nth '[nil nil nil B S W C] (bit-and state move-mask))
+             :raw state))))
 
 
+
+;; useful for testing
 (defn illegal-state? [state]
   (cond (not state) true
         (across? state boat)   (and (return? state sheep)
@@ -98,6 +108,20 @@
         :else    (and (across? state sheep)
                       (or (across? state wolf)
                           (across? state cabbage)))))
+
+#_
+(for [x (range 16) :let [st (bit-shift-left x 3)] :when (not (illegal-state? st))] st)
+
+
+;; compact representation derived from above calculation
+(defn legal-state? [state]
+  (when state
+    (case (bit-and cmask state)
+      (0 16 24 32 56 64 88 96 104 120) true
+      false)))
+
+
+
 
 (defn solution? [state]
   (= cmask (bit-and state cmask)))
@@ -109,10 +133,11 @@
 (defn create-solution [stack]
   (into [] (map-indexed create-move) (rseq stack)))
 
+
+;; SEM: assumes initial state is not a solution. "It is known."
 ;; returns list of solutions (vectors of moves)
 (defn wsc []
   (loop [stack [cabbage]
-         ;; SEM FIXME assumes initial state is not a solution
          solutions nil]
     (if-let [state (peek stack)]
       (let [pass (bit-and move-mask state)]
@@ -129,7 +154,7 @@
                                 (bit-and-not move-mask)
                                 (bit-or cabbage)
                                 (cond-> (not= pass boat) (bit-flip pass))))]
-            (cond (illegal-state? new-state)
+            (cond (not (legal-state? new-state))
                       (recur (conj (pop stack) (dec state)) solutions)
                   
                   (some #(= (bit-and-not new-state move-mask) (bit-and-not % move-mask)) stack)
