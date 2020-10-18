@@ -8,6 +8,24 @@
 ;; no 9), then just return nil.
 
 
+
+;; fast with bits, pretty simple, but somewhat clever to use bits as a set
+(defn digit-search [coll]
+  ;; digs starts as 10 bits corresponding to 0-9 chars
+  (loop [coll coll digs (bit-shift-left 1023 (long \0))]
+    (when-first [i coll]
+      (let [digs (long (reduce (fn [bits ch] (bit-clear bits (long ch))) digs (str i)))]
+        (if (zero? digs)
+          i
+          (recur (rest coll) digs))))))
+
+
+
+
+
+
+
+
 (defn char->digit [^Character ch]
   (- (long ch) (long \0)))
 
@@ -21,6 +39,8 @@
         (if (empty? digs2)
           i
           (recur (rest coll) digs2))))))
+
+;; actually better to use transients, see farther below
 
 (defn reddigs [coll]
   (let [result (reduce (fn [res i]
@@ -43,10 +63,11 @@
           (recur (rest coll) digs))))))
 
 ;; zero count is slightly faster than empty? but perhaps not worth it
+;; transients are somewhat faster
 (defn dsearch [coll]
-  (loop [coll coll digs #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9}]
+  (loop [coll coll digs (transient #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})]
     (when-first [i coll]
-      (let [digs (reduce disj digs (str i))]
+      (let [digs (reduce disj! digs (str i))]
         (if (zero? (count digs))
           i
           (recur (rest coll) digs))))))
@@ -81,16 +102,6 @@
           (recur (rest coll) digs))))))
 
 #_ (assert (< (long \0) (long \9) 64))
-
-;; fast with bits, pretty simple, but somewhat clever to use bits as a set
-(defn digit-search [coll]
-  ;; digs starts as 10 bits corresponding to 0-9 chars
-  (loop [coll coll digs (bit-shift-left 1023 (long \0))]
-    (when-first [i coll]
-      (let [digs (long (reduce (fn [bits ch] (bit-clear bits (long ch))) digs (str i)))]
-        (if (zero? digs)
-          i
-          (recur (rest coll) digs))))))
 
 
 ;; maybe fastest so far, but not pretty
@@ -179,6 +190,83 @@
         i (transduce (map #(->> (.indexOf s (int %)) (.lastIndexOf s " "))) max -1 ds)]
     (read-string {:eof nil} (subs s (inc i)))))
 
+;; branchless
+(defn cgrand2 [nums]
+  (nth nums (->> nums
+                 (map-indexed (fn [i n] (zipmap (str n) (repeat i))))
+                 (reduce #(into %2 %1) {})
+                 vals
+                 (cons Integer/MAX_VALUE)
+                 (take-last 10)
+                 (reduce max))
+       nil))
+
+
+
+
+(defn mchampine [nums]
+  (ffirst (filter #(= 10 (count (second %)))
+                  (zipmap nums (rest (reductions #(into %1 (str %2)) #{} nums))))))
+
+
+(defn mchampine2 [ns]
+  (get ns (count (take-while #(< (count %) 10) (rest (reductions #(into %1 (str %2)) #{}
+                                                                 ns))))))
+
+
+(defn mc3 [nums]
+  (nth nums
+       (count (take-while #(pos? (count %))
+                          (rest (reductions #(reduce disj! %1 (str %2))
+                                            (transient #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
+                                            nums))))
+       nil))
+
+
+
+(defn mc32 [nums]
+  (let [n (first (keep-indexed #(when (zero? (count %2)) %)
+                          (rest (reductions #(reduce disj! %1 (str %2))
+                                            (transient #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
+                                            nums))))]
+    (when n
+      (nth nums n nil))))
+
+
+
+
+(defn mc4 [nums]
+  (first (mapcat (fn [i digs] (when (zero? (count digs)) (list i)))
+                 nums
+                 (rest (reductions #(reduce disj! %1 (str %2))
+                                   (transient #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
+                                   nums)))))
+
+
+
+
+;; fastest mc
+(defn mc5 [nums]
+  (loop [results (rest (reductions #(reduce disj %1 (str %2))
+                                   #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9}
+                                   nums))
+         nums nums]
+    (when-first [digs results]
+      (if (zero? (count digs))
+        (first nums)
+        (recur (rest results) (rest nums))))))
+
+
+
+(defn mc6 [nums]
+  (first (remove nil? (map (fn [n digs] (when (empty? digs) n))
+                           nums
+                           (rest (reductions #(reduce disj %1 (seq (str %2)))
+                                             #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9}
+                                             nums))))))
+
+
+
 
 
 
@@ -209,13 +297,15 @@
           (conj (vec xs) nil)))
 
 
-(defn zelark41 [xs]
+;; assuming vnums is already a vector
+(defn zelark41 [vnums]
+  {:pre [(vector? vnums)]}
   (reduce (fn [acc x]
             (when x
-              (let [acc (reduce disj acc (str x))]
+              (let [acc (reduce disj! acc (str x))]
                 (if (zero? (count acc)) (reduced x) acc))))
-          #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9}
-          (conj xs nil)))
+          (transient #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
+          (conj vnums nil)))
 
 
 ;; not faster
@@ -230,3 +320,34 @@
           #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9}
           xv)))
 
+
+
+(defn ds-vector [vnums]
+  {:pre [(vector? vnums)]}
+  (reduce (fn [digs n]
+            (let [digs (when n (reduce disj! digs (str n)))]
+              (if (zero? (count digs)) (reduced n) digs)))
+          (transient #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
+          (conj vnums nil)))
+
+
+(defn dsv2 [vnums]
+  {:pre [(vector? vnums)]}
+  (reduce (fn [digs n]
+            (let [digs (when n (reduce disj! digs (str n)))]
+              (if (zero? (count digs)) (reduced n) digs)))
+          (transient #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
+          (conj vnums nil)))
+
+
+(defn tsv2 [vnums]
+  {:pre [(vector? vnums)]}
+  (transduce
+   identity
+   (completing
+    (fn [digs n]
+      (let [digs (reduce disj! digs (str n))]
+        (if (zero? (count digs)) (reduced n) digs)))
+    #(when (number? %) %))
+    (transient #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
+    vnums))
