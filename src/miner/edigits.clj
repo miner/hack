@@ -340,8 +340,8 @@
           (conj vnums nil)))
 
 
+;; faster than reduce version???
 (defn tsv2 [vnums]
-  {:pre [(vector? vnums)]}
   (transduce
    identity
    (completing
