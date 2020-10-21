@@ -340,7 +340,7 @@
           (conj vnums nil)))
 
 
-;; faster than reduce version???
+;; maybe faster than dsv2 but close
 (defn tsv2 [vnums]
   (transduce
    identity
