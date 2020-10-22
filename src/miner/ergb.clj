@@ -131,6 +131,27 @@
 
 
 
+
+(defn map! [f tv]
+  (reduce #(assoc! % %2 (inc (nth % %2))) tv (range (count tv))))
+
+(defn update!
+  ([tv i f] (assoc! tv i (f (nth tv i))))
+  ([tv i f x] (assoc! tv i (f (nth tv i) x)))
+  ([tv i f x y] (assoc! tv i (f (nth tv i) x y)))
+  ([tv i f x y z] (assoc! tv i (f (nth tv i) x y z)))
+  ([tv i f x y & more] (apply assoc! tv i (f (nth tv i) x y more))))
+
+(defn reduce! [rf init tv]
+  (reduce #(rf % (nth tv %2)) init (range (count tv))))
+
+
+
+
+
+
+
+
 (defn reduce-nth [rf init coll]
   (let [initial (transient (vec init))
         cnt (count initial)

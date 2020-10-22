@@ -54,17 +54,22 @@
 ;; maybe dangerous?
 
 #_
-(extend-protocol clojure.core.protocols/IKVReduce
-  java.lang.String
-  (kv-reduce [^String s f init]
-    (let [cnt (.length s)]
-      (loop [i 0 res init]
-        (if (< i cnt)
-          (let [ret (f res i (.charAt s i))]
-            (if (reduced? ret)
-              @ret
-              (recur (inc i) ret)))
-          res)))))
+(if (satisfies? clojure.core.protocols/IKVReduce "foobar")
+  (throw (ex-info
+          "Surprise: someone added IKVReduce support for String.  Skipping my implementation."
+          {::surprise :IKVReduce }))
+  (extend-protocol clojure.core.protocols/IKVReduce
+    java.lang.String
+    (kv-reduce [^String s f init]
+      (let [cnt (.length s)]
+        (loop [i 0 res init]
+          (if (< i cnt)
+            (let [ret (f res i (.charAt s i))]
+              (if (reduced? ret)
+                @ret
+                (recur (unchecked-inc i) ret)))
+            res))))))
+
 
 
 ;; Unfinished ideas about making String reversible.  Really want rseq to work, but would
