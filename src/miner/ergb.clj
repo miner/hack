@@ -133,21 +133,43 @@
 
 
 (defn map! [f tv]
-  (reduce #(assoc! % %2 (inc (nth % %2))) tv (range (count tv))))
+  (reduce #(assoc! % %2 (f (nth % %2))) tv (range (count tv))))
+
+(defn copy-vec [tv]
+  (reduce #(conj % (nth tv %2)) [] (range (count tv))))
 
 (defn update!
   ([tv i f] (assoc! tv i (f (nth tv i))))
   ([tv i f x] (assoc! tv i (f (nth tv i) x)))
   ([tv i f x y] (assoc! tv i (f (nth tv i) x y)))
   ([tv i f x y z] (assoc! tv i (f (nth tv i) x y z)))
-  ([tv i f x y & more] (apply assoc! tv i (f (nth tv i) x y more))))
+  ([tv i f x y z & more] (apply assoc! tv i (f (nth tv i) x y z more))))
 
 (defn reduce! [rf init tv]
   (reduce #(rf % (nth tv %2)) init (range (count tv))))
 
 
+(defn reduce-nth! [rf tinit coll]
+  (let [cnt (count tinit)
+        ilast (dec cnt)]
+    (if-not (pos-int? cnt)
+      tinit
+      (loop [tresult tinit coll (seq coll) i 0]
+        (if (seq coll)
+          (recur (assoc! tresult i (rf (nth tresult i) (first coll)))
+                 (rest coll)
+                 (if (= i ilast) 0 (inc i)))
+          tresult)))))
 
-
+;; only slightly faster using all the transients compared to rgb92
+(defn rgb93 [rgbs]
+  (let [cnt (count rgbs)
+        cs  (->> rgbs
+                (mapcat #(map (fn [i] (subs % i (+ i 2))) [1 3 5]))
+                (map #(Integer/parseInt % 16)))
+        tsums (reduce-nth! + (transient [0 0 0]) cs)
+        tres (map! #(quot % cnt) tsums)]
+    (format "#%02X%02X%02X" (nth tres 0) (nth tres 1) (nth tres 2))))
 
 
 

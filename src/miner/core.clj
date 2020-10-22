@@ -60,6 +60,7 @@
 ;; it is not actually destructive.  However, the bang pattern for transient transformation
 ;; holds so that's what I call it.
 
+;; Warning: untested code.  Maybe typos.
 
 (defn peek! [tv]
   (nth tv (dec (count tranv))))
@@ -68,7 +69,7 @@
 (defn empty?! [tv] (zero? (count tv)))
 
 (defn map! [f tv]
-  (reduce #(assoc! % %2 (inc (nth % %2))) tv (range (count tv))))
+  (reduce #(assoc! % %2 (f (nth % %2))) tv (range (count tv))))
 
 ;; See CLJ-1848.  Full patch should handle arities as real update does, but call assoc!
 (defn update!
@@ -76,12 +77,27 @@
   ([tv i f x] (assoc! tv i (f (nth tv i) x)))
   ([tv i f x y] (assoc! tv i (f (nth tv i) x y)))
   ([tv i f x y z] (assoc! tv i (f (nth tv i) x y z)))
-  ([tv i f x y & more] (apply assoc! tv i (f (nth tv i) x y more))))
+  ([tv i f x y z & more] (apply assoc! tv i (f (nth tv i) x y z more))))
 
 (defn reduce! [rf init tv]
   (reduce #(rf % (nth tv %2)) init (range (count tv))))
 
+;; Warning: maybe a bridge too far.  Think of it as interleaved reduce.  The `tinit` should
+;; be a transient vector, whose count indicates how many lanes of reductions.  For example,
+;; if there's three elements in tinit, every third item in collection goes into each lane.
+;; Note: result is still transient!
 
+(defn reduce-nth! [rf tinit coll]
+  (let [cnt (count tinit)
+        ilast (dec cnt)]
+    (if-not (pos-int? cnt)
+      tinit
+      (loop [tresult tinit coll (seq coll) i 0]
+        (if (seq coll)
+          (recur (assoc! tresult i (rf (nth tresult i) (first coll)))
+                 (rest coll)
+                 (if (= i ilast) 0 (inc i)))
+          tresult)))))
 
 
 ;; SEM need a whole file of transient work-arounds!
