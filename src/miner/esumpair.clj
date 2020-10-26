@@ -6,27 +6,31 @@
 
 ;; Write a function that takes a collection of numbers and a target number. Return all pairs
 ;; of numbers found in the collection that sum up to the target number.  There can be
-;; duplicate numbers and hence duplicate pairs.
-;; Each pair should be sorted.
+;; duplicate numbers and hence duplicate pairs. Each pair should be sorted.
 
 
 ;; Note: mc/combinations doesn't reuse duplicate items so you need to generate the indices
-;; to be unique.
+;; to be unique.  As we only need a pair of indices, the `for` expr is a natural way to go.
 
-;; we only need index pairs so we can simplify and use a transducer chain
 
-;; fastest
+;; clean and simple.  I think it's faster to sort coll first, rather than each result.
 (defn sums-of-pairs [coll sum]
   (let [vvv (vec (sort coll))
         cnt (count vvv)]
-    (into [] (comp (map vector)
-                   (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))))
-                   (keep (fn [[i j]] (when (= sum (+ (vvv i) (vvv j)))
-                                       (vector (vvv i) (vvv j))))))
+    (for [i (range cnt)
+          j (range (inc i) cnt)
+          :when (= sum (+ (vvv i) (vvv j)))]
+      [(vvv i) (vvv j)])))
+
+
+;; slightly faster, but more obscure
+(defn fast-sums-of-pairs [coll sum]
+  (let [vvv (vec (sort coll))
+        cnt (count vvv)]
+    (into [] (mapcat (fn [i] (keep (fn [j] (when (= sum (+ (vvv i) (vvv j)))
+                                             (vector (vvv i) (vvv j))))
+                                   (range (inc i) cnt))))
           (range cnt))))
-
-
-
 
 
 
@@ -55,6 +59,7 @@
                         (vector (vvv i) (vvv j))))
           (combo-indices (count vvv) 2))))
 
+;; we only need index pairs so we can simplify and use a transducer chain
 
 ;; specialized version of combo-indices for exactly 2
 (defn indices2 [cnt]
