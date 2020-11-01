@@ -192,7 +192,7 @@
 
 
 
-;; BEST SO FAR
+;; BEST SO FAR -- icombos is much faster
 (defn sem-choose [cnt choose]
  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
  (loop [i (dec choose) res (mapv vector (range cnt))]
