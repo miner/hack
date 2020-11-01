@@ -72,14 +72,43 @@
 ;; errors in examples
 ;; should sort results so [0 5] comes before [2 3]
 ;; third example should return [2 5] as well
+;; Order of results is ambigous.  I think they should be sorted as well but others don't.
 
 (defn smoke-sum
   ([] (smoke-sum sums-of-pairs))
   ([sums-of-pairs]
    (assert (= (sums-of-pairs [2 4 5 6] 8) [[2 6]]))
-   (assert (= (sums-of-pairs [3 2 0 1 1 5] 5) [[0 5] [2 3]]))
-   (assert (= (sums-of-pairs [1 3 2 3 4 5] 7) [[2 5] [3 4] [3 4]]))
+   (assert (let [res (sums-of-pairs [3 2 0 1 1 5] 5)]
+             (or (= res [[0 5] [2 3]])
+                 (= res [[2 3] [0 5]]))))
+   (assert (let [res (sums-of-pairs [1 3 2 3 4 5] 7)]
+             (or (= res [[2 5] [3 4] [3 4]])
+                 (= res [[3 4] [2 5] [3 4]]))))
    true))
 
+
+
+;;; others for testing
+(defn westcott [ns sum]
+  (for [[x & ys] (take (count ns) (iterate rest ns))
+        y ys
+        :when (= sum (+ x y))]
+    (sort [x y])))
+
+;; I prefer sorting up front.  Also a bit faster.  One less time through loop.
+(defn westcott2 [ns sum]
+  (let [ns (sort ns)]
+    (for [[x & ys] (take (dec (count ns)) (iterate rest ns))
+          y ys
+          :when (= sum (+ x y))]
+      [x y])))
+
+
+(defn westcott3 [ns sum]
+  (let [ns (sort ns)]
+    (for [[x ] (take (dec (count ns)) (iterate rest ns))
+          y 
+          :when (= sum (+ x y))]
+      [x y])))
 
 
