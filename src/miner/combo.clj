@@ -321,6 +321,50 @@
 
 
 
+;; SEM failed idea: macro that generates appropriate for loop but won't work for general
+;; case where rn and choose are calculated at runtime.  Fail!
+
+
+
+(defn icombos [cnt choose]
+  #_ {:pre [(pos-int? choose) (>= cnt choose)]}
+  (loop [res (map vector (range cnt))]
+    (if (= (count (first res)) choose)
+      res
+      (recur (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))) res)))))
+
+;; cannot use transients because we need persistent prev (multiple additions)
+
+(defn fact [n]
+  (reduce * (range 2 (inc n))))
+
+;; The formula for number of combinations is generally n! / (r! (n - r)!), where n is the total
+;; number of possibilities to start and r is the number of selections made.
+(defn count-combos-classic [cnt choose]
+  (quot (fact cnt) (* (fact choose) (fact (- cnt choose)))))
+
+;; slightly faster
+(defn count-combos [cnt choose]
+  (quot (reduce * (range (inc choose) (inc cnt)))
+        (reduce * (range 2 (inc (- cnt choose))))))
+
+
+;;; icombos is faster and prettier
+(defn kcombos [cnt choose]
+  (let [start (vec (range choose))
+        final (vec (range (- cnt choose) cnt))
+        kinc (fn [vvv]
+               (loop [vvv vvv i (dec choose)]
+                 (when-not (neg? i)
+                   (if (= (vvv i) (final i))
+                     (recur vvv (dec i))
+                     (reduce (fn [v j] (assoc v j (inc (v (dec j)))))
+                             (update vvv i inc)
+                             (range (inc i) choose))))))]
+    (into [] (take-while some?) (iterate kinc start))))
+
+
+
 
 ;;;;;; JUNK
 
