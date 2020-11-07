@@ -192,7 +192,7 @@
 
 
 
-;; BEST SO FAR -- icombos is much faster
+;; index-combos is much faster
 (defn sem-choose [cnt choose]
  ;; {:pre [(pos-int? choose) (<= choose cnt)]}
  (loop [i (dec choose) res (mapv vector (range cnt))]
@@ -332,6 +332,19 @@
     (if (= (count (first res)) choose)
       res
       (recur (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))) res)))))
+
+
+;; SEM -- my best and faster version (but several others are basically the same)
+(defn index-combos [cnt choose]
+  (when (and (pos-int? choose) (>= cnt choose))
+    (loop [res (map vector (range cnt)) j (dec choose)]
+      (if (zero? j)
+        res
+        (recur (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))) res)
+               (dec j))))))
+
+
+
 
 ;; cannot use transients because we need persistent prev (multiple additions)
 
