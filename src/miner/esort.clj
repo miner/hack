@@ -9,6 +9,8 @@
 ;;; but numbers sort before sequences when the number is the same as the first element.
 
 
+;;; Original submission had bug -- infinite loop on multiple equal sequences.  Fixed with
+;;; empty? tests.
 
 ;; actually faster to use number? vs not coll?
 (defn sort-by-content [xs]
@@ -20,31 +22,90 @@
                            b1? (if (< (first a) b) -1 1)
                            :else (loop [a (seq a) b (seq b)]
                                    (let [c (compare (first a) (first b))]
-                                     (if-not (zero? c)
-                                       c
-                                       (recur (rest a) (rest b))))))))]
+                                     (cond (not (zero? c)) c
+                                           (and (empty? a) (empty? b)) 0
+                                           :else (recur (rest a) (rest b))))))))]
     (sort icompare xs)))
 
 
 
-;; originally submitted but changed to use number?
-(defn submitted-sort-by-content [xs]
+
+
+
+
+;;; assumes vec
+(defn scp [xs]
   (let [icompare (fn [a b]
-                   (let [a1? (not (coll? a))
-                         b1? (not (coll? b))]
+                   (let [a1? (number? a)
+                         b1? (number? b)]
                      (cond (and a1? b1?) (compare a b)
                            a1? (if (<= a (first b)) -1 1)
                            b1? (if (< (first a) b) -1 1)
-                           :else (loop [a (seq a) b (seq b)]
-                                   (let [c (compare (first a) (first b))]
-                                     (if-not (zero? c)
-                                       c
-                                       (recur (rest a) (rest b))))))))]
+                           :else (let [acnt (count a)
+                                       bcnt (count b)
+                                       pad (max acnt bcnt)
+                                       a (if (= acnt pad)
+                                           a
+                                           (into a (take (- pad acnt)) (repeat nil)))
+                                       b (if (= bcnt pad)
+                                           b
+                                           (into b (take (- pad bcnt)) (repeat nil)))]
+                                   (compare a b)))))]
     (sort icompare xs)))
 
 
+(defn scp4 [xs]
+  (let [pcnt (reduce (fn [m x] (if (coll? x) (let [cnt (count x)] (if (> cnt m) cnt m)) m))
+                     1
+                     xs)
+        pad (fn [x] (cond (vector? x) (into x (take (- pcnt (count x))) (repeat nil))
+                          (coll? x) (concat x (repeat (- pcnt (count x)) nil))
+                          :else x))
+        icompare (fn [a b]
+                   (let [a1? (number? a)
+                         b1? (number? b)]
+                     (cond (and a1? b1?) (compare a b)
+                           a1? (if (<= a (first b)) -1 1)
+                           b1? (if (< (first a) b) -1 1)
+                           :else (compare a b))))]
+    (sort-by pad icompare xs)))
 
 
+
+(defn scp3 [xs]
+  (let [icompare (fn [a b]
+                   (let [a1? (number? a)
+                         b1? (number? b)]
+                     (cond (and a1? b1?) (compare a b)
+                           a1? (if (<= a (first b)) -1 1)
+                           b1? (if (< (first a) b) -1 1)
+                           :else (let [acnt (count a)
+                                       bcnt (count b)
+                                       pad (max acnt bcnt)
+                                       ap (if (= acnt pad)
+                                           a
+                                           (into (vec a) (take (- pad acnt)) (repeat nil)))
+                                       bp (if (= bcnt pad)
+                                           b
+                                           (into (vec b) (take (- pad bcnt)) (repeat nil)))]
+                                   (compare ap bp)))))]
+    (sort icompare xs)))
+
+
+(defn scp2 [xs]
+  (let [icompare (fn [a b]
+                   (let [a1? (number? a)
+                         b1? (number? b)]
+                     (cond (and a1? b1?) (compare a b)
+                           a1? (if (<= a (first b)) -1 1)
+                           b1? (if (< (first a) b) -1 1)
+                           :else (let [acnt (count a)
+                                       bcnt (count b)
+                                       pad (max acnt bcnt)
+                                       a (into a (take (- pad acnt)) (repeat  nil))
+                                       b (into b (take (- pad bcnt)) (repeat  nil))]
+                                   (compare a b)))))]
+    (sort icompare xs)))
 
 
 (defn scw [xs]
@@ -63,61 +124,49 @@
                        (concat x (list Long/MIN_VALUE Long/MIN_VALUE))))]
     (sort-by wrap icomp xs)))
 
+(defn scw2 [xs]
+  (let [icomp (fn [a b]
+                (loop [a (seq a) b (seq b)]
+                  (let [a1 (first a)
+                        b1 (first b)
+                        c (compare a1 b1)]
+                    (if (zero? c)
+                      (if (and (empty? a) (empty? b))
+                        0
+                        (recur (rest a) (rest b)))
+                      c))))
+        wrap (fn [x] (if (number? x)
+                       (list x)
+                       (concat x (list Long/MIN_VALUE))))]
+    (sort-by wrap icomp xs)))
+
+
+;; a bit faster if you assume vectors, but still not even close to my favorite
+(defn scw3 [xs]
+  (let [icomp (fn [a b]
+                (loop [a (seq a) b (seq b)]
+                  (let [a1 (first a)
+                        b1 (first b)
+                        c (compare a1 b1)]
+                    (if (zero? c)
+                      (if (and (empty? a) (empty? b))
+                        0
+                        (recur (rest a) (rest b)))
+                      c))))
+        wrap (fn [x] (if (vector? x)
+                       (conj x Long/MIN_VALUE)
+                       (vector x)))]
+    (sort-by wrap icomp xs)))
+
 
 
 ;;; lots of variations but not better or faster
+;;; many had the infinite loop bug so I deleted them
 
 
-(defn icompare2 [a b]
-  (cond (and (coll? a) (coll? b)) (let [c (compare (first a) (first b))]
-                                    (if (zero? c) (recur (rest a) (rest b)) c))
-        (coll? a) (if (< (first a) b) -1 1)
-        (coll? b) (if (<= a (first b)) -1 1)
-        :else (compare a b)))
-
-
-
-(defn icomp [a b]
-  (let [as? (coll? a)
-        bs? (coll? b)]
-    (if (and as? bs?)
-      (loop [a (seq a) b (seq b)]
-        (let [c (compare (first a) (first b))]
-          (if-not (zero? c)
-            c
-            (recur (rest a) (rest b)))))
-      (cond as? (if (< (first a) b) -1 1)
-            bs? (if (<= a (first b)) -1 1)
-            :else (compare a b)))))
-
-(defn sbyi [xs]
-  (sort icomp xs))
-
-
-
-
-(defn icmp [a b]
-  (let [a1? (not (coll? a))
-        b1? (not (coll? b))]
-    (cond (and a1? b1?) (compare a b)
-          a1? (if (<= a (first b)) -1 1)
-          b1? (if (< (first a) b) -1 1)
-          :else (loop [a (seq a) b (seq b)]
-                  (let [c (compare (first a) (first b))]
-                    (if-not (zero? c)
-                      c
-                      (recur (rest a) (rest b))))))))
-
-(defn sbyz [xs]
-  (sort icmp xs))
-
-
-
-
-
-
-
-
+;; Issue: built-in compare checks size of vectors first, then does element by element
+;; compare.  That forces us to pad appropriately if we want to use standard compare.  But
+;; it's slow.
 
 ;; padding is much slower
 (defn sbyc [xs]
@@ -132,23 +181,6 @@
 
 
 
-;; assuming vectors is only a tiny bit faster than seqs so not worth it
-(defn vcompare [a b]
-  (cond (and (vector? a) (vector? b)) (let [c (compare (nth a 0 nil) (nth b 0 nil))]
-                                        (if (zero? c) (recur (subvec a 1) (subvec b 1)) c))
-        (vector? a) (if (< (nth a 0) b) -1 1)
-        (vector? b) (if (<= a (nth b 0)) -1 1)
-        :else (compare a b)))
-
-
-(defn sbyv [xs]
-  (sort vcompare xs))
-
-
-
-
-
-
 
 
 (defn smoke-sort
@@ -159,7 +191,45 @@
    (assert (= (sort-by-content [5 [4 5] 3 1 [0 2 3]]) [[0 2 3] 1 3 [4 5] 5]))
    (assert (= (sort-by-content [[1] 1])  [1 [1]]))
    (assert (= (sort-by-content [[10 3 4 1]]) [[10 3 4 1]]))
+   (assert (= (sort-by-content [[1] [1]])  [[1] [1]]))
+   (assert (= (sort-by-content [[1] [1 2]]) [[1] [1 2]]))
+   (assert (= (sort-by-content [[1 2] [1]]) [[1] [1 2]]))
    true))
 
 
 
+
+
+
+;;; copied and reformatted for my testing.  Much slower than mine.
+(defn westcott-sbc [xs]
+  (let [wrap (fn [x] (if (number? x) [x] x))
+        pad (fn [n xs]  (vec (take n (concat xs (repeat nil)))))
+        comp* (fn [x y]
+                (let [xs (wrap x)
+                      ys (wrap y)
+                      len (max (count xs) (count ys))
+                      cmp (compare (pad len xs) (pad len ys))]
+                  (if (zero? cmp)
+                    (case [(number? x) (number? y)]
+                      [false false] 0
+                      [false true] 1
+                      [true false] -1
+                      [true true] 0)
+                    cmp)))]
+    (sort comp* xs)))
+
+
+
+(defn mendel-sbc [xs]
+  (let [content-comparator
+        (fn [x y]
+          (let [[a b] (first
+                       (drop-while (fn [[a b]] (= a b))
+                                   (map vector
+                                        (if (coll? x) x [x])
+                                        (if (coll? y) y [y]))))]
+            (if a
+              (if (< a b) -1 (if (> a b) 1 0))
+              (if (coll? x) 1 -1))))]
+    (sort-by identity content-comparator xs)))
