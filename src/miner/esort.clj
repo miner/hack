@@ -31,7 +31,11 @@
 
 
 
-
+;;; All the padding ideas are a waste of time.  The desired benefit is to get `compare` for
+;;; free, but it only works on vectors, not general collections -- so padding also introduces a
+;;; stronger requirement, or more work to wrap into vectors.  And the priority for single
+;;; ints is still an issue that needs special handling.  At that point, my original solution
+;;; looks simpler, as well as being much faster.
 
 ;;; assumes vec
 (defn scp [xs]
@@ -220,6 +224,9 @@
     (sort comp* xs)))
 
 
+;; mendel-sbc fails
+#_ (mendel-sbc [[1 2] [1]])
+;;=> ([1 2] [1])
 
 (defn mendel-sbc [xs]
   (let [content-comparator
