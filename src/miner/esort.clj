@@ -37,7 +37,7 @@
 ;;; ints is still an issue that needs special handling.  At that point, my original solution
 ;;; looks simpler, as well as being much faster.
 
-;;; assumes vec
+;;; has to pad collestions into vec to use compare
 (defn scp [xs]
   (let [icompare (fn [a b]
                    (let [a1? (number? a)
@@ -48,14 +48,11 @@
                            :else (let [acnt (count a)
                                        bcnt (count b)
                                        pad (max acnt bcnt)
-                                       a (if (= acnt pad)
-                                           a
-                                           (into a (take (- pad acnt)) (repeat nil)))
-                                       b (if (= bcnt pad)
-                                           b
-                                           (into b (take (- pad bcnt)) (repeat nil)))]
+                                       a (into (vec a) (take (- pad acnt)) (repeat nil))
+                                       b (into (vec b) (take (- pad bcnt)) (repeat nil))]
                                    (compare a b)))))]
     (sort icompare xs)))
+
 
 
 (defn scp4 [xs]
