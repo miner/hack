@@ -3,7 +3,8 @@
 ;; Classic definition
 ;; http://rosettacode.org/wiki/Ackermann_function#Clojure
 
-(defn ackermann [m n] 
+(defn ackermann [m n]
+  {:pre [(not (neg? m)) (not (neg? n))]}
   (cond (zero? m) (inc n)
         (zero? n) (ackermann (dec m) 1)
         :else (ackermann (dec m) (ackermann m (dec n)))))
@@ -45,8 +46,20 @@
 ;; derived from CL version, better algorithm but not obviously equivalent
 ;; and subject to overflow for m > 3
 
+
+;;; make `case` happy with (long x) cast
+(defn ack2c [m n]
+  (case (long m)
+    0 (inc n)
+    1 (+ n 2)
+    2 (+ n n 3)
+    3 (- (bit-shift-left 1 (+ 3 n)) 3)
+    (recur (dec m) (if (zero? n) 1 (ack2c m (dec n))))))
+
+
+
 ;; warning because case m not sure that m is int (or long)
-;; added hints
+;; added hints, don't matter much
 
 (defn ack2a ^long [^long m ^long n]
   (case m
@@ -59,17 +72,8 @@
 ;; (ack2a 4 2) ===> -2; wrong! because of bit-shift overflow
 
 
-(defn ack2b ^long [^long m ^long n]
-  (case m
-    0 (inc n)
-    1 (+ n 2)
-    2 (+ n n 3)
-    3 (- (bit-shift-left 1 (+ 3 n)) 3)
-    (recur (dec m) (if (= 0 n) 1 (ack2b m (dec n))))))
 
-
-
-(defn ack-3a
+(defn ack-3-debug
 "The Ackermann function using a stack and only tail recursion.
   Thanks to Allan Malloy's post at:
   http://grokbase.com/p/gg/clojure/127rbk4518/reduction-to-tail-recursion"
@@ -109,8 +113,7 @@
 (defn test-ack [afn]
   (doseq [m (range 4)
           n (range 5)]
-    (when (not= (ackermann m n) (afn m n))
-      (println "Failed" m n)))
+    (assert (= (ackermann m n) (afn m n)) (format "Failed %d %d" m n)))
   (afn 3 4))
 
 
@@ -130,5 +133,72 @@
 
 (defn bicos [k]
   (map (partial bico k) (range (inc k))))
+
+
+
+
+
+
+;;; Ideas from Dan Friedman video talk at ReClojure 2020
+;;; https://www.youtube.com/watch?v=qRI1Ved0SfE&t=24913s
+
+
+;;; I must have remembered it wrong because it doesn't give the right answer.
+
+(def f+
+  (fn f [m n]
+    (if (zero? n)
+      m
+      (+ 1 (f m (dec n))))))
+
+(def f*
+  (fn f [m n]
+    (if (zero? n)
+      0
+      (+ m (f m (dec n))))))
+
+;; exponentiation
+(def f**
+  (fn f [m n]
+    (if (zero? n)
+      1
+      (* m (f m (dec n))))))
+
+;;; looking for a generalizaion
+
+(defn fack [i]
+  (cond (zero? i) f+
+        (= i 1) f*
+        :else (fn [m n]
+                (if (zero? n)
+                  1
+                  ((fack (dec i)) m ((fack i) m (dec n)))))))
+
+;; WRONG ANSWER
+(defn dfack [m n]
+  ((fack m) m n))
+
+
+
+  
+;;; Wikipedia to the rescue
+;;; https://en.wikipedia.org/wiki/Ackermann_function
+
+(defn iter [f]
+  (fn [n]
+    (if (zero? n)
+      (f 1)
+      (f ((iter f) (dec n))))))
+
+;; "curried" ack
+(defn cack [m]
+  (if (zero? m)
+    inc
+    (iter (cack (dec m)))))
+
+;;; surprisingly about same speed as ack, but much slower than ack2a
+(defn wack [m n]
+  ((cack m) n))
+
 
 
