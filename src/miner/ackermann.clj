@@ -169,13 +169,13 @@
 (defn fack [i]
   (cond (zero? i) f+
         (= i 1) f*
-        :else (fn [m n]
-                (if (zero? n)
-                  1
-                  ((fack (dec i)) m ((fack i) m (dec n)))))))
+        :else (fn f [m n]
+                (if (or (zero? m) (zero? n))
+                  (inc n)
+                  ((fack (dec i)) m (f m (dec n)))))))
 
 ;; WRONG ANSWER
-(defn dfack [m n]
+(defn dfack-BUGGY [m n]
   ((fack m) m n))
 
 
@@ -184,6 +184,68 @@
 ;;; Wikipedia to the rescue
 ;;; https://en.wikipedia.org/wiki/Ackermann_function
 
+;;; SEM: slight tweak to iter with local name for a bit of performance
+
+(defn iter [f]
+  (fn fi [i]
+    (if (zero? i)
+      (f 1)
+      (f (fi (dec i))))))
+
+;; "curried" ack
+(defn cack [m]
+  (if (zero? m)
+    inc
+    (iter (cack (dec m)))))
+
+;;; surprisingly about same speed as ack, but much slower than ack2a
+(defn ackc [m n]
+  ((cack m) n))
+
+
+
+(defn ackf [m n]
+  (let [iter (fn [f] (fn [n] (iterated (inc n) f 1)))
+        ;; "curried" ack
+        cack (fn [m]
+               (if (zero? m)
+                 inc
+                 (iter (cack (dec m)))))]
+    ((cack m) n)))
+
+
+(defn ackf1 [m n]
+  (let [iter (fn [f]
+               (fn [n]
+                 (reduce (fn [r _] (f r)) 1 (range (inc n)))))
+
+        ;; "curried" ack
+        cack (fn [m]
+               (if (zero? m)
+                 inc
+                 (iter (cack (dec m)))))]
+    ((cack m) n)))
+
+
+
+(defn ackfWORKS [m n]
+  (let [iter (fn [f]
+               (fn [n]
+                 (nth (iterate f 1) (inc n))))
+        ;; "curried" ack
+        cack (fn [m]
+               (if (zero? m)
+                 inc
+                 (iter (cack (dec m)))))]
+    ((cack m) n)))
+
+
+
+
+
+
+;;;;;; JUNK
+(comment
 (defn iter [f]
   (fn [n]
     (if (zero? n)
@@ -197,8 +259,54 @@
     (iter (cack (dec m)))))
 
 ;;; surprisingly about same speed as ack, but much slower than ack2a
-(defn wack [m n]
+(defn ackc [m n]
   ((cack m) n))
 
 
+(defn acke [m n]
+  (let [iter (fn [f]
+               (fn [n]
+                 (if (zero? n)
+                   (f 1)
+                   (f ((iter f) (dec n))))))
+        ;; "curried" ack
+        cack (fn [m]
+               (if (zero? m)
+                 inc
+                 (iter (cack (dec m)))))]
+    ((cack m) n)))
 
+
+
+(defn ackf [m n]
+  (let [iter (fn [f]
+               (fn fi [n]
+                 (if (zero? n)
+                   (f 1)
+                   (f (fi (dec n))))))
+        ;; "curried" ack
+        cack (fn [m]
+               (if (zero? m)
+                 inc
+                 (iter (cack (dec m)))))]
+    ((cack m) n)))
+
+
+
+(let [iter (fn [f]
+             (fn fi [n]
+               (if (zero? n)
+                 (f 1)
+                 (f (fi (dec n))))))
+      ;; "curried" ack
+      cack (fn [m]
+             (if (zero? m)
+               inc
+               (iter (cack (dec m)))))]
+  (defn ackg [m n]
+    ((cack m) n)))
+
+
+
+)
+;;; END JUNK
