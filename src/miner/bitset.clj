@@ -93,9 +93,11 @@
 (defn bsuperset? [bsuper bsub]
   (bsubset? bsub bsuper))
 
+
+
 (defn bstr
   ([^long n] (Long/toBinaryString n))
-  ([^long n width]
+  ([^long width n]
    {:pre [(<= 0 width 64)]}
    (let [bs (bstr n)
          pad (- width (count bs))]
@@ -106,7 +108,7 @@
 
 (defn hexstr
   ([^long n] (clojure.string/upper-case (Long/toHexString n)))
-  ([^long n width]
+  ([^long width n]
    {:pre [(<= 0 width 16)]}
    (let [hs (hexstr n)
          pad (- width (count hs))]
@@ -114,11 +116,9 @@
        (str (subs "0000000000000000" 0 pad) hs)
        hs))))
 
-
-
 (defn hexstr2
   ([^long n] (clojure.string/upper-case (Long/toHexString n)))
-  ([^long n width]
+  ([^long width n]
    {:pre [(<= 0 width 16)]}
    (let [hs (hexstr n)
          len (count hs)]
