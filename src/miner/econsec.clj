@@ -29,11 +29,10 @@
                           (recur (subs nstr (count tstr)) (conj result target))))))]
     (if (str/starts-with? nstr "0")
       (parse-inc (subs nstr 1) [0])
-      (first (keep (fn [end]
-                     (parse-inc (subs nstr end) [(Long/parseLong (subs nstr 0 end))]))
-                   (range 1  (inc (quot (count nstr) 2))))))))
+      (some (fn [end] (parse-inc (subs nstr end) [(Long/parseLong (subs nstr 0 end))]))
+            (range 1 (min 19 (inc (quot (count nstr) 2))))))))
 
-
+;;; Long/parseLong cannot safely handle more than 18 digits
 
 
 ;;; BUG:  "0123456789"  leading zero will parse wrong  0123124
@@ -70,7 +69,14 @@
    (assert (nil? (consec "010910")))
    ;; leading zero could cause problems
    (assert (= (consec "0123") [0 1 2 3]))
+   ;; should not ignore leading zero, as Long/parseLong might
    (assert (nil? (consec "01213")))
+   ;; might throw if code casually uses read-string because of illegal octal notation
+   (assert (nil? (consec "0899")))
+   (assert (= (consec "922337203685477580922337203685477581")
+              [922337203685477580 922337203685477581]))
+   ;; too big to parse, but maybe someone else will handle it
+   ;; (assert (nil? (consec "92233720368547758109223372036854775811")))
    true
    ))
 
@@ -145,8 +151,9 @@
 
 
 
-;; steffan-westcott -- short and correct, but much slower than mine
-(defn consec-sw [s]
+;; steffan-westcott -- short and almost correct, but much slower than mine
+;; buggy on "0899" because of octal
+(defn consec-sw1 [s]
   (first (for [first-len (range 1 (-> s count (quot 2) inc))
                :let [first-num (read-string (subs s 0 first-len))]
                nums (iterate #(conj % (inc (peek %))) [first-num])
@@ -154,4 +161,22 @@
                :while (<= (count s') (count s))
                :when (= s s')]
             nums)))
+
+
+;; works
+(defn consec-sw [s]
+  (let [consec' (fn [s first-num-len]
+                  (let [first-num (read-string (subs s 0 first-num-len))]
+                    (loop [n (inc first-num)
+                           nums [first-num]
+                           s' (subs s first-num-len)]
+                      (if (empty? s')
+                        nums
+                        (let [nstr (str n)]
+                          (when (str/starts-with? s' nstr)
+                            (recur (inc n) (conj nums n) (subs s' (count nstr)))))))))]
+    (if (str/starts-with? s "0")
+      (consec' s 1)
+      (some #(consec' s %) (range 1 (-> s count (quot 2) inc))))))
+
 
