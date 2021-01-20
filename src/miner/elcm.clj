@@ -2,22 +2,6 @@
 
 ;; https://gist.github.com/ericnormand/250e0ab50d6e0d4f5a7db75e2dd86260
 
-;; rem is slightly faster than mod, but you have to guarantee all pos ints.
-;; packaged as single function
-(defn lcm-sem [xs]
-  #_ {:pre [(every? pos? xs)]}
-  (let [gcd (fn [a b]
-              (if (zero? b)
-                a
-                (recur b (rem a b))))
-        lcm2 (fn lcm2
-               ([] 1)
-               ([a] a)
-               ([a b] (quot (* a b) (gcd a b)))
-               ([a b & more] (reduce lcm2 (lcm2 a b) more)))]
-    (apply lcm2 xs)))
-
-
 
 ;;; steffan-westcott had a good solution.  Slightly revised by SEM.
 
@@ -49,7 +33,25 @@
    (assert (= (lcm []) 1))
    (assert (= (lcm [10]) 10))
    (assert (= (lcm [Integer/MAX_VALUE 557 33]) 39472896915507))
+   (assert (= (lcm [33 557 Integer/MAX_VALUE]) 39472896915507))
    true))
+
+
+;; rem is slightly faster than mod, but you have to guarantee all pos ints.
+;; packaged as single function
+(defn lcm-sem [xs]
+  #_ {:pre [(every? pos? xs)]}
+  (let [gcd (fn [a b]
+              (if (zero? b)
+                a
+                (recur b (rem a b))))
+        lcm2 (fn lcm2
+               ([] 1)
+               ([a] a)
+               ([a b] (quot (* a b) (gcd a b)))
+               ([a b & more] (reduce lcm2 (lcm2 a b) more)))]
+    (apply lcm2 xs)))
+
 
 
 
@@ -90,3 +92,11 @@
                                  (recur (half (- b a)) a p))))))]
     (reduce (fn [x y] (quot (* x y) (bgcd x y))) 1 nums)))
 
+
+;; Not so good if first item is small and later one is huge, like Integer/MAX_VALUE.  Runs
+;; almost forever.  Could tweak to do nil? check once at top, but that doesn't fix real issue.
+(defn lcm-mc [[f & r]]
+  (loop [i f]
+    (if (every? #(zero? (mod i %)) r)
+      (if (nil? i) 1 i)
+      (recur (+ i f)))))
