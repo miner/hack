@@ -14,9 +14,19 @@
 ;; A name is a sequence of terms separated by a space. It must have at least 2 terms. The last
 ;; term must be a word.
 
+;; assumes exactly one space separator
+(defn rtokenize [s]
+  (reduce (fn [ts c]
+            (if (= c \space)
+              (conj ts [])
+              (conj (pop ts) (conj (peek ts) c))))
+          [[]]
+          (seq s)))
+
+;; tolerates mulitple spaces
 (defn tokenize [s]
   (sequence (comp (partition-by #(= % \space))
-                  (remove #(= % [\space])))
+                  (take-nth 2))
             s))
 
 
@@ -49,6 +59,81 @@
          (>= (count tokens) 2))))
 
 
+(defn valid-name2? [s]
+  (let [tokens (rtokenize s)]
+    (and (every? term? tokens)
+         (word? (last tokens))
+         (>= (count tokens) 2))))
+
+
+
+;; little state machince
+;; not so fast, but not bad
+
+(defn valid-name5? [s]
+  (let [step (fn [state c]
+                (case  c
+                  (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T \U \V \W \X \Y \Z) 
+                  (-> (assoc state :cap true :init false) (update :cnt inc))
+
+                  (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t \u \v \w \x \y \z) 
+                  (if (:cap state)
+                    (-> (assoc state :init false) (update :cnt inc))
+                    (reduced nil))
+
+                  \space 
+                  (if (and (:cap state) (>= (:cnt state) 2))
+                    (-> (dissoc state :cap) (assoc :cnt 0) (update :toks inc))
+                    (reduced nil))
+
+                  \. 
+                  (if (and (:cap state) (= (:cnt state) 1))
+                    (-> (assoc state :init true) (update :cnt inc))
+                    (reduced nil))
+
+                  (reduced nil)))
+        res (reduce step {:cap false :cnt 0 :init false :toks 0} (str s " "))]
+    (and res
+         (not (:init res))
+         (>= (:toks res) 2))))
+
+
+;; better version that uses transient state and transduce to process chars.
+;; state :cap? = first letter of term is capital, :cnt = count of characters in term,
+;; :initial? = term is an initial, :toks = number of tokens
+(defn valid-name92? [s]
+  (let [step (fn step
+               ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
+               ([state]
+                (when-let [res (and state (unreduced (step state \space)))]
+                  (and (not (:initial? res))
+                       (>= (:toks res) 2))))
+               ([state c]
+                (let [cnt (inc (:cnt state))]
+                  (case  c
+                    (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T \U \V \W \X \Y \Z) 
+                    (assoc! state :cap? true :initial? false :cnt cnt)
+
+                    (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t \u \v \w \x \y \z) 
+                    (if (:cap? state)
+                      (assoc! state :initial? false :cnt cnt)
+                      (reduced false))
+
+                    \space 
+                    (if (and (:cap? state) (> cnt 2))
+                      (assoc! state :cap? false :cnt 0 :toks (inc (:toks state)))
+                      (reduced false))
+
+                    \. 
+                    (if (and (:cap? state) (= cnt 2))
+                      (assoc! state :initial? true :cnt cnt)
+                      (reduced false))
+
+                    (reduced false)))))]
+    (transduce identity step s)))
+
+
+
 
 (defn re-valid? [s]
   (some? (re-matches #"(([A-Z][.] )|([A-Z][a-zA-Z]+ ))+([A-Z][a-zA-Z]+)" s)))
@@ -57,6 +142,12 @@
 (defn re-valid2? [s]
   (some? (re-matches #"([A-Z]([.]|([a-zA-Z]+)) )+([A-Z][a-zA-Z]+)" s)))
 
+(defn re-valid3? [s]
+  (some? (re-matches #"([A-Z](\.|([a-zA-Z]+)) )+([A-Z][a-zA-Z]+)" s)))
+
+
+;; solution by steffan-westcott
+;; fastest
 (defn sw-name? [s]
   (some? (re-matches #"(\p{IsUppercase}(\.|\p{IsAlphabetic}+) )+\p{IsUppercase}\p{IsAlphabetic}+"
               s)))
@@ -69,7 +160,11 @@
      (assert (valid-name? s) s))
    (doseq [s ["J R Tolkien" ;; no periods
               "J. F. K." ;; must end in word
-              "Franklin"]] ;; must have at least two terms
+              "Franklin"  ;; must have at least two terms
+              "Abe deAnda" ;; word starts lower
+           ]]
+
+
      (assert (not (valid-name? s)) (str "not " s)))
    true))
 
