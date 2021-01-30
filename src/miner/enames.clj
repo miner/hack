@@ -98,9 +98,6 @@
          (>= (:toks res) 2))))
 
 
-;; better version that uses transient state and transduce to process chars.
-;; state :cap? = first letter of term is capital, :cnt = count of characters in term,
-;; :initial? = term is an initial, :toks = number of tokens
 (defn valid-name92? [s]
   (let [step (fn step
                ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
@@ -133,6 +130,48 @@
     (transduce identity step s)))
 
 
+;; It's a little bit faster to inline calcuation of last token.  This is the equivalent of
+;; pushing extra space in version-92 above.
+
+;; better version that uses transient state and transduce to process chars.
+;; state :cap? = first letter of term is capital, :cnt = count of characters in term,
+;; :initial? = term is an initial, :toks = number of tokens
+
+(defn valid-name93? [s]
+  (let [step (fn step
+               ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
+               ([state]
+                (and state
+                     (:cap? state) 
+                     (>= (:cnt state) 2)
+                     (not (:initial? state))
+                     (>= (:toks state) 1)))
+               ([state c]
+                (let [cnt (inc (:cnt state))]
+                  (case  c
+                    (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T \U \V \W \X \Y \Z) 
+                    (assoc! state :cap? true :initial? false :cnt cnt)
+
+                    (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t \u \v \w \x \y \z) 
+                    (if (:cap? state)
+                      (assoc! state :initial? false :cnt cnt)
+                      (reduced false))
+
+                    \space 
+                    (if (and (:cap? state) (> cnt 2))
+                      (assoc! state :cap? false :cnt 0 :toks (inc (:toks state)))
+                      (reduced false))
+
+                    \. 
+                    (if (and (:cap? state) (= cnt 2))
+                      (assoc! state :initial? true :cnt cnt)
+                      (reduced false))
+
+                    (reduced false)))))]
+    (transduce identity step s)))
+
+
+
 
 
 (defn re-valid? [s]
@@ -161,10 +200,9 @@
    (doseq [s ["J R Tolkien" ;; no periods
               "J. F. K." ;; must end in word
               "Franklin"  ;; must have at least two terms
-              "Abe deAnda" ;; word starts lower
+              "Abe deAnda" ;; word cannot start lower
+              "Malcolm X"  ;; needs two+ char term
            ]]
-
-
      (assert (not (valid-name? s)) (str "not " s)))
    true))
 
