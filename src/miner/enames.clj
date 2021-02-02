@@ -23,6 +23,7 @@
           [[]]
           (seq s)))
 
+
 ;; tolerates mulitple spaces
 (defn tokenize [s]
   (sequence (comp (partition-by #(= % \space))
@@ -67,38 +68,9 @@
 
 
 
-;; little state machince
-;; not so fast, but not bad
 
-(defn valid-name5? [s]
-  (let [step (fn [state c]
-                (case  c
-                  (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T \U \V \W \X \Y \Z) 
-                  (-> (assoc state :cap true :init false) (update :cnt inc))
-
-                  (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t \u \v \w \x \y \z) 
-                  (if (:cap state)
-                    (-> (assoc state :init false) (update :cnt inc))
-                    (reduced nil))
-
-                  \space 
-                  (if (and (:cap state) (>= (:cnt state) 2))
-                    (-> (dissoc state :cap) (assoc :cnt 0) (update :toks inc))
-                    (reduced nil))
-
-                  \. 
-                  (if (and (:cap state) (= (:cnt state) 1))
-                    (-> (assoc state :init true) (update :cnt inc))
-                    (reduced nil))
-
-                  (reduced nil)))
-        res (reduce step {:cap false :cnt 0 :init false :toks 0} (str s " "))]
-    (and res
-         (not (:init res))
-         (>= (:toks res) 2))))
-
-
-(defn valid-name92? [s]
+;; submitted version (improved slightly below)   BUT BUGGY with A.B
+(defn BUGGY-valid-name92? [s]
   (let [step (fn step
                ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
                ([state]
@@ -137,7 +109,8 @@
 ;; state :cap? = first letter of term is capital, :cnt = count of characters in term,
 ;; :initial? = term is an initial, :toks = number of tokens
 
-(defn valid-name93? [s]
+;; WORKS BUT SLOW
+(defn valid-name95? [s]
   (let [step (fn step
                ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
                ([state]
@@ -149,12 +122,14 @@
                ([state c]
                 (let [cnt (inc (:cnt state))]
                   (case  c
-                    (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T \U \V \W \X \Y \Z) 
-                    (assoc! state :cap? true :initial? false :cnt cnt)
+                    (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T \U \V \W \X \Y \Z)
+                    (cond (not (:initial? state)) (assoc! state :cap? true :cnt cnt)
+                          (= cnt 1) (assoc! state :cap? true :initial? false :cnt cnt)
+                          :else (reduced false))
 
                     (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t \u \v \w \x \y \z) 
-                    (if (:cap? state)
-                      (assoc! state :initial? false :cnt cnt)
+                    (if (and (:cap? state) (not (:initial? state)))
+                      (assoc! state :cnt cnt)
                       (reduced false))
 
                     \space 
@@ -171,6 +146,76 @@
     (transduce identity step s)))
 
 
+;;; SLOWER
+(defn valid-name97? [s]
+  (let [step (fn step
+               ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
+               ([state]
+                (and state
+                     (:cap? state) 
+                     (>= (:cnt state) 2)
+                     (not (:initial? state))
+                     (>= (:toks state) 1)))
+               ([state c]
+                (let [cnt (inc (:cnt state))]
+                  (case  c
+                    (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T \U \V \W \X \Y \Z)
+                    (if (or (= cnt 1) (not (:initial? state)))
+                      (assoc! state :cap? true :initial? false :cnt cnt)
+                      (reduced false))
+
+                    (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t \u \v \w \x \y \z) 
+                    (if (and (:cap? state) (not (:initial? state)))
+                      (assoc! state :cnt cnt)
+                      (reduced false))
+
+                    \space 
+                    (if (and (:cap? state) (> cnt 2))
+                      (assoc! state :cap? false :cnt 0 :toks (inc (:toks state)))
+                      (reduced false))
+
+                    \. 
+                    (if (and (:cap? state) (= cnt 2))
+                      (assoc! state :initial? true :cnt cnt)
+                      (reduced false))
+
+                    (reduced false)))))]
+    (transduce identity step s)))
+
+
+(defn valid-name98-SLOW? [s]
+  (let [step (fn step
+               ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
+               ([state]
+                (and state
+                     (not (:fail state))
+                     (:cap? state) 
+                     (>= (:cnt state) 2)
+                     (not (:initial? state))
+                     (>= (:toks state) 1)))
+               ([state c]
+                (if (:fail state)
+                  (reduced false)
+                (let [cnt (inc (:cnt state))]
+                  (case  c
+                    (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T \U \V \W \X \Y \Z)
+                    (assoc! state :cap? true :initial? false :cnt cnt
+                            :fail (and (not= cnt 1) (:initial? state)))
+
+
+                    (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t \u \v \w \x \y \z) 
+                    (assoc! state :cnt cnt :fail (or (:initial? state) (not (:cap? state))))
+
+                    \space 
+                    (assoc! state :cap? false :cnt 0 :toks (inc (:toks state))
+                            :fail (or (not (:cap? state)) (<= cnt 2)))
+
+                    \. 
+                    (assoc! state :initial? true :cnt cnt
+                            :fail (or (not (:cap? state)) (not= cnt 2)))
+
+                    (reduced false))))))]
+    (transduce identity step s)))
 
 
 
@@ -202,6 +247,8 @@
               "Franklin"  ;; must have at least two terms
               "Abe deAnda" ;; word cannot start lower
               "Malcolm X"  ;; needs two+ char term
+              "A.B Noway"  ;; bad dot
+              "Nope A.c"   ;; bad dot
            ]]
      (assert (not (valid-name? s)) (str "not " s)))
    true))
