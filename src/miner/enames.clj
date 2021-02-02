@@ -146,6 +146,115 @@
     (transduce identity step s)))
 
 
+
+;; much faster than -9x
+(defn valid-name8? [s]
+  (let [step (fn step
+               ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
+               ([state]
+                (and state
+                     (:cap? state) 
+                     (>= (:cnt state) 2)
+                     (not (:initial? state))
+                     (>= (:toks state) 1)))
+               ([state c]
+                (let [cnt (inc (:cnt state))
+                      input (case  c
+                              (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T
+                               \U \V \W \X \Y \Z) :cap
+                              (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t
+                               \u \v \w \x \y \z)  :lower
+                              \space :space
+                              \. :dot)]
+                  (case (long cnt)
+                    1 (if (= input :cap)
+                        (assoc! state :cap? true :initial? false :cnt cnt)
+                        (reduced false))
+                    2 (case input
+                        :dot (cond (:initial? state) (reduced false)
+                                   (:cap? state) (assoc! state :initial? true :cnt cnt)
+                                   :else (reduced false))
+                        :space (reduced false)
+                        (assoc! state :cnt cnt))
+                    3 (case input
+                        :space (if (not (:cap? state))
+                                 (reduce false)
+                                 (assoc! state :cnt 0 :cap? false :toks (inc (:toks
+                                                                              state))))
+                        :dot (reduced false)
+                        (if (:initial? state)
+                          (reduced false)
+                          (assoc! state :cnt cnt)))
+                    (case input
+                      :space (if (or (:initial? state) (not (:cap? state)))
+                               (reduced false)
+                               (assoc! state :cnt 0 :cap? false :toks (inc (:toks state))))
+                      :dot (reduced false)
+                      (assoc! state :cnt cnt))))))]
+    (transduce identity step s)))
+
+
+
+
+;; it's a bit slower to be careful about strange inputs like punctuation
+
+(defn valid-name83? [s]
+  (let [abort (reduced false)
+        canonicalize (fn [c]
+                       (case c
+                         (\A \B \C \D \E \F \G \H \I \J \K \L \M \N \O \P \Q \R \S \T
+                          \U \V \W \X \Y \Z)   :cap
+                         (\a \b \c \d \e \f \g \h \i \j \k \l \m \n \o \p \q \r \s \t
+                          \u \v \w \x \y \z)   :low
+                         \. :dot
+                         \space :sp
+                         nil))
+        step (fn step
+               ([] (transient {:cap? false :cnt 0 :initial? false :toks 0}))
+               ([state]
+                (and state
+                     (:cap? state) 
+                     (>= (:cnt state) 2)
+                     (not (:initial? state))
+                     (>= (:toks state) 1)))
+               ([state c]
+                (if-not c
+                  abort
+                  (let [cnt (inc (:cnt state))]
+                    (case (long cnt)
+                      1 (if (= c :cap)
+                          (assoc! state :cap? true :initial? false :cnt cnt)
+                          abort)
+                      2 (case c
+                          :dot (cond (:initial? state) abort
+                                     (:cap? state) (assoc! state :initial? true :cnt cnt)
+                                     :else abort)
+                          :sp abort
+                          (assoc! state :cnt cnt))
+                      3 (case c
+                          :sp (if (not (:cap? state))
+                                abort
+                                (assoc! state :cnt 0 :cap? false :toks (inc (:toks
+                                                                             state))))
+                          :dot abort
+                          (if (:initial? state)
+                            abort
+                            (assoc! state :cnt cnt)))                       
+                      (case c
+                        :sp (if (or (:initial? state) (not (:cap? state)))
+                              abort
+                              (assoc! state :cnt 0 :cap? false :toks (inc (:toks state))))
+                        :dot abort
+                        (assoc! state :cnt cnt)))))))]
+    (transduce (map canonicalize) step s)))
+
+
+
+
+
+
+
+
 ;;; SLOWER
 (defn valid-name97? [s]
   (let [step (fn step
