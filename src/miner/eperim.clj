@@ -9,21 +9,16 @@
 ;; the land, both as it touches water and touches the edge.
 
 
-
-(defn zneighbors [grid i j]
-  (if (zero? (get-in grid [i j]))
-    0
-    (cond-> 0
-      (zero? (get-in grid [(dec i) j] 0)) inc
-      (zero? (get-in grid [i (inc j)] 0)) inc
-      (zero? (get-in grid [i (dec j)] 0)) inc
-      (zero? (get-in grid [(inc i) j] 0)) inc)))
-
 (defn perimeter [grid]
   (reduce + 0 (for [i (range (count grid))
-                    j (range (count (nth grid i)))]
-                (zneighbors grid i j))))
-
+                    :let [row (nth grid i)]
+                    j (range (count row))
+                    :when (pos? (nth row j))]
+                (- 4
+                   (nth row (inc j) 0)
+                   (nth row (dec j) 0)
+                   (get-in grid [(dec i) j] 0)
+                   (get-in grid [(inc i) j] 0)))))
 
 
 (defn smoke-perim
@@ -61,3 +56,75 @@
              [1 1 0 0]])
 
 (def all [[1 1] [1 1]])
+
+
+
+(defn sw-perimeter [rows]
+  (->> rows (apply map vector) (concat rows) (transduce (mapcat dedupe) +) (* 2)))
+
+
+
+(defn sw2 [rows]
+  (* 2 (+ (transduce (mapcat dedupe) + rows)
+          (transduce (mapcat dedupe) + (apply map list rows)))))
+
+(defn sw3 [rows]
+  (* 2 (transduce (mapcat dedupe) + (transduce (mapcat dedupe) + rows) (apply map list rows))))
+
+
+(defn zneighbors [grid i j]
+  (if (zero? (get-in grid [i j]))
+    0
+    (cond-> 0
+      (zero? (get-in grid [(dec i) j] 0)) inc
+      (zero? (get-in grid [i (inc j)] 0)) inc
+      (zero? (get-in grid [i (dec j)] 0)) inc
+      (zero? (get-in grid [(inc i) j] 0)) inc)))
+
+(defn perimeter1 [grid]
+  (reduce + 0 (for [i (range (count grid))
+                    j (range (count (nth grid i)))]
+                (zneighbors grid i j))))
+
+
+(defn perimeter2 [grid]
+  (reduce + (for [i (range (count grid))
+                  j (range (count (nth grid i)))
+                  :when (not (zero? (get-in grid [i j])))]
+              (cond-> 0
+                (zero? (get-in grid [(dec i) j] 0)) inc
+                (zero? (get-in grid [i (inc j)] 0)) inc
+                (zero? (get-in grid [i (dec j)] 0)) inc
+                (zero? (get-in grid [(inc i) j] 0)) inc))))
+
+(defn perimeter3 [grid]
+  (reduce + 0 (for [i (range (count grid))
+                    j (range (count (nth grid i)))
+                    :when (pos? (get-in grid [i j]))]
+                (- 4
+                   (get-in grid [(dec i) j] 0)
+                   (get-in grid [i (inc j)] 0)
+                   (get-in grid [i (dec j)] 0)
+                   (get-in grid [(inc i) j] 0)))))
+
+
+
+
+;; slower
+(defn perimeter4 [grid]
+  (reduce + 0 (for [i (range (count grid))
+                    j (range (count (nth grid i)))
+                    :when (pos? (get-in grid [i j]))]
+                (reduce - 4 (map #(get-in grid % 0) [[(dec i) j]
+                                                     [i (inc j)]
+                                                     [i (dec j)]
+                                                     [(inc i) j]])))))
+;; slower
+(defn perimeter5 [grid]
+  (reduce + 0 (for [i (range (count grid))
+                    j (range (count (nth grid i)))
+                    :when (pos? (get-in grid [i j]))
+                    [h v] [[-1 0] [0 1] [0 -1] [1 0]]
+                    :when (zero? (get-in grid [(+ i v) (+ j h)] 0))]
+                1)))
+
