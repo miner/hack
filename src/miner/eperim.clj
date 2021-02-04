@@ -20,6 +20,37 @@
                    (get-in grid [(dec i) j] 0)
                    (get-in grid [(inc i) j] 0)))))
 
+;; not much diff
+(defn p6 [grid]
+  (reduce + 0 (for [i (range (count grid))
+                    :let [row (nth grid i)]
+                    j (range (count row))
+                    :when (pos? (nth row j))]
+                (- 4
+                   (+ (+ (nth row (inc j) 0)
+                         (nth row (dec j) 0))
+                      (+ (get-in grid [(dec i) j] 0)
+                         (get-in grid [(inc i) j] 0)))))))
+
+(defn tperim [grid]
+  (let [width (count (nth grid 0))]
+    (transduce (comp cat
+                     (map-indexed (fn [n x]
+                                    (if (pos? x)
+                                    (let [i (quot n width)
+                                          row (nth grid i)
+                                          j (mod n width)]
+                                        (- 4
+                                           (nth row (inc j) 0)
+                                           (nth row (dec j) 0)
+                                           (get-in grid [(dec i) j] 0)
+                                           (get-in grid [(inc i) j] 0)))
+                                        0))))
+               +
+               grid)))
+
+
+
 
 (defn smoke-perim
   ([] (smoke-perim perimeter))
@@ -62,14 +93,21 @@
 (defn sw-perimeter [rows]
   (->> rows (apply map vector) (concat rows) (transduce (mapcat dedupe) +) (* 2)))
 
-
-
-(defn sw2 [rows]
+;; note creating small vectors is faster that lists (at least in this case)
+;; pretty good improvement with sequence vs (sw2)
+(defn sw22 [rows]
   (* 2 (+ (transduce (mapcat dedupe) + rows)
-          (transduce (mapcat dedupe) + (apply map list rows)))))
+          (transduce (mapcat dedupe) + (apply sequence (map vector) rows)))))
 
 (defn sw3 [rows]
-  (* 2 (transduce (mapcat dedupe) + (transduce (mapcat dedupe) + rows) (apply map list rows))))
+  (* 2 (transduce (mapcat dedupe) + (transduce (mapcat dedupe) + rows)
+                  (apply sequence (map vector) rows))))
+
+;; not necessarily worth it to shift cat
+(defn sw4 [rows]
+  (* 2 (transduce (dedupe) + (transduce (mapcat dedupe) + rows)
+                  (apply sequence (mapcat list) (repeat 0) rows ))))
+
 
 
 (defn zneighbors [grid i j]
