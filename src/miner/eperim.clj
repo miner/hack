@@ -20,35 +20,110 @@
                    (get-in grid [(dec i) j] 0)
                    (get-in grid [(inc i) j] 0)))))
 
-;; not much diff
-(defn p6 [grid]
-  (reduce + 0 (for [i (range (count grid))
-                    :let [row (nth grid i)]
-                    j (range (count row))
-                    :when (pos? (nth row j))]
-                (- 4
-                   (+ (+ (nth row (inc j) 0)
-                         (nth row (dec j) 0))
-                      (+ (get-in grid [(dec i) j] 0)
-                         (get-in grid [(inc i) j] 0)))))))
+;; faster access
+(defn p2 [grid]
+  (let [cols (range (count (nth grid 0)))
+        at (fn [x y] (nth (nth grid x nil) y 0))]
+    (reduce + 0 (for [i (range (count grid))
+                      j cols
+                      :when (pos? (at i j))]
+                  (- 4
+                     (at i (inc j))
+                     (at i (dec j))
+                     (at (dec i) j)
+                     (at (inc i) j))))))
 
+(defn p4 [grid]
+  (let [cols (range (count (nth grid 0)))
+        at (fn [x y] (nth (nth grid x nil) y 0))]
+    (* 2 (reduce + 0 (for [i (range (count grid))
+                           j cols
+                           :when (pos? (at i j))]
+                  (- 2
+                     (at i (dec j))
+                     (at (dec i) j)))))))
+
+
+
+
+
+
+
+
+;; going for performance
 (defn tperim [grid]
-  (let [width (count (nth grid 0))]
-    (transduce (comp cat
-                     (map-indexed (fn [n x]
-                                    (if (pos? x)
-                                    (let [i (quot n width)
-                                          row (nth grid i)
-                                          j (mod n width)]
-                                        (- 4
-                                           (nth row (inc j) 0)
-                                           (nth row (dec j) 0)
-                                           (get-in grid [(dec i) j] 0)
-                                           (get-in grid [(inc i) j] 0)))
-                                        0))))
+  (let [width (count (nth grid 0))
+        vflat (persistent! (transduce cat conj! (transient []) grid))]
+    (transduce (map-indexed (fn [n x]
+                              (if (pos? x)
+                                (let [i (quot n width)
+                                      row (nth grid i)
+                                      j (mod n width)]
+                                  (- 4
+                                     (nth row (inc j) 0)
+                                     (nth row (dec j) 0)
+                                     (nth vflat (+ (* width (dec i)) j) 0)
+                                     (nth vflat (+ (* width (inc i)) j) 0)))
+                                0)))
                +
-               grid)))
+               vflat)))
 
+
+
+(defn tperim2 [grid]
+  (let [width (count (nth grid 0))
+        vflat (persistent! (transduce cat conj! (transient []) grid))]
+    (transduce (map-indexed (fn [n x]
+                              (if (zero? x)
+                                0
+                                (let [i (quot n width)
+                                      row (nth grid i)
+                                      j (mod n width)]
+                                  (- 4
+                                     (nth row (inc j) 0)
+                                     (nth row (dec j) 0)
+                                     (nth vflat (+ (* width (dec i)) j) 0)
+                                     (nth vflat (+ (* width (inc i)) j) 0))))))
+               +
+               vflat)))
+
+
+
+;; using harto idea refactored for transducer
+;; fast 7.6
+(defn tperim6 [grid]
+  (let [width (count (nth grid 0))
+        v (persistent! (transduce cat conj! (transient []) grid))]
+    (* 2 (transduce (map-indexed (fn [n x]
+                                   (cond (zero? x) 0
+                                         (zero? (rem n width)) (- 2 (nth v (- n width) 0))
+                                         :else (- 2 (nth v (dec n)) (nth v (- n width) 0)))))
+                    +
+                    v))))
+
+
+
+
+;; not fast, but interesting, maybe
+(defn zperim [grid]
+  (* 2 (reduce + (mapcat (fn [xs prevs aboves]
+                           (map (fn [x prev above]
+                                  (if (zero? x)
+                                    0
+                                    (- 2 prev above)))
+                                xs prevs aboves))
+                         grid
+                         (map #(cons 0 %) grid)
+                         (cons (repeat 0) grid)))))
+
+
+
+
+
+(defn neighs [rows cols]
+  (let [f (fn [x y] (+ y (* cols x)))]
+    (for [i (range rows) j (range cols)]
+      [i j (f (dec i) j) (f (inc i) j) (f i (dec j)) (f i (inc j))])))
 
 
 
@@ -78,6 +153,7 @@
                           [1 1 1 0]
                           [0 1 0 0]
                           [1 1 0 0]])  16))
+   (assert (= (perimeter [[1 1] [0 1]]) 8))
    true))
 
 
@@ -166,3 +242,21 @@
                     :when (zero? (get-in grid [(+ i v) (+ j h)] 0))]
                 1)))
 
+
+
+
+
+(defn harto [grid]
+  (letfn [(cell-value [cell x y]
+            (if (= 0 cell)
+              0
+              ;; assume an initial cell perimeter value of 4, then deduct 2 for
+              ;; each shared boundary with preceding (i.e. north/west)
+              ;; neighbours
+              (- 4
+                 (* 2 (get-in grid [(dec y) x] 0))
+                 (* 2 (get-in grid [y (dec x)] 0)))))]
+    (->> grid
+         (map-indexed (fn [y row] (map-indexed (fn [x cell] (cell-value cell x y)) row)))
+         (apply concat)
+         (reduce +))))
