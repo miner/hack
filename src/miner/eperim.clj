@@ -116,8 +116,39 @@
                          (map #(cons 0 %) grid)
                          (cons (repeat 0) grid)))))
 
+;; very slow
+(defn zp2 [grid]
+  (* 2 (reduce + (sequence (comp (mapcat interleave)
+                                 (partition-all 3)
+                                 (map (fn [[x prev above]]
+                                        (if (zero? x)
+                                          0
+                                          (- 2 prev above)))))
+                           grid
+                           (map #(cons 0 %) grid)
+                           (cons (repeat 0) grid)))))
 
+;; I want a transducer that takes multiple args out of the stream without having to partition
+;; first.  Or think of it as the partition with f applied, but faster.  The simple advantage
+;; is that my computation function can use a natural arity instead of structural binding
+;; with an extra [[a b c]] or using an apply wrapper.
 
+#_ (do
+(quick-bench (reduce + (sequence (mapcat list) (range 10) (range 10 20) (range 20 25))))
+(quick-bench (reduce + (interleave (range 10) (range 10 20) (range 20 25))))
+
+(quick-bench (reduce + (take 10 (interleave (range 100) (range 100 200) (range 200 250)))))
+
+)
+
+;; re-implement `interleave` with transducers
+;; appears to be slower with slow c's
+(defn interleave2
+  ([] ())
+  ([c1] (lazy-seq c1))
+  ([c1 c2] (sequence (mapcat list) c1 c2))
+  ([c1 c2 c3] (sequence (mapcat list) c1 c2 c3))
+  ([c1 c2 c3 & colls] (apply sequence (mapcat list) c1 c2 c3 colls)))
 
 
 (defn neighs [rows cols]
@@ -126,6 +157,13 @@
       [i j (f (dec i) j) (f (inc i) j) (f i (dec j)) (f i (inc j))])))
 
 
+(defn srange
+  ([n] (srange 0 n))
+  ([beg end]
+   (lazy-seq 
+    (when (< beg end)
+      (Thread/sleep 10)
+      (cons beg (srange (inc beg) end))))))
 
 (defn smoke-perim
   ([] (smoke-perim perimeter))
