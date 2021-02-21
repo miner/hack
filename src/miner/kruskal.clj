@@ -89,49 +89,15 @@
 
 
 ;; SEM -- need to simplify tree and edge access (original overuses set fns)
-;; tree is available edges, e is one that is at least partially connected to path
+;; tree is set of available edges, e is one that is at least partially connected to path
 ;; check if both ends of e is in (shows cycle).  Must connect at one end first.
-(defn sem-cycle? [path tree]
-  (when-let [e (first (filter #(some path %) tree))]
-    (or (set/subset? e path)
-        (recur (set/union path e) (disj tree e)))))
 
 ;;; use reduce, much simpler than original looping
-(defn semk [graph]
-  (reduce (fn [tree edge]
-            (if (sem-cycle? edge tree)
-              tree
-              (conj tree edge)))
-          #{}
-          graph))
-
-
-(defn smoke-kruskal
-  ([] (smoke-kruskal kruskal))
-  ([kruskal]
-   (assert (= (count (kruskal graph)) 5))
-   (assert (= (count (kruskal railway-connections)) 6))
-   true))
-
 
 ;; renamed and reordered args
-(defn will-cycle? [tree nodes]
-  (when-let [edge (first (filter #(some nodes %) tree))]
-    (or (set/subset? edge nodes)
-        (recur (disj tree edge) (set/union nodes edge)))))
-
-(defn kru [graph]
-  (reduce (fn [tree edge]
-            (if (will-cycle? tree edge)
-              tree
-              (conj tree edge)))
-          #{}
-          graph))
-
-
 ;; when-first FTW!
 
-(defn kru1 [graph]
+(defn kru [graph]
   (let [will-cycle? (fn [tree nodes]
                       (when-first [edge (filter #(some nodes %) tree)]
                         (or (set/subset? edge nodes)
@@ -145,5 +111,39 @@
 
 
 
-;; BUGGY with all at once -- you need to make connections
 
+;; slower to check all the edges for conns
+(defn kru3 [graph]
+  (let [will-cycle? (fn [tree nodes]
+                      (let [es (filter #(some nodes %) tree)]
+                        (if (empty? es)
+                          false
+                          (or (some #(set/subset? % nodes) es)
+                              (recur (disj tree (first es)) (set/union nodes (first es)))))))]
+    (reduce (fn [tree edge]
+              (if (will-cycle? tree edge)
+                tree
+                (conj tree edge)))
+            #{}
+            graph)))
+
+
+
+
+(defn smoke-kruskal
+  ([] (smoke-kruskal kruskal))
+  ([kruskal]
+   (assert (= (count (kruskal graph)) 5))
+   (assert (= (count (kruskal railway-connections)) 6))
+   true))
+
+
+
+;; SEM: seems like there ought to be a better way to detect a cycle???  Tree is just a set,
+;; not a real tree so you need to recreate connections every time.
+;; Seems like we need a disjoint-set data structure:
+;;
+;; https://en.wikipedia.org/wiki/Disjoint-set_data_structure
+
+;; maybe this: 
+;; https://github.com/jordanlewis/data.union-find

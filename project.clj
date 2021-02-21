@@ -33,6 +33,7 @@
                  [digest "1.4.9"]
                  [org.clojure/alpha.spec "0.2.177-SNAPSHOT"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
+                 [org.jordanlewis/data.union-find "0.1.0"]
                  [me.raynes/fs "1.4.6"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
