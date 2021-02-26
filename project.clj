@@ -33,11 +33,10 @@
                  [digest "1.4.9"]
                  [org.clojure/alpha.spec "0.2.177-SNAPSHOT"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
-                 [org.jordanlewis/data.union-find "0.1.0"]
                  [me.raynes/fs "1.4.6"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
-  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.10.2"]
+  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.10.3-rc1"]
                                    ;; [org.clojure/core.async "0.4.474"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
