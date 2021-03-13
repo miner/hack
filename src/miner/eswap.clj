@@ -38,6 +38,16 @@
             (str/starts-with? s b) (recur (subs s blen) (.append res a))
             :else (recur (subs s 1) (.append res (.charAt ^String s 0)))))))
 
+;;; fastest.
+;;; Based on idea from @tylerw who used str/escape assuming single-char a and b.  This
+;;; generalizes the swap to multi-char strings.  Lots of Java interop for speed.
+(defn ^String tswap  [^String s ^String a ^String b]
+  (loop [index (int 0)
+         buffer (StringBuilder. (.length s))]
+    (cond (= (.length s) index) (.toString buffer)
+          (.startsWith s a index) (recur (+ index (.length a)) (.append buffer b))
+          (.startsWith s b index) (recur (+ index (.length b)) (.append buffer a))
+          :else (recur (inc index) (.append buffer (.charAt s index))))))
 
 
 (defn smoke-swap
@@ -63,4 +73,5 @@
   (clojure.string/replace s
                           (re-pattern (str "\\Q" x "\\E|\\Q" y "\\E"))
                           #(if (= % x) y x)))
+
 
