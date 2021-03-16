@@ -265,10 +265,10 @@
         ;; note: ^long on i is slower!
         fb (fn [i] (if (zmod i 3)
                      (if (zmod i 5)
-                       "fizzbuzz"
-                       "fizz")
+                       "FizzBuzz"
+                       "Fizz")
                      (if (zmod i 5)
-                       "buzz"
+                       "Buzz"
                        i)))]
     (map fb (range n))))
 
@@ -276,13 +276,46 @@
 ;; case didn't do any better
 
 
-(defn fb-fast2 [n]
-  (map (fn [^long i]
-             (if (= 0 (rem i 3))
-               (if (= 0 (rem i 5))
-                 "fizzbuzz"
-                 "fizz")
-               (if (= 0 (rem i 5))
-                 "buzz"
-                 i)))
+;;; http://philcrissman.net/posts/eulers-fizzbuzz/
+;;; Euler's Fizz Buzz
+;;; interesting proof.  Reasonably fast. (about 2x best)
+(defn euler-fb [n]
+  (map (fn [n]  (case (long (rem (* n n n n) 15))
+                  0 "FizzBuzz"
+                  6 "Fizz"
+                  10 "Buzz"
+                  1 n))
+       (range n)))
+
+(def fb20 '("FizzBuzz" 1 2 "Fizz" 4 "Buzz" "Fizz" 7 8 "Fizz" "Buzz" 11 "Fizz" 13 14
+            "FizzBuzz" 16 17 "Fizz" 19))
+  
+
+(defn smoke-fb [fb]
+  (assert (= (fb 20) fb20))
+  true)
+
+
+;; hacker news comments
+;; https://news.ycombinator.com/item?id=26470223
+;; If you have n%15, that's enough to do FizzBuzz on its own, without having to take a
+;; fourth power.  It's just then you need to map n%15=3,6,9,12 to "Fizz" instead of just 6.
+
+;; clear and almost as fast as my best
+(defn hnfb [n]
+  (map (fn [n]
+         (case (long (rem n 15))
+           0 "FizzBuzz"
+           (3 6 9 12) "Fizz"
+           (5 10) "Buzz"
+           n))
+       (range n)))
+
+(defn hnfb2 [n]
+  (map (fn [^long n]
+         (case (rem n 15)
+           0 "FizzBuzz"
+           (3 6 9 12) "Fizz"
+           (5 10) "Buzz"
+           n))
        (range n)))

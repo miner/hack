@@ -145,3 +145,21 @@
    (assert (= [1 1 1] (inv-index-map  {1 #{0 1 2}})))
    (assert (= [1 2 1 2 1] (inv-index-map {1 #{0 2 4} 2 #{1 3}})))
    true))
+
+
+
+
+;; @mchampine -- short but slow
+(defn mc-index-map [s]
+  (into {} (for [[k v] (group-by second (map-indexed vector s))] [k (set (map first v))])))
+
+(defn mc-un-index-map [m]
+  (mapv first (sort-by second (apply concat (for [[k v] m] (map vector (repeat k) v))))))
+
+;; @steffan-westcott 
+(defn sw-index-map [xs]
+  (reduce-kv (fn [m idx x] (update m x (fnil conj #{}) idx)) {} xs))
+
+;; SEM added vec to fix nil result
+(defn sw-invert-index-map [m]
+  (vec (vals (reduce-kv (fn [m' x idxs] (merge m' (zipmap idxs (repeat x)))) (sorted-map) m))))
