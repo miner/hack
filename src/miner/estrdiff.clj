@@ -47,6 +47,28 @@
 ;; slow to merge and select
 ;; [deleted]
 
+;; sort first and count down.  Actually, pretty fast but not the best
+(defn ssd [a b]
+  (let [kinc (fn [m k] (assoc m k (inc (get m k 0))))]
+    (loop [xs (sort a)  ys (sort b) res {}]
+      (let [x (first xs) y (first ys) cmp (compare x y)]
+        (cond (nil? x) (reduce kinc res ys)
+              (nil? y) res
+              (zero? cmp) (recur (rest xs) (rest ys) res)
+              (neg? cmp) (recur (rest xs) ys res)
+              :else (recur xs (rest ys) (kinc res y)))))))
+
+;; tiny bit faster with transients
+(defn tssd [a b]
+  (let [kinc! (fn [m k] (assoc! m k (inc (get m k 0))))]
+    (loop [xs (sort a)  ys (sort b) res (transient {})]
+      (let [x (first xs) y (first ys) cmp (compare x y)]
+        (cond (nil? y) (persistent! res)
+              (nil? x) (persistent! (reduce kinc! res ys))
+              (zero? cmp) (recur (rest xs) (rest ys) res)
+              (neg? cmp) (recur (rest xs) ys res)
+              :else (recur xs (rest ys) (kinc! res y)))))))
+
 
 
 
