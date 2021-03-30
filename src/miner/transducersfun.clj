@@ -38,3 +38,10 @@
 (let [c (a/chan 1 xform)]
   (a/thread (a/onto-chan c data))
   (a/<!! (a/into [] c)))
+
+
+;; converts from collection style (->> xs foo bar) into transducer sequence with minimal
+;; textual change
+(defmacro seq->> [coll & forms]
+  `(sequence (comp ~@forms) ~coll))
+
