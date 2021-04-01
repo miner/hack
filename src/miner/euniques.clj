@@ -26,6 +26,8 @@
               coll)))
 
 
+   
+
 
 
 ;; faster  BUT NOT GUARANTEED ORDER
@@ -96,3 +98,16 @@
           (filter #(= 1 (val %)))
           (map key)))
 
+
+
+;; slow and complicated
+(defn luniqs [coll]
+  (loop [seen-at {} sm (sorted-map) cs coll i 0]
+    (if (seq cs)
+      (let [c (first cs)]
+        (if-let [si (get seen-at c)]
+          (recur seen-at (dissoc sm si) (rest cs) (inc i))
+          (if (contains? seen-at c)
+            (recur seen-at sm (rest cs) (inc i))
+            (recur (assoc seen-at c i) (assoc sm i c) (rest cs) (inc i)))))
+      (sequence (vals sm)))))
