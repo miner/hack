@@ -63,7 +63,7 @@
 ;; Warning: untested code.  Maybe typos.
 
 (defn peek! [tv]
-  (nth tv (dec (count tranv))))
+  (nth tv (dec (count tv))))
 
 ;; See CLJ-1872 for empty? breakage on transient
 (defn empty?! [tv] (zero? (count tv)))
