@@ -6,9 +6,10 @@
 ;; exists). Write a function promote that takes a predicate and a list. If the predicate is
 ;; true, the element should be promoted.
 
-
+;;; Note some are lazy and the smoke-promo performance favors lazy.
 
 ;; SEM hacked version of @sw transducer.  Now fastest.  Seems like the best answer to me.
+;; Also, good to be lazy.
 (defn xpromote
   ([pred]
    (fn [rf]
@@ -45,7 +46,7 @@
 
 
 
-
+;; not bad but calls pred extra times
 (defn promote1 [pred coll]
   (if (empty? coll)
     coll
@@ -106,7 +107,7 @@
    `(and (assert? ~pred ~form ~result)
          (assert? ~pred ~@more))))
 
-
+;; favors lazy
 (defn smoke-promo [promote]
   (assert? =
            (promote even? [1 3 5 6]) '(1 3 6 5)
@@ -148,7 +149,7 @@
 
 ;; SEM list buf is slightly faster than vector.  swp4 with ::void is much faster
 
-(defn sw-promote3 [pred xs]
+(defn swp3 [pred xs]
   (loop [res [] buf () xs xs]
     (if (seq xs)
       (let [[x & r] xs]
@@ -178,7 +179,7 @@
 ;; complication doesn't buy much speed.
 
 
-;;; SEM idea: partition-by to get runs
+;;; SEM idea: partition-by to get runs, but too much fiddling ruins performance
 
 ;;; very slow
 (defn twp [pred coll]
@@ -195,51 +196,6 @@
             (recur (conj (into (pop r) ys) (peek r))
                    (drop (+ dcnt (count ys)) xs))))))))
 
-
-
-
-
-(defn lpromo2 [pred coll]
-  (if (empty? coll)
-    coll
-    (loop [r [] a (first coll) bs (rest coll)]
-      (if (empty? bs)
-        (conj r a)
-        (let [pa (pred a)
-              b (first bs)
-              pb (pred b)]
-          (cond (and pa pb (next bs)) (recur (conj r a b) (second bs) (nnext bs))
-                pa (recur (conj r a) b (rest bs))
-                pb (recur (conj r b) a (rest bs))
-                :else (recur (conj r a)  b (rest bs))))))))
-
-
-
-
-;; basically the same as sw
-(defn lpromo [pred coll]
-  (if (empty? coll)
-    coll
-    (loop [r [] a (first coll) bs (rest coll)]
-      (cond (empty? bs) (conj r a)
-            (pred a) (recur (conj r a) (first bs) (rest bs))
-            (pred (first bs)) (recur (conj r (first bs)) a (rest bs))
-            :else (recur (conj r a)  (first bs) (rest bs))))))
-
-
-
-;; hacked by SEM, but not faster to cache (quick pred)
-(defn swp2 [pred xs]
-  (if (seq xs)
-    (loop [res [] a (first xs) pa (pred (first xs)) ys (rest xs)]
-      (if (seq ys)
-        (let [b (first ys)
-              pb (pred b)]
-          (if (or pa (not pb))
-            (recur (conj res a) b pb (rest ys))
-            (recur (conj res b) a pa (rest ys))))
-        (conj res a)))
-    []))
 
 
 
@@ -263,7 +219,7 @@
   (nth tv (dec (count tv))))
 
 
-;; transients actually slower!
+;; this use of transients actually slower!
 (defn promote4 [pred coll]
   (if (empty? coll)
     coll
@@ -287,7 +243,7 @@
 ;; SEM:  I wonder about `unreduced` vs propagating reduced result????  I'm now thinking
 ;; unreduced is the right way. (And that's how @sw did it.)
 
-(defn promotor [pred]
+(defn jr-promotor [pred]
   (fn [rf]
     (let [v (volatile! [])]
       (fn
@@ -309,9 +265,8 @@
                 result
                 (rf result x)))))))))
 
-
 (defn jr-promote [pred coll]
-  (into [] (promotor pred) coll))
+  (into [] (jr-promotor pred) coll))
 
 
 
@@ -378,7 +333,6 @@
     (promo ::void xs)))
 
 
-
 ;; SEM change buf to ::void, faster than swi, almost as good as transducer version
 (defn smi-promote1 [pred xs]
   (let [promote' (fn promote' [pred buf xs]
@@ -394,45 +348,3 @@
                       (when-not (identical? buf ::void) (list buf)))))]
     (promote' pred ::void xs)))
 
-
-;; prettier but slower!!!
-(defn smi-promote2 [pred xs]
-  (let [promo (fn promo [pred buf xs]
-                 (cond (empty? xs) (if (identical? buf ::void) () (list buf))
-                       (pred (first xs)) (lazy-seq (cons (first xs) (promo pred buf (rest xs))))
-                       (identical? buf ::void) (recur pred (first xs) (rest xs))
-                       :else (lazy-seq (cons buf (promo pred (first xs) (rest xs))))))]
-    (promo pred ::void xs)))
-
-
-
-
-;; NOT WORTH IT
-(defn smi-promote23 [pred xs]
-  (let [promo (fn promo [buf xs]
-                (lazy-seq
-                 (if-let [xs (seq xs)]
-                   (if (pred (first xs))
-                     (cons (first xs) (promo buf (rest xs)))
-                     (if (identical? buf ::void)
-                       (promo (first xs) (rest xs))
-                       (cons buf (promo (first xs) (rest xs)))))
-                   (if (identical? buf ::void) () (list buf)))))]
-    (promo ::void xs)))
-
-
-
-
-
-
-;; slower than 2 but maybe cleaner to use first as buf???  I guess not.
-(defn smi-promote3 [pred xs]
-  (let [promo (fn promo [pred xs]
-                (let [buf (first xs)
-                      xs (rest xs)]
-                 (cond (empty? xs) (if (identical? buf ::void) () (list buf))
-                       (pred (first xs)) (lazy-seq (cons (first xs)
-                                                         (promo pred (cons buf (rest xs)))))
-                       (identical? buf ::void) (recur pred xs)
-                       :else (lazy-seq (cons buf (promo pred xs))))))]
-    (promo pred (cons ::void xs))))
