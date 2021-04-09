@@ -122,7 +122,9 @@
   29 32 31 34 33 36 35 38 37 40 39 42 41 44 43 46 45 48 47 50 49 52 51 54 53 56 55 58 57 60
   59 62 61 64 63 66 65 68 67 70 69 72 71 74 73 76 75 78 77 80 79 82 81 84 83 86 85 88 87 90
             89 92 91 94 93 96 95 98 97 99]
-           (take 10 (promote even? (range 1000))) [0 2 1 4 3 6 5 8 7 10]))
+           (take 10 (promote even? (range 1000))) [0 2 1 4 3 6 5 8 7 10]
+           ;; nil value tolerance (maybe too strict)
+           (promote nil? [true nil false nil true]) [nil true nil false true]))
 
 
 ;; faster @steffan-westcott
@@ -348,3 +350,21 @@
                       (when-not (identical? buf ::void) (list buf)))))]
     (promote' pred ::void xs)))
 
+
+
+;; @diavoletto76  but fails on nil values (maybe I'm too strict?)
+(defn d-promote [f xs]
+  (loop [[x1 x2 & xs] xs acc []]
+    (cond (nil? x1) acc
+          (nil? x2) (conj acc x1)
+          (and (f x2) ((complement f) x1)) (recur (cons x1 xs) (conj acc x2))
+          :else (recur (cons x2 xs) (conj acc x1)))))
+
+;; fixed but too slow
+(defn d-promote1 [f xs]
+  (loop [xs xs acc []]
+    (cond (empty? xs) acc
+          (empty? (rest xs)) (conj acc (first xs))
+          (and (f (second xs)) (not (f (first xs))))
+              (recur (cons (first xs) (nnext xs)) (conj acc (second xs)))
+          :else (recur (rest xs) (conj acc (first xs))))))
