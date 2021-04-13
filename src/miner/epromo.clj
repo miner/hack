@@ -373,3 +373,13 @@
           (and (f (second xs)) (not (f (first xs))))
               (recur (cons (first xs) (nnext xs)) (conj acc (second xs)))
           :else (recur (rest xs) (conj acc (first xs))))))
+
+;; @burnall, not so fast, but shortish
+(defn b-promote [pred xs]
+  (->> xs 
+       (reduce (fn [[res tail] x]
+                 (if (pred x)
+                   [(conj res x) tail]
+                   [(apply conj res tail) (list x)]))                 
+               [[] nil])
+       (apply concat)))
