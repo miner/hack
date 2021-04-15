@@ -74,6 +74,20 @@
 
 
 
+;;; SEM: I would like to change the notation to a single kw, like :A1, instead of the
+;;; vector.  This is for human convenience.
+
+(defn kw? [kw]
+  (and (keyword? kw) (= (count (name kw)) 2)))
+
+(defn kwv [kw]
+  (let [nm (name kw)]
+    [(keyword (subs nm 0 1))
+     (Long/parseLong (subs nm 1))]))
+
+(defn vkw [[f r]]
+  (keyword (str (name f) r)))
+
 
 (comment
 
