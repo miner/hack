@@ -6,6 +6,17 @@
 ;; corner.  I guess that should be "rank" and "file" in chess terms.
 
 
+;; Interesting extension (not implemented):  Define all the paths to get from a position to
+;; another square in so many moves.  More or less: calculated all the one-hop moves and then
+;; fan out from current position until board is coverd.  This link shows interactive web
+;; page illustrating moves:
+;;
+;; https://tamas-szabo.com/knightjumps/
+
+;; Another extension:  Knight's tour.  Calculate a path of jumps from one corner covering
+;; every square once.
+;;
+;; https://en.wikipedia.org/wiki/Knight's_tour
 
 (def kfiles [:A :B :C :D :E :F :G :H])
 
@@ -56,6 +67,276 @@
 
 
 
+
+
+;; @steffan-westcott writes:  As a bit of fun, I was inspired by @sztamas to add a shortest
+;; knight move path challenge!  Building on your knight-move function, add a new function
+;; which takes source and destination squares and returns a collection of all shortest paths
+;; of knight moves between them.
+
+
+;; SEM I didn't prove it, but it looks like a Knight can cover the whole board in six or
+;; fewer moves so there's no need to account for failures.  Also, pretty sure a knight won't
+;; get stuck in a cycle.  BUT, he can always jump right back!  Apparently, not worth the
+;; effort to avoid cycles.
+
+(defn shortest-paths [start target]
+  (let [success? (fn [path] (= target (peek path)))]
+    (loop [paths [[start]]]
+      (or (seq (filter success? paths))
+          (recur (mapcat (fn [path] (map #(conj path %) (knight-move (peek path)))) paths))))))
+
+
+
+(defn shortest-paths1 [start target]
+  (let [success? (fn [path] (= target (peek path)))]
+    (loop [paths [[start]]]
+      (if-let [sols (seq (filter success? paths))]
+        sols
+        (recur (mapcat (fn [path] (map #(conj path %) (knight-move (peek path)))) paths))))))
+
+(defn shortest-paths-SAFE [start target]
+  (let [success? (fn [path] (= target (peek path)))]
+    (loop [paths [[start]]]
+      (if (empty? paths)
+        nil ;; should never happen
+        (or (seq (filter success? paths))
+            (recur (mapcat (fn [path] (map #(conj path %) (knight-move (peek path)))) paths)))))))
+
+
+;; trying to avoid cycles, but it's slower
+;; be careful about empty paths (potential failure), but we know that shouldn't happen
+(defn sp2 [start target]
+  (let [success? (fn [path] (= target (peek path)))
+        extend-path (fn [path] (map #(conj path %) (remove (set path) (knight-move (peek path)))))]
+    (loop [paths [[start]]]
+      (when (seq paths)
+        (or (seq (filter success? paths))
+            (recur (mapcat extend-path paths)))))))
+
+
+(defn sp3 [start target]
+  (let [success? (fn [path] (= target (peek path)))
+        extend-path (fn [path] (map #(conj path %)
+                                    (remove (set (pop path)) (knight-move (peek path)))))]
+    (loop [paths [[start]]]
+      (when (seq paths)
+        (or (seq (filter success? paths))
+            (recur (mapcat extend-path paths)))))))
+
+;;; consider keeping set of path as peek, but not fast enough
+(defn sp33 [start target]
+  (let [success? (fn [path] (= target (peek (pop path))))
+        extend-path (fn [path]
+                      (let [ps (peek path)
+                            path (pop path)]
+                        (map #(conj path % (conj ps %))
+                                    (remove ps (knight-move (peek path))))))]
+      (map pop (loop [paths [[start (hash-set start)]]]
+                 (when (seq paths)
+                   (or (seq (filter success? paths))
+                       (recur (mapcat extend-path paths))))))))
+
+
+(defn sp34 [start target]
+  (let [success? (fn [pathx] (= target (peek (first pathx))))
+        extend-path (fn [pathx]
+                      (let [path (first pathx)
+                            ps (second pathx)]
+                        (map #(list (conj path %) (conj ps %))
+                                    (remove ps (knight-move (peek path))))))]
+      (map first (loop [paths [(list [start] #{start})]]
+                   (when (seq paths)
+                     (or (seq (filter success? paths))
+                         (recur (mapcat extend-path paths))))))))
+
+
+
+
+
+
+;; instead of set of squares use bits in a long
+
+
+(defn fri [[f r]]
+  (+ (* (ifile f) 8) (dec r)))
+
+(defn ifr [i]
+  [(nth kfiles (quot i 8))
+   (inc (rem i 8))])
+
+
+
+
+;; not faster to bit-or instead of +
+
+(defn bkm [b]
+  (let [f (bit-shift-right b 3)
+        r (bit-and b 7)]
+    (into [] (keep (fn [[rdiff fdiff]]
+                      (let [f2 (+ f fdiff)]
+                        (when (zero? (bit-shift-right f2 3))
+                          (let [r2 (+ r rdiff)]
+                            (when (zero? (bit-shift-right r2 3))
+                              (+ (bit-shift-left f2 3) r2)))))))
+          [[-2 -1] [-1 -2] [-2 1] [-1 2] [1 2] [2 1] [1 -2] [2 -1]])))
+
+
+;; keep position in one long rank in bits 543, file bits 210
+
+(def bfile (reduce-kv (fn [m i kf] (assoc m kf (bit-shift-left i 3))) {} kfiles))
+
+(defn frb [[f r]]
+  (+ (bfile f) (dec r)))
+
+(defn bfr [b]
+  [(nth kfiles (bit-shift-right b 3))
+   (inc (bit-and b 7))])
+
+;; just for testing compatible with original knight-move
+(defn frbkm [fr]
+  (map bfr (bkm (frb fr))))
+
+
+
+;; for finding short path -- converts once to bit rep, then back at end
+(defn sp56 [start target]
+  (let [st (fri start)
+        targ (fri target)
+        success? (fn [bpath] (= targ (peek (first bpath))))
+        extend-path (fn [bpath]
+                      (let [path (first bpath)
+                            bits (second bpath)]
+                        (map #(list (conj path %) (bit-set bits %))
+                             (remove #(bit-test bits %) (bkm (peek path))))))]
+    (->>
+     (loop [bpaths [(list [st] (bit-set 0 st))]]
+       (when (seq bpaths)
+         (or (seq (filter success? bpaths))
+             (recur (mapcat extend-path bpaths)))))
+     (map first)
+     (map #(map bfr %)))))
+
+;; FASTEST better with transducers
+(defn sp571 [start target]
+  (let [st (frb start)
+        targ (frb target)
+        success? (fn [bpath] (= targ (peek (first bpath))))
+        extend-path (fn [bpath]
+                      (let [path (first bpath)
+                            bits (second bpath)]
+                        (into [] (comp (remove #(bit-test bits %))
+                                       (map #(list (conj path %) (bit-set bits %))))
+                              (bkm (peek path)))))]
+    (into [] (comp (map first)
+                   (map #(mapv bfr %)))
+     (loop [bpaths [(list [st] (bit-set 0 st))]]
+       (when (seq bpaths)
+         (or (seq (filter success? bpaths))
+             (recur (mapcat extend-path bpaths))))))))
+
+
+(defn sp58 [start target]
+  (let [st (frb start)
+        targ (frb target)
+        success? (fn [bpath] (= targ (peek (first bpath))))
+        extend-path (fn [bpath]
+                      (let [path (first bpath)
+                            bits (second bpath)]
+                        (into [] (comp (remove #(bit-test bits %))
+                                       (map #(list (conj path %) (bit-set bits %))))
+                              (bkm (peek path)))))]
+    (into [] (comp (map first)
+                   (map #(sequence (map bfr) %)))
+     (loop [bpaths [(list [st] (bit-set 0 st))]]
+       (when (seq bpaths)
+         (or (seq (filter success? bpaths))
+             (recur (mapcat extend-path bpaths))))))))
+
+;; not better
+(defn sp581 [start target]
+  (let [st (frb start)
+        targ (frb target)
+        success? (fn [bpath] (= targ (peek (first bpath))))
+        extend-path (fn [bpath]
+                      (let [path (first bpath)
+                            bits (second bpath)]
+                        (into [] (comp (remove #(bit-test bits %))
+                                       (map #(list (conj path %) (bit-set bits %))))
+                              (bkm (peek path)))))]
+    (into [] (comp (map first)
+                   (map #(into [] (map bfr) %)))
+     (loop [bpaths [(list [st] (bit-set 0 st))]]
+       (when (seq bpaths)
+         (or (seq (filter success? bpaths))
+             (recur (mapcat extend-path bpaths))))))))
+
+
+
+;; bpath is list path ints and one long of bits (i squares)
+(defn sp55 [start target]
+  (let [st (fri start)
+        targ (fri target)
+        success? (fn [bpath] (= targ (peek (first bpath))))
+        kms (fn [sqi] (map fri (knight-move (ifr sqi))))
+        extend-path (fn [bpath]
+                      (let [path (first bpath)
+                            bits (second bpath)]
+                        (map #(list (conj path %) (bit-set bits %))
+                             (remove #(bit-test bits %) (kms (peek path))))))]
+    (->>
+     (loop [bpaths [(list [st] (bit-set 0 st))]]
+       (when (seq bpaths)
+         (or (seq (filter success? bpaths))
+             (recur (mapcat extend-path bpaths)))))
+     (map first)
+     (map #(map ifr %)))))
+
+
+;;; IDEAS keep a set of pop path to reuse for filter
+;;; keep a tree [HEAD [C1 [C11 [C12 C123 C1234]] [C2 C22 C23] [C3 C33 C34]]]
+
+
+;;; SLOWER
+(defn sp4 [start target]
+  (let [success? (fn [path] (= target (peek path)))
+        extend-path (fn [path] (map #(conj path %)
+                                    (remove (fn [p] (some #(= p %) (pop path)))
+                                            (knight-move (peek path)))))]
+    (loop [paths [[start]]]
+      (when (seq paths)
+        (or (seq (filter success? paths))
+            (recur (mapcat extend-path paths)))))))
+
+
+
+
+(defn shortest-paths-WORKS [start target]
+  (loop [paths [[start]] depth 0]
+    (when (< depth 10)
+      ;;(println paths)
+      (if-let [sols (seq (filter #(= target (peek %)) paths))]
+        sols
+        (recur (mapcat (fn [path] (map #(conj path %) (knight-move (peek path)))) paths)
+               (inc depth))))))
+      
+
+(defn smoke-short [shortest-paths]
+  (assert? = (shortest-paths [:H 6] [:F 2])
+           '( [[:H 6] [:G 4] [:F 2]] )
+           (sort-by vec (shortest-paths [:A 1] [:B 1]))
+           '( [[:A 1] [:B 3] [:D 2] [:B 1]]   [[:A 1] [:C 2] [:A 3] [:B 1]] )))
+
+
+(defn smoke-sh [shortest-paths]
+  (and (smoke-short shortest-paths)
+       (assert? =
+           (count (shortest-paths [:A 1] [:H 8])) 108
+           (count (shortest-paths [:H 8] [:A 1])) 108
+           (count (shortest-paths [:H 1] [:A 8])) 108
+           (count (shortest-paths [:A 8] [:H 1])) 108)))
+
+           
 
 
 ;; @sw
