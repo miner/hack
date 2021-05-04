@@ -13,12 +13,22 @@
            (frequencies socks)))
 
 
-
-
-
 (defn kinto [m k xform xs]
   (assoc m k (into (get m k) xform xs)))
 
+;; a bit faster
+(defn pm2 [socks]
+  (reduce-kv (fn [m k cnt] (-> m
+                               (kinto :pairs (take (quot cnt 2)) (repeat [k k]))
+                               (cond-> (odd? cnt) (update :unmatched conj k))))
+               {:pairs [] :unmatched []}
+               (frequencies socks)))
+
+
+
+
+
+;; slower with group-by
 (defn pair-match2 [socks]
   (reduce-kv (fn [m k socks] (let [cnt (count socks)]
                                (if (even? cnt)

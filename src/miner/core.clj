@@ -3,6 +3,12 @@
 
 ;;; Many semi-useful things moved into the halfbaked lib (now on clojars)
 
+;;; absolute value
+(defn abs
+  ([i] (if (neg? i) (- i) i))
+  ([a b] (abs (- a b))))
+
+
 ;;; Make a macro that automates this sort of counter (for testing side-effects and laziness)
 (let [counter (atom 0)]
   (defn fcount ([] @counter) ([n] (reset! counter n)))
