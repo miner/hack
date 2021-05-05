@@ -29,8 +29,6 @@
               (if (< ad ad2) g g2)))))))
 
 
-
-
 ;; brute force
 (defn brute-closest-palindrome [n]
   (let [palin? (fn [n]
@@ -45,19 +43,6 @@
 
 
 ;; slow
-(defn xcp1 [n]
-  (let [palin? (fn [n]
-                 (let [s (str n)]
-                   (= s (-> (StringBuilder. s) .reverse .toString))))]
-    (if (palin? n)
-      n
-      (first (sequence (comp (mapcat (juxt - +))
-                             (filter palin?)
-                             (take 1))
-                       (repeat n)
-                       (range 1 n))))))
-
-
 (defn xcp2 [n]
   (let [palin? (fn [n]
                  (let [s (str n)]
@@ -69,17 +54,6 @@
                              (take 1))
                        (range 1 n))))))
 
-
-(defn xcp3 [n]
-  (let [palin? (fn [n]
-                 (let [s (str n)]
-                   (= s (-> (StringBuilder. s) .reverse .toString))))]
-    (if (palin? n)
-      n
-      (first (sequence (comp (mapcat #(vector (- n %) (+ n %)))
-                             (filter palin?)
-                             (take 1))
-                       (range 1 n))))))
 
 
 
@@ -132,54 +106,15 @@
               (min-key ndiff g2 g)))))))
 
 
-;; pretty fast
-(defn clopal3 [n]
-  (let [guess (fn [n]
-                (let [s (str n)
-                      sb (StringBuilder. s)
-                      hlen (quot (.length sb) 2)]
-                  (Long/parseLong (-> sb .reverse
-                                      (.replace 0 hlen (subs s 0 hlen)) .toString))))]
-      (let [g (guess n)
-            diff (- g n)]
-        (if (zero? diff)
-          n
-          (let [g2 (guess (- n diff))
-                ndiff (fn [x] (let [d (- n x)] (if (neg? d) (- d) d)))]
-            (if (< g2 g)
-              (min-key ndiff g g2)
-              (min-key ndiff g2 g)))))))
 
 
-;; fastest but a bit ugly
-(defn clopal4 [n]
-  (let [abs (fn [x] (if (neg? x) (- x) x))
-        guess (fn [n]
-                (let [s (str n)
-                      sb (StringBuilder. s)
-                      hlen (quot (.length sb) 2)]
-                  (Long/parseLong (-> sb .reverse
-                                      (.replace 0 hlen (subs s 0 hlen)) .toString))))]
-      (let [g (guess n)
-            diff (- g n)]
-        (if (zero? diff)
-          n
-          (let [g2 (guess (- n diff))
-                ad (abs diff)
-                ad2 (abs (- g2 n))]
-            (if (= ad ad2)
-              (min g g2)
-              (if (< ad ad2) g g2)))))))
-
-
-;; 2x - 10x slower with pure Clojure
+;; like favorite (closest-palindrome) but 5x slower with pure Clojure
 (defn clopal41 [n]
   (let [abs (fn [x] (if (neg? x) (- x) x))
         guess (fn [n]
                 (let [s (str n)
                       rs (clojure.string/reverse s)
                       hlen (quot (count s) 2)]
-                  ;;(println s rs hlen (subs s 0 hlen) (subs rs hlen))
                   (clojure.edn/read-string (str (subs s 0 hlen) (subs rs hlen)))))]
       (let [g (guess n)
             diff (- g n)]
@@ -190,96 +125,7 @@
                 ad2 (abs (- g2 n))]
             (if (= ad ad2)
               (min g g2)
-              (if (< ad ad2)
-                g
-                g2)))))))
-
-
-
-
-
-
-(defn clopal5 [n]
-  (let [absdiff (fn [g] (let [d (- n g)] (if (neg? d) (- d) d)))
-        guess (fn [n]
-                (let [s (str n)
-                      sb (StringBuilder. s)
-                      hlen (quot (.length sb) 2)]
-                  (Long/parseLong (-> sb .reverse
-                                      (.replace 0 hlen (subs s 0 hlen)) .toString))))]
-      (let [g (guess n)
-            diff (absdiff g)]
-        (if (zero? diff)
-          n
-          (let [g2 (if (> g n) (guess (- n diff)) (guess (+ n diff)))
-                diff2 (absdiff g2)]
-            (if (= diff diff2)
-              (min g g2)
-              (if (< diff diff2)
-                g
-                g2)))))))
-
-
-;; not actually faster than 5
-(defn clopal6 [n]
-  (let [absdiff (fn [g] (let [d (- n g)] (if (neg? d) (- d) d)))
-        guess (fn [n]
-                (let [s (str n)
-                      sb (StringBuilder. s)
-                      hlen (quot (.length sb) 2)]
-                  (Long/parseLong (-> sb .reverse (.replace 0 hlen (subs s 0 hlen)) .toString))))]
-      (let [g (guess n)
-            diff (absdiff g)]
-        (if (zero? diff)
-          n
-          (if (> g n)
-            (let [g2 (guess (- n diff))
-                  diff2 (absdiff g2)]
-              (if (< diff diff2)
-                g
-                g2))
-            (let [g2 (guess (+ n diff))
-                  diff2 (absdiff g2)]
-              (if (< diff2 diff)
-                g2
-                g)))))))
-
-;; about 2x slower avoiding Java interop
-(defn clopal61 [n]
-  (let [absdiff (fn [g] (let [d (- n g)] (if (neg? d) (- d) d)))
-        guess (fn [n]
-                (let [s (str n)
-                      len (count s)
-                      hlen (quot len 2)
-                      hstr (subs s 0 hlen)
-                      rhstr (clojure.string/reverse hstr)]
-                  ;;(println s hstr rhstr)
-                  (if (odd? len)
-                    (Long/parseLong (str (subs s 0 (inc hlen)) rhstr))
-                    (Long/parseLong (str hstr rhstr)))))]
-      (let [g (guess n)
-            diff (absdiff g)]
-        (if (zero? diff)
-          n
-          (if (> g n)
-            (let [g2 (guess (- n diff))
-                  diff2 (absdiff g2)]
-              (if (< diff diff2)
-                g
-                g2))
-            (let [g2 (guess (+ n diff))
-                  diff2 (absdiff g2)]
-              (if (< diff2 diff)
-                g2
-                g)))))))
-
-
-
-
-
-
-
-
+              (if (< ad ad2) g g2)))))))
 
 
 ;; 10x slower with vector chars!
@@ -306,9 +152,7 @@
               g2))
           (let [g2 (guess (+ n diff))
                 diff2 (absdiff g2)]
-            (if (< diff2 diff)
-              g2
-              g)))))))
+            (if (< diff2 diff) g2 g)))))))
 
 
 
@@ -334,7 +178,7 @@
 
 
 
-;; @steffan-westcott, refactored by SEM
+;; @steffan-westcott, lightly refactored by SEM
 
 (defn sw-closest-palindrome [n]
   (let [abs (fn [n] (if (neg? n) (- n) n))
@@ -346,6 +190,7 @@
             n-high-digits (read-string (subs s 0 (- (count s) low-digits-length)))
             palindromes (for [high (take 3 (iterate inc (dec n-high-digits)))
                               :let [high' (if (zero? high) "" (str high))
-                                    low' (clojure.string/reverse (subs (str high' "9") 0 low-digits-length))]]
+                                    low' (clojure.string/reverse
+                                          (subs (str high' "9") 0 low-digits-length))]]
                           (read-string (str high' low')))]
         (closest-smallest-integer n palindromes)))))
