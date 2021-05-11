@@ -187,7 +187,7 @@
                    (inc (* 3 c)))))]
     (sequence (take-while some?) (iterate step n))))
 
-;; slightly faster than scollatz, but not as good as my collatz
+;; somewhat faster than scollatz, but not as good as my collatz
 (defn scollatz2 [n]
   (let [step (fn [c]
                (when (> c 1)
