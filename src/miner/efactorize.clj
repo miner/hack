@@ -72,23 +72,16 @@
 
 ;; My new favorite.  And faster!
 
-;; good as a transducing function
+;; good as a transducing function,  like having a transient string
 (defn string-builder
   ([] (StringBuilder.))
   ([sb] (str sb))
   ([sb x] (.append ^StringBuilder sb (str x))))
 
-(defn format-product6 [factors]
-  (transduce (comp (map (fn [[f cnt]] (if (= cnt 1) f (str f "^" cnt))))
+(defn xstr [xform coll]
+  (transduce xform string-builder coll))
+
+(defn format-product8 [factors]
+  (xstr (comp (map (fn [[f cnt]] (if (= cnt 1) f (str f "^" cnt))))
                    (interpose " x "))
-             string-builder
-             (sort (frequencies factors))))
-
-
-;; not faster
-(defn format-product7 [factors]
-  (transduce (comp (mapcat (fn [[f cnt]] (if (= cnt 1) (list " x " f) (list " x " f "^" cnt))))
-                   (drop 1))
-             string-builder
-             (sort (frequencies factors))))
-
+        (sort (frequencies factors))))
