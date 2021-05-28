@@ -45,3 +45,8 @@
 (defmacro seq->> [coll & forms]
   `(sequence (comp ~@forms) ~coll))
 
+;; good as a transducing function
+(defn string-builder
+  ([] (StringBuilder.))
+  ([sb] (str sb))
+  ([sb x] (.append ^StringBuilder sb (str x))))
