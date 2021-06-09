@@ -1,6 +1,6 @@
 (defproject hack "0.2.93-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [
+  :dependencies [[djblue/portal "0.11.2"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
                  [com.velisco/strgen "0.2.1"]
