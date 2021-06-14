@@ -11,19 +11,51 @@
 ;;; implementation, implement it in such a way that the definition (no permutations are
 ;;; smaller) is clear from the code.
 
+;;; Edabit clarification: 509 is a new number because it can't be formed by a permutation of
+;;; any smaller number (leading zeros not allowed).
 
 
+;; corrected for second 0 and maybe more
 (defn new-number? [n]
+  (let [digs (seq (str n))]
+    (boolean (reduce (fn [a b] (if (pos? (compare a b)) (reduced false) b))
+                     (first digs)
+                     (drop-while #{\0} (rest digs))))))
+
+(defn xnew-number? [n]
+  (let [digs (seq (str n))]
+    (boolean (reduce (fn [a b] (if (pos? (compare a b)) (reduced false) b))
+                     (first digs)
+                     (drop-while #(identical? \0 %) (rest digs))))))
+
+;; a bit faster with identical? test, transduce doesn't seem to matter
+(defn tnn? [n]
+  (let [digs (seq (str n))]
+    (transduce (drop-while #(identical? \0 %))
+               (completing (fn [a b] (if (pos? (compare a b)) (reduced false) b))
+                           boolean)
+               (first digs)
+               (rest digs))))
+
+                                              
+;; corrected but slow
+(defn nnum? [n]
+  (let [digs (seq (str n))
+        digs (if (= (second digs) \0)
+               (conj (drop-while #{\0} (rest digs)) (first digs))
+               digs)]
+    (= digs (sort digs))))
+
+
+
+;; original is fast but flawed with trailing zeroes
+(defn new-number-SUBMITTED? [n]
   (boolean (reduce (fn [a b] (if (pos? (compare a b)) (reduced false) b)) \0 (str n))))
+;; but doesn't handle 0 chars correctly
 
-
+;; zero problem
 (defn nn1? [n]
   (<= n (Long/parseLong (apply str (sort (str n))))))
-
-
-(defn nnum? [n]
-  (let [digs (seq (str n))]
-    (= digs (sort digs))))
 
 
 
@@ -32,6 +64,26 @@
   (assert (not (new-number? 645)))
   (assert (new-number? 444))
   (assert (new-number? 123456789))
+  (assert (new-number? 30))
+  (assert (new-number? 509))
+  (assert (new-number? 100))
+  (assert (new-number? 1000))
+  (assert (new-number? 1001))
+  (assert (not (new-number? 2001)))
+  (assert (not (new-number? 5109)))
   (assert (not (new-number? 123456780)))
+  (assert (= (count (filter new-number? (range 1000000))) 8002))
   true)
 
+
+
+;; @mchampine  fails 1230
+(defn mch? [n]
+  (let [nzdigits (remove #{\0} (seq (str n)))
+        nzsdigs (remove #{\0} (sort nzdigits))]
+    (= nzdigits nzsdigs)))
+
+;; @mcuervoe fails 30
+(defn mcu? [n]
+  (let [nstr (str n)]
+    (every? (fn [[a b]] (<= (int a) (int b))) (map (fn [a b] [a b]) nstr (drop 1 nstr)))))
