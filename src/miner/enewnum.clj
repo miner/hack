@@ -14,6 +14,10 @@
 ;;; Edabit clarification: 509 is a new number because it can't be formed by a permutation of
 ;;; any smaller number (leading zeros not allowed).
 
+;;; Definitive reference:  https://oeis.org/A179239
+;;; "Permutation classes of integers, each identified by its smallest member"
+;;; has note about no leading zeros allowed in permutations
+
 
 ;; corrected for second 0 and maybe more
 (defn new-number? [n]
@@ -43,6 +47,14 @@
   (let [digs (seq (str n))
         digs (if (= (second digs) \0)
                (conj (drop-while #{\0} (rest digs)) (first digs))
+               digs)]
+    (= digs (sort digs))))
+
+;;; slightly faster with identical? instead of =
+(defn nnum2? [n]
+  (let [digs (seq (str n))
+        digs (if (identical? (second digs) \0)
+               (conj (drop-while #(identical? \0 %) (rest digs)) (first digs))
                digs)]
     (= digs (sort digs))))
 
@@ -87,3 +99,11 @@
 (defn mcu? [n]
   (let [nstr (str n)]
     (every? (fn [[a b]] (<= (int a) (int b))) (map (fn [a b] [a b]) nstr (drop 1 nstr)))))
+
+;; @steffan-westcott, hacked by SEM for 0, still much slower than mine
+(defn swnn? [n]
+  (or (zero? n)
+      (let [digits (seq (str n))
+            [zeroes [non-zero & rest-non-zeroes]] (split-with #{\0} (sort digits))
+            min-perm (concat [non-zero] zeroes rest-non-zeroes)]
+        (= min-perm digits))))
