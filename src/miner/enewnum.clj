@@ -88,7 +88,6 @@
   true)
 
 
-
 ;; @mchampine  fails 1230
 (defn mch? [n]
   (let [nzdigits (remove #{\0} (seq (str n)))
@@ -107,3 +106,15 @@
             [zeroes [non-zero & rest-non-zeroes]] (split-with #{\0} (sort digits))
             min-perm (concat [non-zero] zeroes rest-non-zeroes)]
         (= min-perm digits))))
+
+
+;;; @mchampine, hacked by SEM for namespaces, then hacked again to work for 0.  Very slow!
+;;; Can't time for 1e6 count
+(require 'clojure.math.combinatorics)
+(defn mch2? [n]
+  (->> (clojure.math.combinatorics/permutations (str n))
+       (remove #(identical? \0 (first %)))
+       (map clojure.string/join)
+       (map #(Integer/parseInt %))
+       (apply min n)
+       (= n)))
