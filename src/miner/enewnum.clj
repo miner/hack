@@ -18,6 +18,7 @@
 ;;; "Permutation classes of integers, each identified by its smallest member"
 ;;; has note about no leading zeros allowed in permutations
 
+;;; Notice: 0...20 are all "new-numbers" so you can maybe simplify some things
 
 ;; corrected for second 0 and maybe more
 (defn new-number? [n]
@@ -118,3 +119,11 @@
        (map #(Integer/parseInt %))
        (apply min n)
        (= n)))
+
+;; @safehammad   hacked by SEM to handle 0 -- actually all <= 20
+(defn sann? [n]
+  (or (<= n 20)
+  (let [ascii (map int (str n))]
+    (and
+      (apply <= 0 (rest ascii))
+      (apply <= (remove #{(int \0)} ascii))))))
