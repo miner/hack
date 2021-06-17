@@ -168,7 +168,7 @@
 ;;; the q is the final (leading) digit.  Note p (previous) is always non-zero.
 
 ;; about 10x faster than my new-number?
-(defn fnn? [^long n]
+(defn fast-nn? [^long n]
   (loop [q n p 9 z? false]
     (if (< q 10)
       (<= q p)
