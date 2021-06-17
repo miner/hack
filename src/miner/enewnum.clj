@@ -127,3 +127,54 @@
     (and
       (apply <= 0 (rest ascii))
       (apply <= (remove #{(int \0)} ascii))))))
+
+
+(defn digits [n]
+  (loop [r n ds nil]
+    (if (< r 10)
+      (conj ds r)
+      (recur (quot r 10) (conj ds (rem r 10))))))
+
+
+
+;; @jpmonettas 
+(defn jpnn? [^long n]
+  ;; moving from the back digits should be always decreasing
+  ;; always but skipping zeroes
+  (loop [rem-digits n 
+         prev 9 
+         last-non-zero 9]
+    (let [d (rem rem-digits 10)
+          nextd (quot rem-digits 10)
+          more? (pos? nextd)]
+      (if (<= d prev)
+        ;; when decreasing continue unles we reached the end
+        (if more?
+          
+          (recur nextd d (if (zero? prev) last-non-zero prev))
+          
+          true) ;; done, the number looks new
+
+        ;; else not decreasing check decreasing over the zeroes bridge
+        (and (not more?)
+             (zero? prev)
+             (<= d last-non-zero))))))
+
+
+
+
+;; my version of jp.  With a slightly different take on zeroes.  Working from
+;; least-significant digit up, once I see a zero, we lock in to requiring zeroes, until the
+;; q is the final
+;; (first!) digit.  Note p (previous) is always non-zero.
+(defn fastnn? [^long n]
+  (loop [q n p 9 z? false]
+    (if (< q 10)
+      (<= q p)
+      (let [d (rem q 10)
+            zd? (zero? d)]
+        (cond z? (and zd? (recur (quot q 10) p true))
+              zd? (recur (quot q 10) p true)
+              (<= d p) (recur (quot q 10) d false)
+              :else false)))))
+
