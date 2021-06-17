@@ -163,18 +163,17 @@
 
 
 
-;; my version of jp.  With a slightly different take on zeroes.  Working from
-;; least-significant digit up, once I see a zero, we lock in to requiring zeroes, until the
-;; q is the final
-;; (first!) digit.  Note p (previous) is always non-zero.
-(defn fastnn? [^long n]
+;;; my version of jp.  With a slightly different take on zeroes.  Working from
+;;; least-significant digit up.  Once we see a zero, we lock in to requiring zeroes, until
+;;; the q is the final (leading) digit.  Note p (previous) is always non-zero.
+
+;; about 10x faster than my new-number?
+(defn fnn? [^long n]
   (loop [q n p 9 z? false]
     (if (< q 10)
       (<= q p)
-      (let [d (rem q 10)
-            zd? (zero? d)]
-        (cond z? (and zd? (recur (quot q 10) p true))
-              zd? (recur (quot q 10) p true)
+      (let [d (rem q 10)]
+        (cond z? (and (zero? d) (recur (quot q 10) p true))
+              (zero? d) (recur (quot q 10) p true)
               (<= d p) (recur (quot q 10) d false)
               :else false)))))
-
