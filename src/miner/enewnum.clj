@@ -61,7 +61,7 @@
 
 
 
-;; original is fast but flawed with trailing zeroes
+;; original is fast but flawed with trailing zeros
 (defn new-number-SUBMITTED? [n]
   (boolean (reduce (fn [a b] (if (pos? (compare a b)) (reduced false) b)) \0 (str n))))
 ;; but doesn't handle 0 chars correctly
@@ -163,12 +163,30 @@
 
 
 
-;;; my version of jp.  With a slightly different take on zeroes.  Working from
-;;; least-significant digit up.  Once we see a zero, we lock in to requiring zeroes, until
+;;; my version of jp.  With a slightly different take on zeros.  Working from
+;;; least-significant digit up.  Once we see a zero, we lock in to requiring zeros, until
 ;;; the q is the final (leading) digit.  Note p (previous) is always non-zero.
 
 ;; about 10x faster than my new-number?
+
 (defn fast-nn? [^long n]
+  ;;{:pre [(int? n) (not (neg? n))]}
+  (loop [q n p 9]
+    (if (< q 10)
+      (<= q p)
+      (let [d (rem q 10)]
+        (if (pos? d)
+          (and (<= d p) (recur (quot q 10) d))
+          ;; if d is zero, require all zeros except leading digit
+          (loop [q (quot q 10)]
+            (if (< q 10)
+              (<= q p)
+              (and (zero? (rem q 10)) (recur (quot q 10))))))))))
+
+
+
+;; I liked this compact version, but it used an extra loop arg that makes it harder to understand
+(defn sem-nn? [^long n]
   (loop [q n p 9 z? false]
     (if (< q 10)
       (<= q p)
@@ -177,3 +195,4 @@
               (zero? d) (recur (quot q 10) p true)
               (<= d p) (recur (quot q 10) d false)
               :else false)))))
+
