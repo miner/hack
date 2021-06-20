@@ -137,7 +137,7 @@
 
 
 
-;; @jpmonettas 
+;; @jpmonettas  FAST
 (defn jpnn? [^long n]
   ;; moving from the back digits should be always decreasing
   ;; always but skipping zeroes
@@ -184,7 +184,6 @@
               (and (zero? (rem q 10)) (recur (quot q 10))))))))))
 
 
-
 ;; I liked this compact version, but it used an extra loop arg that makes it harder to understand
 (defn sem-nn? [^long n]
   (loop [q n p 9 z? false]
@@ -196,3 +195,47 @@
               (<= d p) (recur (quot q 10) d false)
               :else false)))))
 
+
+;; reorganizing to use sign as z-flag.  On the way to a transducer version
+(defn snn? [^long n]
+  (loop [q n p 9]
+    (if (< q 10)
+      (if (neg? p) (<= q (- p)) (<= q p))
+      (let [d (rem q 10)]
+        (cond (neg? p) (and (zero? d) (recur (quot q 10) p))
+              (zero? d) (recur (quot q 10) (- p))
+              (<= d p) (recur (quot q 10) d)
+              :else false)))))
+
+;; transduce code is still much slower than loop versions.  About 5x best.  But that's
+;; better than my original character based version.  The p "state" is the previous digit
+;; from the right (least-signifcant digit is calculated first).  The neg? p indicates that a
+;; zero has been seen so we're locking in on zeros until the final (leading) digit is found.
+;; This encoding is a sneaky way to get multiple-value state into one long.
+(defn xnn? [n]
+  (let [abs (fn [x] (if (neg? x) (- x) x))]
+    (transduce (take-while pos?)
+               (fn ([p q]
+                    (if (< q 10)
+                      ;; leading digit, so we're done
+                      (<= q (abs p))
+                      (let [d (rem q 10)]
+                        (cond (neg? p) (if (zero? d) p (reduced false))
+                              (zero? d) (- p)
+                              (<= d p) d
+                              :else (reduced false)))))
+                 ([result] result))
+               9
+               (iterate #(quot % 10) n))))
+
+;;; similar reduce version is 3x slower than xnn?
+
+
+;;; slowest of the transducer versions.  Probably expensive to realized digs list
+(defn xtnn? [n]
+  (let [digs (into () (comp (take-while pos?) (map #(rem % 10))) (iterate #(quot % 10) n))]
+    (transduce (drop-while zero?)
+               (completing (fn [a b] (if (<= a b) b (reduced false)))
+                           boolean)
+               (or (first digs) 0)
+               (rest digs))))
