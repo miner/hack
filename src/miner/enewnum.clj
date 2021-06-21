@@ -212,23 +212,26 @@
 ;; from the right (least-signifcant digit is calculated first).  The neg? p indicates that a
 ;; zero has been seen so we're locking in on zeros until the final (leading) digit is found.
 ;; This encoding is a sneaky way to get multiple-value state into one long.
-(defn xnn? [n]
-  (let [abs (fn [x] (if (neg? x) (- x) x))]
-    (transduce (take-while pos?)
-               (fn ([p q]
-                    (if (< q 10)
-                      ;; leading digit, so we're done
-                      (<= q (abs p))
-                      (let [d (rem q 10)]
-                        (cond (neg? p) (if (zero? d) p (reduced false))
-                              (zero? d) (- p)
-                              (<= d p) d
-                              :else (reduced false)))))
-                 ([result] result))
-               9
-               (iterate #(quot % 10) n))))
 
 ;;; similar reduce version is 3x slower than xnn?
+
+(defn xnn? [n]
+  (transduce (take-while pos?)
+             (fn ([p q]
+                  (if (< q 10)
+                    ;; leading digit, so we're done
+                    (or (<= q p) (<= q (- p)))
+                    (let [d (rem q 10)]
+                      (cond (neg? p) (if (zero? d) p (reduced false))
+                            (zero? d) (- p)
+                            (<= d p) d
+                            :else (reduced false)))))
+               ([result] (boolean result))
+               ([] 10))
+             (iterate #(quot % 10) n)))
+
+
+
 
 
 ;;; slowest of the transducer versions.  Probably expensive to realized digs list
