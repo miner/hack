@@ -27,7 +27,6 @@
                  ([sb ch] (.append ^StringBuilder sb ^Character ch)))
                s)))
 
-
 ;;; NB: it is faster to cache atb-cipher (or defn it) rather than use the anonymous function
 ;;; inline.  Not sure if it's recalculating the closure??? Or maybe defeating some JIT
 ;;; optimization???  Anyway, it's better not to use the bare anonymous fn.
@@ -181,3 +180,10 @@
     (apply str (replace mirror-map s))))
 
 
+(require '[clojure.string :as str])
+
+;; @steffan-westcott   fastest
+(let [alpha "abcdefghijklmnopqrstuvwxyz"
+      cipher (apply merge (map #(zipmap % (str/reverse %)) [alpha (str/upper-case alpha)]))]
+  (defn sw-atbash [s]
+    (str/escape s cipher)))
