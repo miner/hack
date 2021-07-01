@@ -115,6 +115,13 @@
     \z \a
     c))
 
+(defn xatbash [s]
+    (transduce (map atc)
+               (fn ([] (StringBuilder.))
+                 ([sb] (str sb))
+                 ([sb ch] (.append ^StringBuilder sb ^Character ch)))
+               s))
+
 
 ;; slightly faster but ugly and error-prone when typing original code.  However, should be
 ;; better with memory
@@ -182,8 +189,84 @@
 
 (require '[clojure.string :as str])
 
-;; @steffan-westcott   fastest
+;; @steffan-westcott   fastest normal code
 (let [alpha "abcdefghijklmnopqrstuvwxyz"
       cipher (apply merge (map #(zipmap % (str/reverse %)) [alpha (str/upper-case alpha)]))]
   (defn sw-atbash [s]
     (str/escape s cipher)))
+
+
+;; @jaihindhreddy pretty good.  str/escape is an interesting approach.
+;; SEM: long conversions (vs int) might be slighly faster on my iMac.  (byte) is maybe
+;; best.  Probably doesn't matter.
+(let [a (int \a) z (int \z)
+      A (int \A) Z (int \Z)
+      flip #(let [i (int %)]
+             (cond (<= a i z) (char (- z (- i a)))
+                   (<= A i Z) (char (- Z (- i A)))
+                   :else %))]
+  (defn jai-atbash [s]
+    (str/escape s flip)))
+
+
+
+
+(defn char-range [start-char]
+  (let [start (long start-char)]
+    (map char (range start (+ start 26)))))
+
+
+(defn esc-atbash [s]
+  (str/escape s atc))
+
+
+
+
+;; fastest but ugly  -- bascially the same speed as esc-atbash so not worth the complication
+(defn ^String rep-atbash [^CharSequence s]
+  (let [atc (fn ^Character [^Character c]
+              (case c
+                \A \Z \a \z \B \Y \b \y \C \X \c \x \D \W \d \w \E \V \e \v
+                \F \U \f \u \G \T \g \t \H \S \h \s \I \R \i \r \J \Q \j \q
+                \K \P \k \p \L \O \l \o \M \N \m \n \N \M \n \m \O \L \o \l
+                \P \K \p \k \Q \J \q \j \R \I \r \i \S \H \s \h \T \G \t \g
+                \U \F \u \f \V \E \v \e \W \D \w \d \X \C \x \c \Y \B \y \b
+                \Z \A \z \a
+                c))]
+    (loop [index (int 0)
+           buffer (StringBuilder. (.length s))]
+      (if (= (.length s) index)
+        (.toString buffer)
+        (recur (inc index) (.append buffer (atc (.charAt s index))))))))
+
+
+
+;; pretty good but not fastest
+(defn ^String red-atbash [^CharSequence s]
+  (let [atc (fn ^Character [^Character c]
+              (case c
+                \A \Z \a \z \B \Y \b \y \C \X \c \x \D \W \d \w \E \V \e \v
+                \F \U \f \u \G \T \g \t \H \S \h \s \I \R \i \r \J \Q \j \q
+                \K \P \k \p \L \O \l \o \M \N \m \n \N \M \n \m \O \L \o \l
+                \P \K \p \k \Q \J \q \j \R \I \r \i \S \H \s \h \T \G \t \g
+                \U \F \u \f \V \E \v \e \W \D \w \d \X \C \x \c \Y \B \y \b
+                \Z \A \z \a
+                c))]
+    (str (reduce (fn [^StringBuilder sb ch] (.append sb (atc ch)))
+                 (StringBuilder. (.length s))
+                 s))))
+
+
+(defn ^String redi-atbash [^CharSequence s]
+  (let [atc (fn ^Character [^Character c]
+              (case c
+                \A \Z \a \z \B \Y \b \y \C \X \c \x \D \W \d \w \E \V \e \v
+                \F \U \f \u \G \T \g \t \H \S \h \s \I \R \i \r \J \Q \j \q
+                \K \P \k \p \L \O \l \o \M \N \m \n \N \M \n \m \O \L \o \l
+                \P \K \p \k \Q \J \q \j \R \I \r \i \S \H \s \h \T \G \t \g
+                \U \F \u \f \V \E \v \e \W \D \w \d \X \C \x \c \Y \B \y \b
+                \Z \A \z \a
+                c))]
+    (str (reduce (fn [^StringBuilder sb i] (.append sb (atc (.charAt s (int i)))))
+                 (StringBuilder. (.length s))
+                 (range (.length s))))))

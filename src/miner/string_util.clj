@@ -70,6 +70,8 @@
                 (recur (unchecked-inc i) ret)))
             res))))))
 
+;; Note:  strings already support clojure.core.protocols/InternalReduce
+
 
 
 ;; Unfinished ideas about making String reversible.  Really want rseq to work, but would
