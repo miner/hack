@@ -383,3 +383,15 @@
                    [(apply conj res tail) (list x)]))                 
                [[] nil])
        (apply concat)))
+
+
+
+(defn promote [pred xs]
+  (->>
+   (loop [[hd nxt & more :as all] xs acc []]
+     (cond 
+      (empty? all)          acc 
+      (= 1 (count all))          (conj acc hd) 
+      (or (pred hd) (not (pred nxt)))          (recur (cons nxt more) (conj acc hd))
+      :else           (recur (cons hd more) (conj acc nxt))))
+   (apply list)))
