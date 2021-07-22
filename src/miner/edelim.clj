@@ -24,6 +24,29 @@
 ;;; delimited substring of a given string.  In the case of ties, return the substring that
 ;;; appears first.
 
+;;; Issue: didn't say anything about case sensitivity.  I assume case-sensitive is
+;;; appropriate and it's simpler.
+
+;;; reduce-kv needs (vec s) -- bug pending to add kv-reduce on String directly.
+;;; Effectively, we get all the indices for each letter (like a group-by) with a descending
+;;; order of indices in each val, by consruction.  Knowing the order, lets us convert to
+;;; terms of [distance -start] by taking successive (descending) indices (end st).  Like
+;;; taking (partition 2 1 ...) but specialized and faster logic.  We make the st neg so that
+;;; (compare ...) will gives us the desired result on little vector values.  We want the
+;;; maximum distance but the minimum start on ties.  (filter next) is a quicker way to skip
+;;; single chars.  There are ways to make this slightly faster (see my xdelimited2) but the
+;;; code is even more obscure.  This seems like a reasonable compromise.
+;;;
+;;; Tricky representation: di = [distance -start]
+(defn delimited [s]
+  (transduce (comp (filter next)
+                   (mapcat (fn [rs] (map (fn [end st] (vector (- end st) (- st))) rs (rest rs)))))
+             (fn ([di ej] (if (neg? (compare di ej)) ej di))
+               ([[d i]] (when (pos? d) (subs s (- i) (- (inc d) i)))))
+             [-1]
+             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
+
+
 
 (defn char-index-of [s ch from]
   (.indexOf ^String s ^String (str ch) ^int from))
@@ -60,51 +83,11 @@
       (subs s i (inc j)))))
 
 ;; slightly faster to avoid destructuring reduce pairs but longer code
-(defn delimited6 [s]
-  (let [part2 #(partition 2 1 %)
-        jidiff (fn [ji] (- (first ji) (second ji)))
-        [j i] (->> s
-                   vec
-                   (reduce-kv (fn [m i ch] (update m ch conj i)) {})
-                   vals
-                   ;; get rid of < 2 lists
-                   (filter next)
-                   (mapcat part2)
-                   (reduce (fn [cb ji]
-                             (let [c (first cb)
-                                   b (second cb)
-                                   j (first ji)
-                                   i (second ji)
-                                   dcb (- c b)
-                                   dji (- j i)]
-                               (cond (= dcb dji) (if (< i b) ji cb)
-                                     (< dcb dji) ji
-                                     :else cb)))
-                           [-1 0]))]
-    (when (and j  (> j i))
-      (subs s i (inc j)))))
 
 
-
-(defn delimited11 [s]
-  (let [[j i] (->> s
-                   vec
-                   (reduce-kv (fn [m i ch] (assoc! m ch (conj (get m ch) i))) (transient {}))
-                   persistent!
-                   (filter next)
-                   (mapcat #(partition 2 1 (val %)))
-                   (reduce (fn [[c b :as cb] [j i :as ji]]
-                             (let [dcb (- c b)
-                                   dji (- j i)]
-                               (cond (= dcb dji) (if (< i b) ji cb)
-                                     (< dcb dji) ji
-                                     :else cb)))
-                           [-1 0]))]
-    (when (and j  (> j i))
-      (subs s i (inc j)))))
 
 ;;; actually (filter next) is faster than letting partition skip
-(defn delimited [s]
+(defn delimited1 [s]
   (let [[j i] (->> s
                    vec
                    (reduce-kv (fn [m i ch] (update m ch conj i)) {})
@@ -121,20 +104,8 @@
     (when (and j  (> j i))
       (subs s i (inc j)))))
 
-(defn xdelimited1 [s]
-  (transduce (comp (map val)
-                   (filter next)
-                   (mapcat #(partition 2 1 %)))
-             (fn ([[c b :as cb] [j i :as ji]]
-                  (let [dcb (- c b)
-                        dji (- j i)]
-                    (cond (= dcb dji) (if (< i b) ji cb)
-                          (< dcb dji) ji
-                          :else cb)))
-               ([[j i]] (when (and j (> j i))
-                          (subs s i (inc j)))))
-             [-1 0]
-             (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s))))
+;; (vals m)  has internal implementation so faster than xform (map val) later
+
 
 (defn xdelimited [s]
   (transduce (comp (filter next)
@@ -170,51 +141,13 @@
              [0 -1]
              (vals (reduce-kv (fn [m i ch] (update m ch pair-conj i)) {} (vec s)))))
 
-;; not faster
-(defn xdelimited25 [s]
-  (transduce (comp (filter vector?) cat)
-             (fn ([[b c :as bc] [i j :as ij]]
-                  (let [db (- c b)
-                        di (- j i)]
-                    (cond (= db di) (if (< i b) ij bc)
-                          (< db di) ij
-                          :else bc)))
-               ([[i j]] (when (and j (> j i))
-                          (subs s i (inc j)))))
-             [0 -1]
-             (vals (reduce-kv (fn [m i ch] (update m ch pair-conj i)) {} (vec s)))))
 
+;;; Some improvements  -- faster but I don't like the pair-conj compared to pconj.  On the
+;;; other hand, pair-conj is a bit faster so don't throw it away.  (remove int?) is
+;;; surprisingly fast, too.
 
-(defn xdelimited21 [s]
-  (transduce (comp (remove int?) cat)
-             (fn ([[b c :as bc] [i j :as ij]]
-                  (let [db (- c b)
-                        di (- j i)]
-                    (cond (> db di) bc
-                          (< db di) ij
-                          (< i b) ij
-                          :else bc)))
-               ([[i j]] (when (and j (> j i))
-                          (subs s i (inc j)))))
-             [0 -1]
-             (vals (reduce-kv (fn [m i ch] (update m ch pair-conj i)) {} (vec s)))))
-
-;;; Some improvements  -- faster but I don't like the pair-conj compared to pconj
 (defn xdelimited22 [s]
   (transduce (comp (remove int?) cat)
-             (fn ([[b c :as bc] [i j :as ij]]
-                  (let [c (compare (- c b) (- j i))]
-                    (cond (neg? c) ij
-                          (pos? c) bc
-                          (< i b) ij
-                          :else bc)))
-               ([[i j]] (when (> j i)
-                          (subs s i (inc j)))))
-             [0 0]
-             (vals (reduce-kv (fn [m i ch] (update m ch pair-conj i)) {} (vec s)))))
-
-(defn xdelimited23 [s]
-  (transduce (comp (filter vector?) cat)
              (fn ([[b c :as bc] [i j :as ij]]
                   (let [c (compare (- c b) (- j i))]
                     (cond (neg? c) ij
@@ -318,56 +251,12 @@
     (- j i)))
   
 
-(defn delimited1 [s]
+(defn delimited3 [s]
   (let [cg (char-groups s)
         [i j] (apply max-key jdiff [0 -1] (sort-by #(- (first %)) (remove nil? (map max-step (vals cg)))))]
     (when (> j i)
       (subs s i (inc j)))))
     
-
-
-;; good idea but much slower
-;; convert rs (6 3 1) into [len start] -- but see below for a modified len (really (dec len))
-(defn xdelimited7 [s]
-  (transduce (mapcat (fn [rs] (map list (map (comp inc -) rs (rest rs)) (rest rs))))
-             (fn ([[d i :as di] [e j :as ej]]
-                  (cond (= d e) (if (< i e) di ej)
-                        (< d e) ej
-                        :else di))
-               ([di] (when (pos? (first di))
-                       (subs s (second di) (+ (first di) (second di))))))
-             '(0 0)
-             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
-
-(defn xdelimited71 [s]
-  (transduce (mapcat (fn [rs] (map list (map - (map inc rs) (rest rs)) (rest rs))))
-             (fn ([[d i :as di] [e j :as ej]]
-                  (cond (= d e) (if (< i e) di ej)
-                        (< d e) ej
-                        :else di))
-               ([di] (when (pos? (first di))
-                       (subs s (second di) (+ (first di) (second di))))))
-             '(0 0)
-             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
-
-(defn xdelimited72 [s]
-  (transduce (comp (map (fn [rs]
-                          (cond (nnext rs) (apply max-key first
-                                                  (map list (map - rs (rest rs))
-                                                       (rest rs)))
-                                (next rs) (list (- (first rs) (second rs))
-                                                (second rs))
-                                :else nil)))
-                   (remove nil?))
-                        
-             (fn ([[d i :as di] [e j :as ej]]
-                  (cond (= d e) (if (< i e) di ej)
-                        (< d e) ej
-                        :else di))
-               ([di] (when (pos? (first di))
-                       (subs s (second di) (+ (first di) (inc (second di)))))))
-             '(0 0)
-             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
 
 
 (defn best-rs [rs]
@@ -403,17 +292,46 @@
              '(-1 -1)
              (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
 
-;; very slow
-(defn xdelimited74 [s]
-  (transduce (map simple-rs)
-             (fn ([[d i :as di] [e j :as ej]]
-                  (cond (= d e) (if (< i e) di ej)
-                        (< d e) ej
-                        :else di))
-               ([di] (when (pos? (first di))
-                       (subs s (second di) (+ (first di) (inc (second di)))))))
-             '(-1 -1)
+
+
+;;; new idea, push best len through and avoid creating little collections
+
+
+;; Tricky: neg start which makes compare work appropriately for [diff start] semantics.
+;; Have to flip the sign to get the actual substring.
+
+;; Note: we know that no two vectors can be exactly equal by construction (as they start from
+;; unique places).  So that simplifies using compare.  We want to take the later one.  We
+;; arranged the starts to be in reverse order, by conj-ing onto a list.
+
+;; winning, not quite as fast as xd2 but pretty good, and short
+;; proposed solution
+(defn xdelimited87 [s]
+  (transduce (comp (filter next)
+                   (mapcat (fn [rs] (map (fn [end st] (vector (- end st) (- st))) rs (rest rs)))))
+             (fn ([di ej] (if (neg? (compare di ej)) ej di))
+               ([[d i]] (when (pos? d) (subs s (- i) (- (inc d) i)))))
+             [-1]
              (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
+
+
+;;; Too confusing to submit, but you can save a (vec s) if you add this
+#_
+(if (satisfies? clojure.core.protocols/IKVReduce "foobar")
+  (throw (ex-info
+          "Surprise: someone added IKVReduce support for String.  Skipping my implementation."
+          {::surprise :IKVReduce }))
+  (extend-protocol clojure.core.protocols/IKVReduce
+    java.lang.String
+    (kv-reduce [^String s f init]
+      (let [cnt (.length s)]
+        (loop [i 0 res init]
+          (if (< i cnt)
+            (let [ret (f res i (.charAt s i))]
+              (if (reduced? ret)
+                @ret
+                (recur (unchecked-inc i) ret)))
+            res))))))
 
 
 (defn smoke-delim [delimited]
@@ -427,3 +345,22 @@
   true)
 
 
+
+
+;; @steffan-westcott  beats me again!  terse and fast
+(defn sw-delimited [s]
+  (some->> (range (count s))
+           (keep #(->> (subs s %)
+                       (re-find #"^(.).*?\1")
+                       first))
+           not-empty
+           (reduce #(max-key count %2 %1))))
+
+
+;; @safehammand  was buggy on non-delimited, needed to add nil to max-key
+;; fixed jp version of sh, still slow
+(defn jp-delimited [s]
+  (->> (set s)
+       (mapcat #(re-seq (re-pattern (str % ".*?" %)) s))
+       (reverse)
+       (apply max-key count nil)))
