@@ -326,6 +326,95 @@
     
 
 
+;; good idea but much slower
+;; convert rs (6 3 1) into [len start] -- but see below for a modified len (really (dec len))
+(defn xdelimited7 [s]
+  (transduce (mapcat (fn [rs] (map list (map (comp inc -) rs (rest rs)) (rest rs))))
+             (fn ([[d i :as di] [e j :as ej]]
+                  (cond (= d e) (if (< i e) di ej)
+                        (< d e) ej
+                        :else di))
+               ([di] (when (pos? (first di))
+                       (subs s (second di) (+ (first di) (second di))))))
+             '(0 0)
+             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
+
+(defn xdelimited71 [s]
+  (transduce (mapcat (fn [rs] (map list (map - (map inc rs) (rest rs)) (rest rs))))
+             (fn ([[d i :as di] [e j :as ej]]
+                  (cond (= d e) (if (< i e) di ej)
+                        (< d e) ej
+                        :else di))
+               ([di] (when (pos? (first di))
+                       (subs s (second di) (+ (first di) (second di))))))
+             '(0 0)
+             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
+
+(defn xdelimited72 [s]
+  (transduce (comp (map (fn [rs]
+                          (cond (nnext rs) (apply max-key first
+                                                  (map list (map - rs (rest rs))
+                                                       (rest rs)))
+                                (next rs) (list (- (first rs) (second rs))
+                                                (second rs))
+                                :else nil)))
+                   (remove nil?))
+                        
+             (fn ([[d i :as di] [e j :as ej]]
+                  (cond (= d e) (if (< i e) di ej)
+                        (< d e) ej
+                        :else di))
+               ([di] (when (pos? (first di))
+                       (subs s (second di) (+ (first di) (inc (second di)))))))
+             '(0 0)
+             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
+
+
+(defn best-rs [rs]
+  (cond (nnext rs)  (rest (reduce (fn [[pr len st :as longest] r]
+                              (let [lenr (- pr r)]
+                                ;;(println (list len st pr) (list lenr r))
+                                (if (>= lenr len)
+                                  (list r lenr r)
+                                  (cons r (rest longest)))))
+                            (list (second rs) (- (first rs) (second rs))  (second rs))
+                            (nnext rs)))
+        (next rs) (list (- (first rs) (second rs)) (second rs))
+        :else nil))
+
+
+(defn simple-rs [rs]
+  (->> rs
+       (partition 2 1)
+       (map (fn [[end st]] (list (- end st) st)))
+       (apply max-key first '(-1 -1))))
+      
+;; still not so fast
+(defn xdelimited73 [s]
+  (transduce (comp (map best-rs)
+                   (remove nil?))
+                        
+             (fn ([[d i :as di] [e j :as ej]]
+                  (cond (= d e) (if (< i e) di ej)
+                        (< d e) ej
+                        :else di))
+               ([di] (when (pos? (first di))
+                       (subs s (second di) (+ (first di) (inc (second di)))))))
+             '(-1 -1)
+             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
+
+;; very slow
+(defn xdelimited74 [s]
+  (transduce (map simple-rs)
+             (fn ([[d i :as di] [e j :as ej]]
+                  (cond (= d e) (if (< i e) di ej)
+                        (< d e) ej
+                        :else di))
+               ([di] (when (pos? (first di))
+                       (subs s (second di) (+ (first di) (inc (second di)))))))
+             '(-1 -1)
+             (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
+
 
 (defn smoke-delim [delimited]
   (assert (= (delimited "ffdsfuiofl") "fuiof"))
