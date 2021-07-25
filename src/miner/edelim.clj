@@ -46,7 +46,7 @@
              [-1]
              (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
 
-;;; but see r2-delimited for the fastest bestest approach
+;;; but see r2-delimited for the fastest bestest approach using the regex from sw
 
 
 (defn char-index-of [s ch from]
@@ -507,9 +507,7 @@
                 (if (>= len (- cnt start))
                   (reduced longest)
                   (let [found (first (re-find #"^(.)(.*?)\1" (subs s start)))]
-                    (if (>= len (count found))
-                      longest
-                      found)))))
+                    (if (>= len (count found)) longest found)))))
             nil
             (range (- cnt 2)))))
 
