@@ -46,7 +46,9 @@
              [-1]
              (vals (reduce-kv (fn [m i ch] (update m ch conj i)) {} (vec s)))))
 
-;;; but see r2-delimited for the fastest bestest approach using the regex from sw
+;;; but see delimited-resubmitted for the fastest bestest approach using the regex from sw,
+;;; slightly improved to avoid unnecessary work
+
 
 
 (defn char-index-of [s ch from]
@@ -380,170 +382,47 @@
 
 
 
-;; hacked by SEM to fix for empty string and no delim cases
-;; slow
-(defn ag-delimited [s]
-  (let [s-len (count s)
-        delimited? (fn [s]
-                     (let [middle (-> s rest butlast)
-                           delim  (first s)]
-                       (and (> (count s) 1)
-                            (= (first s) (last s))
-                            (empty? (filter #{delim} middle)))))]
-    (loop [position 0
-           to-take  (count s)]
-      (cond
-       ;; Case: Empty string
-       (= to-take 0) nil
-       ;; Case: We've passed the end of the string
-       (< s-len (+ position to-take)) (recur 0 (dec to-take))
-       ;; Case: Successfully Found
-       (delimited? (->> s (drop position) (take to-take)))
-           (->> s (drop position) (take to-take) (apply str))
-       ;; Default Case: Advance search by 1 character
-       :else (recur (inc position) to-take)))))
-
-
-
-
-
-;; SEM hacked to fix no delim case
-(defn cel-find-start-and-end [input-string]
-  (let [reverse-diff (fn [[start end]] (- end start))
-        get-max-tuple (partial apply max-key reverse-diff [0 0])
-        indices-to-tuples (partial partition 2 1)
-        group-by-chars (fn [acc [idx chr]] (update acc chr (fnil conj []) idx))]
-
-  (->> input-string                                 ;; "wmmmcpwoqm"
-       (map-indexed vector)                         ;; ([0 w] [1 m] [2 m] [3 m] [4 c] [5 p] [6 w] [7 o] [8 q] [9 m])
-       (reduce group-by-chars {})                   ;; {w [0 6], m [1 2 3 9], c [4], p [5], o [7], q [8]}
-       (map second)                                 ;; ([0 6] [1 2 3 9] [4] [5] [7] [8])
-       (filter #(> (count %) 1))                    ;; ([0 6] [1 2 3 9])
-       (map (comp get-max-tuple indices-to-tuples)) ;; ((0 6) (3 9))
-       (sort-by first >)                            ;; ((3 9) (0 6))
-       get-max-tuple)))                             ;; (0 6)
-
-(defn cel-delimited [input-string]
-  (let [[start end] (cel-find-start-and-end input-string)]
-    (when (> end start)
-      (subs input-string start (inc end)))))
-
-
-;; hacked by SEM to return nil for non-delim, pretty fast
-(defn mc-delimited [s]
-  (->> (range (count s))
-       (reduce (fn [longest i]
-                 (let [substr (subs s i)
-                       found-groups (re-find #"^(.)(.*?)\1" substr)
-                       found (first found-groups)]
-                   (if (> (count found) (count longest))
-                     found
-                     longest)))
-               nil)
-       not-empty))
-
-
-;;; SEM reorganized -- now fastest with Java interop
-(defn mc2-delimited [s]
-  (not-empty
-   (reduce (fn [longest i]
-             (if-let [found (first (re-find #"^(.)(.*?)\1" (subs s i)))]
-               (if (> (.length ^String found) (.length ^String longest))
-                 found
-                 longest)
-               longest))
-           ""
-           (range (.length ^String s)))))
-
-
-;;; still pretty fast with pure Clojure  -- basically re-invented sw-delimited!! but not
-;;; nearly so fast
-(defn mc42-delimited [s]
-  (not-empty
-   (reduce (fn [longest i] (max-key count (first (re-find #"^(.)(.*?)\1" (subs s i))) longest))
-           nil
-           (range (count s)))))
-
-;; nice but not so fast
-(defn mc5-delimited [s]
-  (transduce (comp (map #(subs s %))
-                   (map #(re-find #"^(.)(.*?)\1" %))
-                   (map first))
-             (completing #(max-key count %2 %1) not-empty)
-             nil
-             (range (count s))))
-
-;; iterate is more work so a bit slower
-
-(defn mc52-delimited [s]
-  (transduce (comp (take (count s))
-                   (map #(first (re-find #"^(.)(.*?)\1" %))))
-             (completing #(max-key count %2 %1) not-empty)
-             nil
-             (iterate #(subs % 1) s)))
-
-;; not bad, a bit fast than stacking up the fn with multiple map calls
-(defn mc51-delimited [s]
-  (transduce (map #(first (re-find #"^(.)(.*?)\1" (subs s %))))
-             (completing #(max-key count %2 %1) not-empty)
-             nil
-             (range (count s))))
-
 ;; FASTEST of this type
 ;; actually takes two chars at least 
 (defn mc56-delimited [s]
-  (transduce (map #(first (re-find #"^(.)(.*?)\1" (subs s %))))
+  (transduce (map #(nth (re-find #"^(.).*?\1" (subs s %)) 0))
              (completing #(max-key count %2 %) not-empty)
              nil
              (range (- (count s) 2))))
+;; but notice that it 
+
+;;; All single regex attempts by me were failures because the multiple re-finds drop
+;;; everything from the previous find, not just advancing one char.  Misses a bigger delim
+;;; that overlaps with first one.
+
 
 
 ;;; FASTEST success!
 ;;;  take advantage of short-circuit if current count is greater than possible width
-(defn r2-delimited [s]
+;;; slightly faster (nth/0) instead of first
+
+;;; was called r2-delimited
+(defn delimited-resubmitted [s]
   (let [cnt (count s)]
     (reduce (fn [longest start]
               (let [len (count longest)]
                 (if (>= len (- cnt start))
                   (reduced longest)
-                  (let [found (first (re-find #"^(.)(.*?)\1" (subs s start)))]
+                  (let [found (nth (re-find #"^(.).*?\1" (subs s start)) 0)]
                     (if (>= len (count found)) longest found)))))
             nil
             (range (- cnt 2)))))
 
-
-(defn r2orig-delimited [s]
-  (let [cnt (count s)]
-    (reduce (fn [longest width]
-              (let [len (count longest)]
-                (if (>= len width)
-                  (reduced longest)
-                  (let [found (first (re-find #"^(.)(.*?)\1" (subs s (- cnt width))))]
-                    (if (>= len (count found))
-                      longest
-                      found)))))
-            nil
-            (range cnt 1 -1))))
-
-
-
-
-
-
-
-
 ;; fastest with interop but not as pretty
-(defn r3-delimited [s]
-  (let [cnt (count s)]
-    (not-empty
-    (reduce (fn [^String longest width]
-              (let [len (.length longest)]
-                (if (>= len width)
+;; even faster with a bit of interop, not submitted
+(defn r4-delim [s]
+  (let [length (fn [^String s] (if s (.length s) 0))
+        cnt (length s)]
+    (reduce (fn [longest start]
+              (let [len (length longest)]
+                (if (>= len (- cnt start))
                   (reduced longest)
-                  (if-let [found (first (re-find #"^(.)(.*?)\1" (subs s (- cnt width))))]
-                    (if (>= len (.length ^String found))
-                      longest
-                      found)
-                    longest))))
-            ""
-            (range cnt 1 -1)))))
+                  (let [found (nth (re-find #"^(.).*?\1" (subs s start)) 0)]
+                    (if (>= len (length found)) longest found)))))
+            nil
+            (range (- cnt 2)))))
