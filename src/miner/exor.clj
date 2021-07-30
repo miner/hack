@@ -44,5 +44,3 @@
   so far but not nearly as long as a real message might be so I hope you don't think it's
   too easy to encode or decode."))
   true)
-
-
