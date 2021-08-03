@@ -83,11 +83,11 @@
                ([] [""]))
              (seq strnum)))
 
-(defn set= [a b]
-  (= (set a) (set b)))
+(defn sort= [a b]
+  (= (sort a) (sort b)))
 
 (defn smoke-tran [digits->letters]
-  (assert (set= (digits->letters "22") ["aa" "ab" "ac" "ba" "bb" "bc" "ca" "cb" "cc"]))
+  (assert (sort= (digits->letters "22") ["aa" "ab" "ac" "ba" "bb" "bc" "ca" "cb" "cc"]))
   (assert (= (digits->letters "111") ["111"]))
   (assert (= (digits->letters "1001") ["1  1"]))
   true)
@@ -103,30 +103,15 @@
       res)))
 
 
-(defn rdigs-slower [strnum]
-  (let [dls (fn [d] (case d
-                      \0 [\space]
-                      ;; skip 1
-                      \2 [\a \b \c]
-                      \3 [\d \e \f]
-                      \4 [\g \h \i]
-                      \5 [\j \k \l]
-                      \6 [\m \n \o]
-                      \7 [\p \q \r \s]
-                      \8 [\t \u \v]
-                      \9 [\w \x \y \z]
-                      (vector d)))]
-    (reduce (fn [res d]
-              (for [c (dls d)
-                    r res]
-                (str r c)))
-            [""]
-            (seq strnum))))
+;;; rdigs-slower  with vector results [elided]
 
 
-;; almost fastest, looks nicer
-(defn rdigs [strnum]
-  (let [dls (fn [d] (case d
+;;; better ordering and a little faster
+;;; BEST
+(defn ydigs [strnum]
+  (reduce (fn [res d]
+            (for [r res
+                  c (case d
                       \0 '(\space)
                       ;; skip 1
                       \2 '(\a \b \c)
@@ -137,11 +122,7 @@
                       \7 '(\p \q \r \s)
                       \8 '(\t \u \v)
                       \9 '(\w \x \y \z)
-                      (list d)))]
-    (reduce (fn [res d]
-              (for [c (dls d)
-                    r res]
-                (str r c)))
-            [""]
-            (seq strnum))))
-
+                      (list d))]                  
+              (str r c)))
+          [""]
+          strnum))
