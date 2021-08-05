@@ -1,5 +1,7 @@
 (ns miner.ephonetran)
 
+;;; https://gist.github.com/ericnormand/ec3a492c760bb1623febdaf7222bfa14
+
 ;; Phone to letter translation
 ;; 
 ;; Phone keypads and rotary dials have little letters on them. Most numbers translate into
@@ -44,7 +46,7 @@
 ;; zipmap not better
 
 
-
+;; original idea but ydigs is faster
 (defn digits->letters [strnum]
   (reduce (fn [res k]
             (mapcat (fn [c] (map #(str % c) res)) (dls k [k])))
@@ -123,6 +125,54 @@
                       \8 '(\t \u \v)
                       \9 '(\w \x \y \z)
                       (list d))]                  
+              (str r c)))
+          [""]
+          strnum))
+
+
+;; slightly slower to return strings, but much easier to read
+;; (seq "foo")  apparently slower than literal '(\f \o \o)
+
+;;; suggests that it would be nice to have a macro that turns a literal map into a `case`
+;;; fn, perhaps with a key fn and val function.  The goal would be better performance but
+;;; maintaining readability and editing convenience of the literal map -- but it has to be a
+;;; compile-time constant
+
+
+;; close but not good enough
+(defn qdigs [strnum]
+  (reduce (fn [res d]
+            (for [r res
+                  c (case d
+                      \2 `~(seq "abc")
+                      \3 `~(seq "def")
+                      \4 `~(seq "ghi")
+                      \5 `~(seq "jkl")
+                      \6 `~(seq "mno")
+                      \7 `~(seq "pqrs")
+                      \8 `~(seq "tuv")
+                      \9 `~(seq "wxyz")
+                      \0 `~(seq " ")
+                      (list d))]
+              (str r c)))
+          [""]
+          strnum))
+
+;; clearer but slower
+(defn sdigs [strnum]
+  (reduce (fn [res d]
+            (for [r res
+                  c (case d
+                      \2 "abc"
+                      \3 "def"
+                      \4 "ghi"
+                      \5 "jkl"
+                      \6 "mno"
+                      \7 "pqrs"
+                      \8 "tuv"
+                      \9 "wxyz"
+                      \0 " "
+                      (list d))]
               (str r c)))
           [""]
           strnum))
