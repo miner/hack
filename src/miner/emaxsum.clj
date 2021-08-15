@@ -8,255 +8,29 @@
 ;; works with large vectors.
 
 
-(defn extend-center [vsum center]
-  (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-        post (apply max (reductions + 0 (subvec vsum (inc center))))]
-    ;;(println "vsum" vsum center pre post)
-    (+ pre post (vsum center))))
-
-(defn max-sum-WORKS [coll]
-  (let [vsum (into [] (comp (partition-by pos?)
-                            (map #(reduce + %)))
-                   coll)
-        vcnt (count vsum)]
-    (case vcnt
-      0 0
-      1 (max (vsum 0) 0)
-      (reduce max 0 (map #(extend-center vsum %)
-                         (range (if (pos? (first vsum)) 0 1) vcnt 2))))))
-
-(defn max-sum [coll]
-  (let [vsum (into [] (comp (partition-by pos?)
-                            (map #(reduce + %)))
-                   coll)
-        vcnt (count vsum)]
-    (case vcnt
-      0 0
-      1 (max (vsum 0) 0)
-      (reduce max 0 (map #(extend-center vsum %)
-                         (range (if (pos? (first vsum)) 0 1) vcnt 2))))))
-
-;; not faster
-(defn zsum2 [coll]
-  (let [vsum (into [] (comp (drop-while (complement pos?))
-                            (partition-by pos?)
-                            (map #(reduce + %)))
-                   coll)
-        vcnt (count vsum)]
-    (case vcnt
-      0 0
-      1 (max (vsum 0) 0)
-      (reduce max 0 (map #(extend-center vsum %)
-                         (range 0 vcnt 2))))))
-
-;; faster
-(defn zsum [coll]
-  (let [vsum (into [] (comp (partition-by neg?)
-                            (map #(reduce + %)))
-                   coll)
-        vcnt (count vsum)]
-    (case vcnt
-      0 0
-      1 (max (vsum 0) 0)
-      (reduce max 0 (map #(extend-center vsum %)
-                         (range (if (neg? (vsum 0)) 1 0) vcnt 2))))))
-
-;; slower
-(defn zsum3 [coll]
-  (let [vsum (into [] (comp (partition-by neg?)
-                            (map #(reduce + %)))
-                   coll)
-        vcnt (count vsum)
-        extend (fn [center]
-                 (if (neg? (vsum center))
-                   0
-                   (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-                         post (apply max (reductions + 0 (subvec vsum (inc center))))]
-                     ;;(println "vsum" vsum center pre post)
-                     (+ pre post (vsum center)))))]
-    (reduce max 0 (map extend (range vcnt)))))
-
-;; slower
-(defn zsum4 [coll]
-  (let [vsum (into [] (comp (partition-by neg?)
-                            (map #(reduce + %)))
-                   coll)
-        vcnt (count vsum)
-        extend (fn [center]
-                   (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-                         post (apply max (reductions + 0 (subvec vsum (inc center))))]
-                     ;;(println "vsum" vsum center pre post)
-                     (+ pre post (vsum center))))]
-      (reduce max 0 (map extend (range (if (and (seq vsum) (neg? (first vsum))) 1 0) vcnt 2)))))
-
-;; slower but a little better than some
-(defn zsum5 [coll]
-  (let [vsum (into [] (comp (partition-by neg?)
-                            (map #(reduce + %)))
-                   coll)
-        vcnt (count vsum)
-        extend (fn [center]
-                 (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-                       post (apply max (reductions + 0 (subvec vsum (inc center))))]
-                   ;;(println "vsum" vsum center pre post)
-                   (+ pre post (vsum center))))]
-    (reduce max 0 (map extend  (range (if (or (zero? vcnt) (neg? (vsum 0))) 1 0) vcnt 2)))))
-
-;;; about same speed as zsum -- maybe better with transducers!
-(defn xsum1 [coll]
-  (let [vsum (into [] (comp (partition-by neg?)
-                            (map #(reduce + %)))
-                   coll)
-        vcnt (count vsum)
-        extend (fn [center]
-                 (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-                       post (apply max (reductions + 0 (subvec vsum (inc center))))]
-                   (+ pre post (vsum center))))]
-    (transduce (map extend)
-               max
-               0
-               (range (if (or (zero? vcnt) (neg? (vsum 0))) 1 0) vcnt 2))))
+(defn max-sum [vvv]
+  (let [zadd (fn [a b] (max (+ a b) 0))]
+    (reduce max (reductions zadd 0 vvv))))
 
 
-
-(defn xsum [coll]
-  (let [vsum (into [] (comp (partition-by neg?)
-                            (map #(reduce + %)))
-                   coll)
-        vsum (if (and (pos? (count vsum)) (neg? (vsum 0))) (subvec vsum 1) vsum)
-        extend (fn [center]
-                 (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-                       post (apply max (reductions + 0 (subvec vsum (inc center))))]
-                   (+ pre post (vsum center))))]
-    (transduce (map extend)
-               max
-               0
-               (range 0 (count vsum) 2))))
+;;; @sw got it right first
+(defn sw-max-sum [xs]
+  (reduce max (reductions #(max 0 (+ %1 %2)) 0 xs)))
 
 
-;; drop-while is apparently slower
-(defn xsum3 [coll]
-  (let [vsum (into [] (comp (remove zero?)
-                            (drop-while neg?)
-                            (partition-by neg?)
-                            (map #(reduce + %)))
-                   coll)
-        extend (fn [center]
-                 (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-                       post (apply max (reductions + 0 (subvec vsum (inc center))))]
-                   (+ pre post (vsum center))))]
-    (transduce (map extend)
-               max
-               0
-               (range 0 (count vsum) 2))))
+;;; commenter points to Kadane's algorithm:
+;;; https://en.wikipedia.org/wiki/Maximum_subarray_problem#Kadane's_algorithm
 
+;;; SEM notes to myself.  Went through a bunch of ideas about pre-combining runs of negs and
+;;; pos but not worth all that manipulation.  The idea of grouping was kind of correct, but
+;;; the mechanics favor brute force additions.  At one point, I thought it had to look both
+;;; ways but that was a mistake.
 
+;; arg is required to be vector so no need to vectorize
 
-;;; need combos of parts by odd counts
+;; slightly faster with type hints
+;; leading drops not worth it
 
-(defn ysum [coll]
-  (let [coll (drop-while (complement pos?) coll)]
-    (if (empty? coll)
-      0
-      (let [vsum (reduce (fn [pv i]
-                           (if (zero? i)
-                             pv
-                             (let [p (peek pv)]
-                               (if (neg? p)
-                                 (if (neg? i) (conj (pop pv) (+ p i)) (conj pv i))
-                                 (if (pos? i) (conj (pop pv) (+ p i)) (conj pv i))))))
-                         [(first coll)]
-                         (rest coll))
-            extend (fn [center]
-                     (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-                           post (apply max (reductions + 0 (subvec vsum (inc center))))]
-                       (+ pre post (vsum center))))]
-        (transduce (map extend)
-                   max
-                   0
-                   (range 0 (count vsum) 2))))))
-
-
-(defn ysum1 [coll]
-  (let [coll (sequence (comp (remove zero?) (drop-while (complement pos?))) coll)]
-    (if (empty? coll)
-      0
-      (let [vsum (reduce (fn [pv i]
-                             (let [p (peek pv)]
-                               (if (neg? p)
-                                 (if (neg? i) (conj (pop pv) (+ p i)) (conj pv i))
-                                 (if (pos? i) (conj (pop pv) (+ p i)) (conj pv i)))))
-                         [(first coll)]
-                         (rest coll))
-            extend (fn [center]
-                     (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-                           post (apply max (reductions + 0 (subvec vsum (inc center))))]
-                       (+ pre post (vsum center))))]
-        (transduce (map extend)
-                   max
-                   0
-                   (range 0 (count vsum) 2))))))
-
-;;; Idea:  once you extend from a center, you know other candidates within that extension
-;;; won't go any farther.  If you keep track of indices, you can skip a lot in between.
-;;; Maybe start in the middle and cleanup towards the ends.
-
-
-
-
-;;; just testing,  tests too many cases
-(defn pcombos [cnt]
-  (for [start (range 0 cnt 2)
-        width (range 1 (inc cnt) 2)
-        :let [end (+ start width)]
-        :when (<= end cnt)]
-    [start end]))
-
-
-
-
-;;; fastest on short seqs, but slower on long
-(defn ysum3 [coll]
-  (let [coll (drop-while (complement pos?) coll)]
-    (if (empty? coll)
-      0
-      (let [vsum (reduce (fn [pv i]
-                           (if (zero? i)
-                             pv
-                             (let [p (peek pv)]
-                               (if (neg? p)
-                                 (if (neg? i) (conj (pop pv) (+ p i)) (conj pv i))
-                                 (if (pos? i) (conj (pop pv) (+ p i)) (conj pv i))))))
-                         [(first coll)]
-                         (rest coll))
-            cnt (count vsum)]
-        (reduce max 0
-                (for [start (range 0 cnt 2)
-                      width (range 1 (inc cnt) 2)
-                      :let [end (+ start width)]
-                      :when (<= end cnt)]
-                  (reduce + (subvec vsum start end))))))))
-
-(defn ysum4 [coll]
-  (let [coll (drop-while (complement pos?) coll)]
-    (if (empty? coll)
-      0
-      (let [vsum (reduce (fn [pv i]
-                           (if (zero? i)
-                             pv
-                             (let [p (peek pv)]
-                               (if (neg? p)
-                                 (if (neg? i) (conj (pop pv) (+ p i)) (conj pv i))
-                                 (if (pos? i) (conj (pop pv) (+ p i)) (conj pv i))))))
-                         [(first coll)]
-                         (rest coll))
-            cnt (count vsum)]
-        (transduce identity max 0
-                (for [start (range 0 cnt 2)
-                      width (range 1 (inc cnt) 2)
-                      :let [end (+ start width)]
-                      :when (<= end cnt)]
-                  (reduce + (subvec vsum start end))))))))
 
 (def v1000 [-39 -21 -16 34 41 -1 6 32 31 35 18 33 29 -10 28 21 -27 14 -7 -17 6 -10 -49 -30
             -47 21 -43 -33 -27 23 -26 2 -48 -46 -41 -12 -5 26 -29 -5 39 -44 11 18 27 -31 20
@@ -325,61 +99,9 @@
 
 
 ;;; ----------------------------------------------------------------------
-;;; ohter junk
-
-    
-
-(defn msum [js]
-  (apply max-key #(reduce + 0 %) [] (sequence (partition-by pos?) js)))
+;;; ohter junk  and a lot of mistakes
 
 
-(defn extend-parts [sumparts center]
-  (let [cnt (count sumparts)
-        find-ext #(first (max-indices identity (reductions + 0 (map first %))))
-        prev  (find-ext (rseq (subvec sumparts 0 center)))
-        post (subvec sumparts (inc center))]
-    (mapcat #(nth % 2) (subvec sumparts (- center prev) (inc (+ center post))))))
-
-(defn max-sum-BAD [js]
-  (let [sumparts (into [] (comp (drop-while (complement pos?))
-                                (partition-by pos?)
-                                (map-indexed #(list (reduce + 0 %2) % %2)))
-                       js)
-        sumparts (if (and (seq sumparts) (neg? (first (peek sumparts))))
-                   (pop sumparts)
-                   sumparts)
-        maxes (max-indices first sumparts)]
-    (cond (empty? maxes) nil
-          (empty? (rest maxes)) (extend-parts sumparts (first maxes))
-          :else (max-key #(reduce + 0 %) (map #(extend-parts sumparts %) maxes)))))
-
-
-
-
-(defn max-sum-ALMOST-WORKS [coll]
-  (let [vsum (mapv #(reduce + %) (partition-by pos? coll))
-        vcnt (count vsum)]
-    (case vcnt
-      0 0
-      1 (if (pos? (vsum 0)) (vsum 0) 0)
-      (let [center (apply max-key vsum (range vcnt))
-            pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-            post (apply max (reductions + 0 (subvec vsum (inc center))))]
-        ;;(println "vsum" vsum center pre post)
-        (+ pre post (vsum center))))))
-
-;;; BUG:  what if two centers?  max-key picks last  but should be able to grow from first!
-(defn max-sum-FAIL [coll]
-  (let [vsum (mapv #(reduce + %) (partition-by pos? coll))
-        vcnt (count vsum)]
-    (case vcnt
-      0 0
-      1 (max (vsum 0) 0)
-      (let [center (apply max-key vsum (range vcnt))
-            pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
-            post (apply max (reductions + 0 (subvec vsum (inc center))))]
-        ;;(println "vsum" vsum center pre post)
-        (+ pre post (vsum center))))))
 
 (defn max-indices [ikey coll]
   (when (seq coll)
@@ -395,3 +117,128 @@
                 :else (recur (inc i) res mx (rest cs))))))))
 
 ;;; BUG center assumption is false -- must consider any positive starting point
+
+
+
+(defn extend-center [vsum center]
+  (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
+        post (apply max (reductions + 0 (subvec vsum (inc center))))]
+    ;;(println "vsum" vsum center pre post)
+    (+ pre post (vsum center))))
+
+(defn max-sum-WORKS [coll]
+  (let [vsum (into [] (comp (partition-by pos?)
+                            (map #(reduce + %)))
+                   coll)
+        vcnt (count vsum)]
+    (case vcnt
+      0 0
+      1 (max (vsum 0) 0)
+      (reduce max 0 (map #(extend-center vsum %)
+                         (range (if (pos? (first vsum)) 0 1) vcnt 2))))))
+
+(defn max-sum22 [coll]
+  (let [vsum (into [] (comp (partition-by pos?)
+                            (map #(reduce + %)))
+                   coll)
+        vcnt (count vsum)]
+    (case vcnt
+      0 0
+      1 (max (vsum 0) 0)
+      (reduce max 0 (map #(extend-center vsum %)
+                         (range (if (pos? (first vsum)) 0 1) vcnt 2))))))
+
+;;; about same speed as zsum -- maybe better with transducers!
+(defn xsum1 [coll]
+  (let [vsum (into [] (comp (partition-by neg?)
+                            (map #(reduce + %)))
+                   coll)
+        vcnt (count vsum)
+        extend (fn [center]
+                 (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
+                       post (apply max (reductions + 0 (subvec vsum (inc center))))]
+                   (+ pre post (vsum center))))]
+    (transduce (map extend)
+               max
+               0
+               (range (if (or (zero? vcnt) (neg? (vsum 0))) 1 0) vcnt 2))))
+
+
+
+;; drop-while is apparently slower
+(defn xsum3 [coll]
+  (let [vsum (into [] (comp (remove zero?)
+                            (drop-while neg?)
+                            (partition-by neg?)
+                            (map #(reduce + %)))
+                   coll)
+        extend (fn [center]
+                 (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
+                       post (apply max (reductions + 0 (subvec vsum (inc center))))]
+                   (+ pre post (vsum center))))]
+    (transduce (map extend)
+               max
+               0
+               (range 0 (count vsum) 2))))
+
+
+
+;; best ysum but still slow
+(defn ysum2 [coll]
+  (let [vvv (into [] (comp (remove zero?) (drop-while neg?)) coll)]
+    (if (zero? (count vvv))
+      0
+      (let [vsum (reduce (fn [pv i]
+                             (let [p (peek pv)]
+                               (if (neg? p)
+                                 (if (neg? i) (conj (pop pv) (+ p i)) (conj pv i))
+                                 (if (pos? i) (conj (pop pv) (+ p i)) (conj pv i)))))
+                         [(nth vvv 0)]
+                         (subvec vvv 1))
+            extend (fn [center]
+                     (let [pre (apply max (reductions + 0 (rseq (subvec vsum 0 center))))
+                           post (apply max (reductions + 0 (subvec vsum (inc center))))]
+                       (+ pre post (vsum center))))]
+        (transduce (map extend)
+                   max
+                   0
+                   (range 0 (count vsum) 2))))))
+
+
+
+
+
+(defn abs>= [a b]
+  (let [a (if (neg? a) (- a) a)
+        b (if (neg? b) (- b) b)]
+    (>= a b)))
+
+(defn zadd [a b]
+  (let [ab (+ a b)]
+    (if (neg? ab)
+      0
+      ab)))
+
+;;; reductions zadd for the win.  The pre-grouping is a red-herring.  Not worth it.
+(defn ysum23 [coll]
+  (let [vvv (into [] (comp (remove zero?) (drop-while neg?)) coll)]
+    (if (zero? (count vvv))
+      0
+      (let [vsum (reduce (fn [pv i]
+                             (let [p (peek pv)]
+                               (if (neg? p)
+                                 (if (neg? i) (conj (pop pv) (+ p i)) (conj pv i))
+                                 (if (pos? i) (conj (pop pv) (+ p i)) (conj pv i)))))
+                         [(nth vvv 0)]
+                         (subvec vvv 1))]
+        (reduce max (concat (reductions zadd 0 vsum)
+                            (reductions zadd 0 (rseq vsum))))))))
+
+
+;;; just testing,  tests too many cases
+(defn pcombos [cnt]
+  (for [start (range 0 cnt 2)
+        width (range 1 (inc cnt) 2)
+        :let [end (+ start width)]
+        :when (<= end cnt)]
+    [start end]))
