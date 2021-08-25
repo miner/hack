@@ -28,7 +28,7 @@
              []
              (iterate rest coll)))
 
-(defn ceil [n d]
+(defn ceil [^long n ^long d]
   (if (zero? (rem n d))
     (quot n d)
     (inc (quot n d))))
@@ -36,6 +36,11 @@
 ;; faster, but not as pretty!
 (defn mceil [^long n ^long d]
   (long (Math/ceil (/ (double n) (double d)))))
+
+;; clever but not faster
+(defn swceil [^long n ^long d]
+  (quot (+ n (dec d)) d))
+
 
 (defn deal-max [mx coll]
   (deal-out (ceil (count coll) mx) coll))
@@ -54,3 +59,11 @@
   (assert (= (deal-out 20 (range 20)) (map list (range 20))))
   (assert (= (first (deal-out 10 (range 1000))) (take 100 (iterate #(+ 10 %) 0))))
   true)
+
+
+;; @sw
+(defn sw-deal-out [n xs]
+  (map #(take-nth n (drop % xs)) (range (min n (count xs)))))
+
+(defn sw-deal-max [n xs]
+  (deal-out (quot (+ (count xs) n -1) n) xs))
