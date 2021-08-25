@@ -1,5 +1,7 @@
 (ns miner.edeal)
 
+;;; https://gist.github.com/ericnormand/435e5e03c4160e92366fbc9e70b7cb9b
+
 ;;; Your task is to write a function that deals out the cards more evenly. That is, the
 ;;; first element goes into the first sequence, the second element goes into the second
 ;;; sequence, etc. We're going to write two versions of this function. Version one
