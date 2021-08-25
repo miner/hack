@@ -26,20 +26,17 @@
              []
              (iterate rest coll)))
 
-(defn roundup [n d]
+(defn ceil [n d]
   (if (zero? (rem n d))
     (quot n d)
     (inc (quot n d))))
 
 ;; faster, but not as pretty!
-(defn rup [^long n ^long d]
+(defn mceil [^long n ^long d]
   (long (Math/ceil (/ (double n) (double d)))))
 
-
 (defn deal-max [mx coll]
-  (deal-out (roundup (count coll) mx) coll))
-
-
+  (deal-out (ceil (count coll) mx) coll))
 
 
 
