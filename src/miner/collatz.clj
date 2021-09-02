@@ -1,5 +1,6 @@
 (ns miner.collatz)
 
+
 ;; a couple of fns borrowed from halfbaked.clj
 
 (defn fixed-point
@@ -41,7 +42,8 @@
 ;; https://oeis.org/A008908
 ;; number of steps to get to 1
 
-
+;; good video:
+;; https://youtu.be/094y1Z2wpJg
 
 ;; traditional definition
 (defn collatz1 [n]
@@ -195,3 +197,10 @@
                    (quot c 2)
                    (inc (* 3 c)))))]
     (take-while some? (iterate step n))))
+
+(defn scollatz4 [n]
+  (let [step (fn [c]
+               (cond (= c 1) nil
+                     (even? c) (quot c 2)
+                     :else (inc (* 3 c))))]
+    (sequence (take-while some?) (iterate step n))))
