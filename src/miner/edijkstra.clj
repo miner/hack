@@ -34,12 +34,23 @@
 (defn neighbors [g k unvisited]
   (select-keys (get g k) unvisited))
 
+;; about same even though I think it should be faster
+(defn neighbors1 [g node unvisited]
+  (-> (reduce-kv (fn [m k v] (if (contains? unvisited k)
+                               (assoc! m k v)
+                               m))
+                 (transient {})
+                 (get g node))
+      persistent!))
+
 (defn update-costs [g costs curr unvisited]
   (let [curr-cost (costs curr)]
-    (-> (reduce-kv (fn [c nbr nbr-cost] (update-in c [nbr] (partial min (+ curr-cost nbr-cost))))
+    (-> (reduce-kv (fn [c nbr nbr-cost] (update c nbr (partial min (+ curr-cost nbr-cost))))
                    costs
                    (neighbors g curr unvisited))
         (dissoc curr))))
+
+;;; note: priority-maps cannot use transient
 
 
 (defn dijkstra [path-map start end]
@@ -50,11 +61,10 @@
       (cond (= (peek path) end) path
             (empty? unvisited) nil
             :else (let [cost-map (update-costs g cost-map (peek path) unvisited)
-                        best (peek cost-map)
-                        node (key best)]
+                        best (peek cost-map)]
                     (when (< (val best) Long/MAX_VALUE)
-                      (recur (disj unvisited node)
-                             (conj path node)
+                      (recur (disj unvisited (peek path))
+                             (conj path (key best))
                              cost-map)))))))
 
 
@@ -62,25 +72,22 @@
 
 
 (def sample {[:a :b] 1
-             [:a :c] 2
-             [:c :a] 4
-             [:c :d] 5
-             [:d :a] 6
-             [:d :c] 1})
-
-(defn smoke-path [shortest-path]
-  (let [graph {[:a :b] 1
                [:a :c] 2
                [:c :a] 4
                [:c :d] 5
                [:d :a] 6
                [:d :b] 7
-               [:d :c] 1}]
+               [:d :c] 1})
+
+(defn smoke-path [shortest-path]
+  (let [graph sample]
     (assert (= (shortest-path graph :d :a) [:d :c :a]))
     (assert (= (shortest-path graph :c :b) [:c :a :b]))
     (assert (= (shortest-path graph :a :a) [:a]))
     (assert (= (shortest-path graph :a :b) [:a :b]))
     (assert (= (shortest-path graph :d :b) [:d :c :a :b]))
+    (assert (= (shortest-path graph :d :a) [:d :c :a]))
+    (assert (= (shortest-path graph :d :c) [:d :c]))
     (assert (nil? (shortest-path graph :b :d) ))
     (assert (nil? (shortest-path graph :b :c) )))
   true)
