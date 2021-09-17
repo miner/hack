@@ -73,7 +73,7 @@
                 [Long/MAX_VALUE]
                 cost-map))))
 
-;; assuming no explicit self-links, it's safe to remove the node from unvisited before
+;; assuming no explicit self-links [:x :x], it's safe to remove the node from unvisited before
 ;; looking for neighbors
 
 (defn update-costs [g node cost-map]
@@ -99,7 +99,7 @@
             node (peek best-path)]
         (cond (nil? node) nil
               (= node end) best-path
-              :else (recur (update-costs g node cost-map )))))))
+              :else (recur (update-costs g node cost-map)))))))
 
 
 
@@ -121,6 +121,13 @@
              [:d :c] 1})
 
 (defn smoke-path [shortest-path]
+  (let [graph {[:a :b] 1
+               [:a :c] 2
+               [:c :a] 4}]
+    (assert (= (shortest-path graph :c :b) [:c :a :b]))
+    (assert (= (shortest-path graph :a :a) [:a]))
+    (assert (= (shortest-path graph :a :b) [:a :b]))
+    (assert (nil? (shortest-path graph :b :c) )))
   (let [graph sample]
     (assert (= (shortest-path graph :d :a) [:d :c :a]))
     (assert (= (shortest-path graph :c :b) [:c :a :b]))
