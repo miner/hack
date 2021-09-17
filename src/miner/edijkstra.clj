@@ -19,15 +19,10 @@
 ;; http://loganlinn.com/blog/2013/04/22/dijkstras-algorithm-in-clojure/
 
 ;; But use reduce-kv were possible.  Also, should keep costs in a priority map.
-;; [org.clojure/data.priority-map "1.0.0"]
+;; [org.clojure/data.priority-map "1.0.0"] 
 
 ;;; So far, priority-map is slower.  Probably due to need for filtering by unvisited.  How
 ;;; could the representation combine unvisited?
-
-;;; Uncertain about correctness of my code.  May be missing backtracking effect of costs.  Want
-;;; to keep full path as keys or something.  The problem is the costs need to be expanded
-;;; correctly.  You can't assume the lowest cost is connected.  It might be picking up an
-;;; old trail.  Start over.
 
 
 ;;; seems like a map from terminal node to cost would work but the twist is that the cost is
@@ -49,13 +44,13 @@
  :c [:c 0]
  ::unvisited #{:a :b :d}}
 
-;; could submap :path and :cost instead of decoding vector
+;; could submap :path and :cost instead of decoding vector -- NOT IMPLEMENTED
 #_
 {:b {:path [:c :b] :cost 5}
  :c {:path [:c] :cost 0}
  ::unvisited #{:a :b :d}}
 
-;; could :visited into map, but that's more linear searching for unvisited
+;; could :visited into map, but that's more linear searching for unvisited -- NOT IMPLEMENTED
 
 #_
 {:b {:path [:c :b] :cost 5 :visited false}
@@ -64,93 +59,57 @@
  :d {:visited true}}
 
 
-;; Decided to leave INF nodes out of costs so if node key is missing it means [INF].
-(defn best-unvisited-path6 [cost-map unvisited]
-  (let [best (apply min-key
-                    (fn [node]
-                      (if-let [path-cost (cost-map node)]
-                        (peek path-cost)
-                        Long/MAX_VALUE))
-                    unvisited)]
-    (pop (cost-map best))))
-
-(defn update-costs6 [g costs node unvisited]
-  (let [node-cost (peek (costs node))
-        node-path (pop (costs node))]
-    (reduce-kv (fn [c nbr nbrcost]
-                 (let [new-cost (+ node-cost nbrcost)
-                       nbrcost (get c nbr [Long/MAX_VALUE])]
-                   (if (< new-cost (peek nbrcost))
-                     (assoc c nbr (conj node-path nbr new-cost))
-                     c)))
-               costs
-               (select-keys (get g node) unvisited))))
-
-(defn dijk6 [path-map start end]
-  (let [g (reduce-kv assoc-in {} path-map)]
-    (loop [unvisited (into #{} cat (keys path-map))
-           cost-map {start [start 0]}]
-      ;;(println "Cmap6 top loop" cost-map unvisited)
-      (let [best-path (best-unvisited-path6 cost-map unvisited)
-            node (peek best-path)]
-        ;;(println "Best6" best-path)
-        (cond (nil? node) nil
-              (= node end) best-path
-              (empty? unvisited) nil
-              :else (let [cost-map (update-costs6 g cost-map node unvisited)
-                          unvisited (disj unvisited node)]
-                      (recur unvisited cost-map)))))))
-
-
-
 ;;; idea: use single state cost-map with ::unvisited key to hold unvisited
 
-(defn best-unvisited-path7 [cost-map]
-  (let [best (apply min-key
-                    (fn [node]
-                      (if-let [path-cost (cost-map node)]
-                        (peek path-cost)
-                        Long/MAX_VALUE))
-                    (cost-map ::unvisited))]
-    (pop (cost-map best))))
+(defn best-unvisited-path [cost-map]
+  (let [unvisited (::unvisited cost-map)]
+    (pop
+     (reduce-kv (fn [best k v]
+                  (if-not (contains? unvisited k)
+                    best
+                    (if (< (peek v) (peek best))
+                      v
+                      best)))
+                [Long/MAX_VALUE]
+                cost-map))))
 
-(defn update-costs7 [g node cost-map]
+;; assuming no explicit self-links, it's safe to remove the node from unvisited before
+;; looking for neighbors
+
+(defn update-costs [g node cost-map]
   (let [node-cost (peek (cost-map node))
-        node-path (pop (cost-map node))]
-    (-> (reduce-kv (fn [c nbr nbr-step]
-                     (let [new-cost (+ node-cost nbr-step)
-                           nbrcost (get c nbr [Long/MAX_VALUE])]
-                       (if (< new-cost (peek nbrcost))
-                         (assoc c nbr (conj node-path nbr new-cost))
-                         c)))
-                   cost-map
-                   ;; unvisited neigbors
-                   (select-keys (get g node) (cost-map ::unvisited)))
-        ;;(dissoc node)
-        (update ::unvisited disj node))))
+        node-path (pop (cost-map node))
+        unvisited (disj (::unvisited cost-map) node)]
+    (reduce-kv (fn [cm nbr nbr-step]
+                 (if-not (contains? unvisited nbr)
+                   cm
+                   (let [new-cost (+ node-cost nbr-step)
+                         nbr-path-cost (get cm nbr [Long/MAX_VALUE])]
+                     (if (< new-cost (peek nbr-path-cost))
+                       (assoc cm nbr (conj node-path nbr new-cost))
+                       cm))))
+               (assoc cost-map ::unvisited unvisited)
+               (get g node))))
 
-;; if node has been visited and doesn't result in solution, can we delete it?  You will
-;; never try it again, I think, since it's no long unvisited.  Seems like update-costs
-;; should delete the cost entry as well as the unvisited.  Seems like it works, but it
-;; didn't improve performance.   Problem could be another path to that node would waste time
-;; recalculating minimum that maybe you already knew.  But actually, we wouldn't visit it
-;; again as only unvisited get to expand.  So it shoul be OK after all.
 
-;; slightly slower but nice to have single state
-(defn dijk7 [path-map start end]
+(defn shortest-path [path-map start end]
   (let [g (reduce-kv assoc-in {} path-map)]
     (loop [cost-map {start [start 0] ::unvisited (into #{} cat (keys path-map))}]
-      ;;(println "Cmap7 top loop" cost-map)
-      (let [best-path (best-unvisited-path7 cost-map)
+      (let [best-path (best-unvisited-path cost-map)
             node (peek best-path)]
-        ;;(println "Best7" best-path)
         (cond (nil? node) nil
               (= node end) best-path
-              :else (recur (update-costs7 g node cost-map )))))))
+              :else (recur (update-costs g node cost-map )))))))
 
 
 
-
+;; In update-costs, if node has been visited and doesn't result in solution, can we delete
+;; it?  You will never try it again, I think, since it's no long unvisited.  Seems like
+;; update-costs should delete the cost entry as well as the unvisited.  Seems like it works,
+;; but it didn't improve performance.  Problem could be another path to that node would
+;; waste time recalculating minimum that maybe you already knew.  But actually, we wouldn't
+;; visit it again as only unvisited get to expand.  So it shoul be OK after all.  But it's
+;; not faster in my tests.  Maybe with a larger graph it would be worth pruning.
 
 
 (def sample {[:a :b] 1
@@ -238,4 +197,44 @@
                  (transient {})
                  (get g node))
       persistent!))
+
+
+
+;; Decided to leave INF nodes out of costs so if node key is missing it means [INF].
+(defn best-unvisited-path6 [cost-map unvisited]
+  (let [best (apply min-key
+                    (fn [node]
+                      (if-let [path-cost (cost-map node)]
+                        (peek path-cost)
+                        Long/MAX_VALUE))
+                    unvisited)]
+    (pop (cost-map best))))
+
+(defn update-costs6 [g costs node unvisited]
+  (let [node-cost (peek (costs node))
+        node-path (pop (costs node))]
+    (reduce-kv (fn [c nbr nbrcost]
+                 (let [new-cost (+ node-cost nbrcost)
+                       nbrcost (get c nbr [Long/MAX_VALUE])]
+                   (if (< new-cost (peek nbrcost))
+                     (assoc c nbr (conj node-path nbr new-cost))
+                     c)))
+               costs
+               (select-keys (get g node) unvisited))))
+
+(defn dijk6 [path-map start end]
+  (let [g (reduce-kv assoc-in {} path-map)]
+    (loop [unvisited (into #{} cat (keys path-map))
+           cost-map {start [start 0]}]
+      ;;(println "Cmap6 top loop" cost-map unvisited)
+      (let [best-path (best-unvisited-path6 cost-map unvisited)
+            node (peek best-path)]
+        ;;(println "Best6" best-path)
+        (cond (nil? node) nil
+              (= node end) best-path
+              (empty? unvisited) nil
+              :else (let [cost-map (update-costs6 g cost-map node unvisited)
+                          unvisited (disj unvisited node)]
+                      (recur unvisited cost-map)))))))
+
 
