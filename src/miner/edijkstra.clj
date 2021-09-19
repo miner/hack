@@ -22,11 +22,12 @@
 ;; [org.clojure/data.priority-map "1.0.0"] 
 
 ;;; So far, priority-map is slower.  Probably due to need for filtering by unvisited.  How
-;;; could the representation combine unvisited?
+;;; could the representation combine unvisited?  Tried, but not faster
 
 
 ;;; seems like a map from terminal node to cost would work but the twist is that the cost is
-;;; a vector of nodes and peek int cost.
+;;; a vector of nodes and peek int cost.  Decided to elide the INF (just don't include key,
+;;; assume MAX if you need it).
 
 #_   ;; for example
 {:a [INF]
@@ -39,32 +40,13 @@
 #_ {::unvisited #{:d :e :f}}
 
 
+;; Actual example of good cost-map
 #_
 {:b [:c :b 5]
  :c [:c 0]
  ::unvisited #{:a :b :d}}
 
 
-;; priority-by-keyfn first
-;; second true=visited, false=unvisited
-;; third is path from start to node (terminates with self)
-
-
-
-
-;; could submap :path and :cost instead of decoding vector -- NOT IMPLEMENTED
-#_
-{:b {:path [:c :b] :cost 5}
- :c {:path [:c] :cost 0}
- ::unvisited #{:a :b :d}}
-
-;; could :visited into map, but that's more linear searching for unvisited -- NOT IMPLEMENTED
-
-#_
-{:b {:path [:c :b] :cost 5 :visited false}
- :c {:path [:c] :cost 0 :visited true}
- :a {:visited false}
- :d {:visited true}}
 
 
 
@@ -201,6 +183,7 @@
 ;; (priority-map-keyfn peek)
 
 
+
 ;;; BUT NOT FASTER
 (defn best-unvisited-path8 [cost-map unvisited]
   (reduce (fn [_ kv]
@@ -245,13 +228,17 @@
 
 ;; new idea: nested maps so g and cost-map and unvisited is all in one map
 
+;; could submap :path and :cost instead of decoding vector -- implemented below, but not winner
+;; could :visited into map, but that's more linear searching for unvisited, tried below but
+;; not a winner.
+;;
+;; priority-by-keyfn :cost
+
 #_
 {:b {:cost 5 :path [:c :b] :visited false :neighbors nil}
  :c {:cost 0 :path [:c] :visited true :neighbors {:a 4, :d 5}}
  :a {:cost MAX :path nil :visited false :neighbors nil}
  :d {:cost MAX :path nil :visited false :neighbors nil}}
-
-
 
 
 ;;; priority-map-keyfn is buggy with reduce-kv -- seems to take keyfn applied to v instead
@@ -372,24 +359,11 @@
 
 
 
-;;; WARNING -- Buggy code below.  Wasn't correctly keeping track of non-current path
-;;; possibilities.
-
-;; FIXME: costs could be equal.  Need a better score to be consistent
-;;; FIXME backtrack?
-;;; FIXME why dissoc
 
 ;;; note: priority-maps cannot use transient
 
-
 ;;; BUG in priority-map -- reduce-kv (sometimes?) doesn't follow priority order (unlike seq)
 ;;; -- could be an issue with known bug about fast-path???  Work-around is to call seq first.
-
-
-;; FIXME unvisited disj (key best) vs (peek path)
-
-
-
 
 ;;; what if you didn't have priority-map?  You would have to find the best
 ;;; actually much faster.  The unvisited filtering is apparently expensive with the priority map.
