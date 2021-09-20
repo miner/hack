@@ -19,7 +19,7 @@
 ;; http://loganlinn.com/blog/2013/04/22/dijkstras-algorithm-in-clojure/
 
 ;; But use reduce-kv were possible.  Also, should keep costs in a priority map.
-;; [org.clojure/data.priority-map "1.0.0"] 
+;; [org.clojure/data.priority-map "1.1.0"] 
 
 ;;; So far, priority-map is slower.  Probably due to need for filtering by unvisited.  How
 ;;; could the representation combine unvisited?  Tried, but not faster
@@ -241,8 +241,8 @@
  :d {:cost MAX :path nil :visited false :neighbors nil}}
 
 
-;;; priority-map-keyfn is buggy with reduce-kv -- seems to take keyfn applied to v instead
-;;; of full v.  However, reduce and seq work as expected.  Filed Bug DPRIMAP-14
+;;; priority-map-keyfn was buggy with reduce-kv.  Filed Bug DPRIMAP-14 and it was fixed for
+;;; version 1.1.0.
 
 (defn best-unvisited-path9 [cost-map]
   (first (keep (fn [me] (let [v (val me)]
@@ -334,36 +334,7 @@
               :else (recur (update-costs5 cost-map node)))))))
 
 
-
-
-
-
-;;; fix for reduce-kv on priority-map
-#_
-(defn rkv [f init pm] 
-  (reduce (fn [a k] (f a k (pm k)))
-          init
-          (sequence (mapcat val) (.priority->set-of-items pm))))
-
-#_
-(defn trkv [f init pm]
-  (if (.keyfn pm)
-    (transduce (mapcat val)
-               (completing (fn [a k] (f a k (get (.item->priority pm) k))))
-               init
-               (.priority->set-of-items pm))
-    ;; standard
-    (reduce-kv (fn [a k v]
-                 (reduce (fn [a v] (f a v k)) a v))
-               init (.priority->set-of-items pm))))
-
-
-
-
 ;;; note: priority-maps cannot use transient
-
-;;; BUG in priority-map -- reduce-kv (sometimes?) doesn't follow priority order (unlike seq)
-;;; -- could be an issue with known bug about fast-path???  Work-around is to call seq first.
 
 ;;; what if you didn't have priority-map?  You would have to find the best
 ;;; actually much faster.  The unvisited filtering is apparently expensive with the priority map.

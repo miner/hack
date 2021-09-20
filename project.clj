@@ -10,7 +10,7 @@
                  [org.clojure/core.rrb-vector "0.1.2"]
                  [org.clojure/core.async "1.3.618"]
                  [org.clojure/tools.macro "0.1.5"]
-                 [org.clojure/data.priority-map "1.0.0"]
+                 [org.clojure/data.priority-map "1.1.0"]
                  [com.datomic/datomic-free "0.9.5697"  :exclusions [joda-time]]
                  [instaparse "1.4.10"]
                  ;;[clj-webdriver "0.5.1"]
