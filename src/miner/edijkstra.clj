@@ -83,13 +83,11 @@
 (defn shortest-path [path-map start end]
   (let [g (reduce-kv assoc-in {} path-map)]
     (loop [cost-map {start [start 0] ::unvisited (into #{} cat (keys path-map))}]
-      (let [best-path (best-unvisited-path cost-map)
-            node (peek best-path)]
-        (cond (nil? node) nil
-              (= node end) best-path
-              :else (recur (update-costs g node cost-map)))))))
-
-
+      (let [best-path (best-unvisited-path cost-map)]
+        (when-let [node (peek best-path)]
+          (if (= node end)
+            best-path
+            (recur (update-costs g node cost-map))))))))
 
 ;; In update-costs, if node has been visited and doesn't result in solution, can we delete
 ;; it?  You will never try it again, I think, since it's no long unvisited.  Seems like
@@ -143,7 +141,35 @@
    [:t :w] 4, [:o :f] 3, [:p :c] 5, [:d :s] 1, [:e :k]   3, [:m :q] 1, [:i :c] 2, [:j :m] 4,
    [:t :s] 1, [:r :x] 5, [:w :c] 1, [:y :r] 7, [:h :a] 1, [:y :a] 2, [:g :l] 5, [:i :r] 2,
    [:h :q] 3, [:e :m] 1, [:y :c] 3, [:m :a] 2, [:s :w] 3, [:m :h]   5, [:q :c] 4})
-           
+
+
+
+(def wikipedia-example {[:1 :2] 7
+                        [:1 :6] 14
+                        [:1 :3] 9
+
+                        [:2 :1] 7
+                        [:2 :3] 10
+                        [:2 :4] 15
+
+                        [:3 :1] 9
+                        [:3 :2] 10
+                        [:3 :6] 2
+                        [:3 :4] 11
+
+                        [:4 :2] 15
+                        [:4 :3] 11
+                        [:4 :5] 6
+
+                        [:5 :4] 6
+                        [:5 :6] 9
+
+                        [:6 :1] 14
+                        [:6 :3] 2
+                        [:6 :5] 9})
+
+
+
 (defn smoke-path [shortest-path]
   (let [graph {[:a :b] 1
                [:a :c] 2
@@ -168,6 +194,13 @@
     (assert (= (shortest-path graph :c :y) [:c :o :f :e :b :p :y]))
     (assert (= (shortest-path graph :d :k) [:d :s :o :f :l :k]))
     (assert (nil? (shortest-path graph :d :u))))
+  ;; test from @KingCode
+  (let [graph wikipedia-example]
+    (assert (= (shortest-path graph :1 :5)  [:1 :3 :6 :5]))
+    (assert (= (shortest-path graph :5 :4) [:5 :4]))
+    (assert (= (shortest-path graph :5 :3) [:5 :6 :3]))
+    (assert (= (shortest-path graph :3 :5) [:3 :6 :5]))
+    (assert (= (shortest-path graph :2 :6) [:2 :3 :6])))
   true)
 
 
