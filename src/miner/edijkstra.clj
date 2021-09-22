@@ -18,36 +18,20 @@
 ;; my code is inspired by:
 ;; http://loganlinn.com/blog/2013/04/22/dijkstras-algorithm-in-clojure/
 
-;; But use reduce-kv were possible.  Also, should keep costs in a priority map.
-;; [org.clojure/data.priority-map "1.1.0"] 
-
-;;; So far, priority-map is slower.  Probably due to need for filtering by unvisited.  How
-;;; could the representation combine unvisited?  Tried, but not faster
-
+;; But use reduce-kv were possible.  Also, could keep costs in a priority map.
+;; [org.clojure/data.priority-map "1.1.0"] So far, priority-map is slower.  Probably due to
+;; need for filtering by unvisited.  How could the representation combine unvisited?  Tried,
+;; but not faster
 
 ;;; seems like a map from terminal node to cost would work but the twist is that the cost is
 ;;; a vector of nodes and peek int cost.  Decided to elide the INF (just don't include key,
 ;;; assume MAX if you need it).
-
-#_   ;; for example
-{:a [INF]
- :b [:c :b 5]
- :c [:c 0]
- :d [INF]
- :e [INF]
- :f [INF]}
-;; maybe part of state, currently separate
-#_ {::unvisited #{:d :e :f}}
-
 
 ;; Actual example of good cost-map
 #_
 {:b [:c :b 5]
  :c [:c 0]
  ::unvisited #{:a :b :d}}
-
-
-
 
 
 
@@ -105,9 +89,6 @@
              [:d :a] 6
              [:d :b] 7
              [:d :c] 1})
-
-
-
 
 
 ;; use this to make another big example
@@ -368,7 +349,3 @@
 
 
 ;;; note: priority-maps cannot use transient
-
-;;; what if you didn't have priority-map?  You would have to find the best
-;;; actually much faster.  The unvisited filtering is apparently expensive with the priority map.
-
