@@ -59,21 +59,60 @@
 (defn bcomplement [n]
   (bit-xor n b-all))
 
-;; returns seq of single bit longs (powers of 2) from n
+;; FIXME: Do you care about order?  low to high seems more natural
+;; FIXME: What about lazy?  Probably don't care as they're small
+
+
+;; returns seq of single-bit longs (powers of 2) from n, lowest first
 (defn bsingles [^long n]
+  (loop [n n bs (transient [])]
+    (if (zero? n)
+      (persistent! bs)
+      (let [h (Long/lowestOneBit n)]
+        (recur (bit-and-not n h) (conj! bs h))))))
+
+
+;; returns seq of single-bit longs (powers of 2) from n, highest first
+#_
+(defn bsingles1 [^long n]
   (loop [n n bs ()]
     (if (zero? n)
       bs
       (let [h (Long/lowestOneBit n)]
         (recur (bit-and-not n h) (conj bs h))))))
 
-;; returns vector of marked bit indices  (slightly faster if you don't need a real Clojure Set)
-(defn bindices [^long n]
+;; returns vector of marked bit indices  (slightly faster if you don't need a real Clojure
+;; Set)
+;;  Actually, I think bseq is more natural.  Lowest to highest (similar to range, dotimes, etc)
+#_
+(defn bindices-hilo [^long n]
   (loop [n n bs (transient [])]
     (if (zero? n)
       (persistent! bs)
       (let [h (Long/highestOneBit n)]
         (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros h)))))))
+
+;; low to high
+(defn bvec [^long n]
+  (loop [n n bs (transient [])]
+    (if (zero? n)
+      (persistent! bs)
+      (let [h (Long/lowestOneBit n)]
+        (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros n)))))))
+
+;;; natural order is least bit first.  Use brseq if you want reverse order (biggest first)
+(defn bseq [^long n]
+  (loop [n n bs ()]
+    (if (zero? n)
+      bs
+      (let [h (Long/highestOneBit n)]
+        (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
+
+(defn brseq [^long n]
+  (loop [n n bs ()]
+    (if (zero? n)
+      bs
+      (recur (bit-and-not n (Long/lowestOneBit n)) (conj bs (Long/numberOfTrailingZeros n))))))
 
 ;; convert to conventional Clojure Set of longs (indices of marked bits)
 (defn bset [^long n]
@@ -92,7 +131,21 @@
 (defn bsuperset? [bsuper bsub]
   (bsubset? bsub bsuper))
 
+;; min bit
+(defn bfirst [^long n]
+  (when-not (zero? n)
+    (Long/numberOfTrailingZeros n)))
 
+;; max bit
+(defn blast [^long n]
+  (when-not (zero? n)
+    (- 63 (Long/numberOfLeadingZeros n))))
+
+(defn brest [^long n]
+  (bit-and-not n (Long/lowestOneBit n)))
+
+(defn breduce [f init n]
+  (reduce f init (bseq n)))
 
 (defn bstr
   ([^long n] (Long/toBinaryString n))
