@@ -3,27 +3,25 @@
 ;; SEM experiment.  Using a long as a "set" of bits containing 0-63.
 ;; For serious work, look at java.util.BitSet but beware that it's mutable and not thread-safe.
 
-;; set-like functions but with names beginning with b
+;; set-like functions but with names beginning with b.
+;;
+;;  Think of a long integer as a sorted-set of 0-63.  If your problem maps into a small set,
+;;  it can be much faster than using a generic Clojure set.
+
+;;  You can depend on the "bfirst" being the smallest bit index, and "blast" being the
+;;  greatest.  "brest" disjoins the bfirst element (smallest).  "bseq" yields a seq in
+;;  ascending order.  "brseq" gives you reverse order.
+
 
 (def ^:const b-all -1)
 
 (def ^:const b-empty 0)
-
 
 (def bempty? zero?)
 
 (defn bcount [^long b]
   (Long/bitCount b))
 
-;; returns index of high bit 63-0 or nil if n=0
-(defn bmax [n]
-  {:pre [(not (zero? n))]}
-  (- 63 (Long/numberOfLeadingZeros n)))
-
-(defn bmin [n]
-  {:pre [(not (zero? n))]}
-  (Long/numberOfTrailingZeros n))
-  
 (defn bconj
   ([b i] (bit-set b i))
   ([b i & more] (reduce bit-set (bit-set b i) more)))
@@ -70,27 +68,6 @@
       (persistent! bs)
       (let [h (Long/lowestOneBit n)]
         (recur (bit-and-not n h) (conj! bs h))))))
-
-
-;; returns seq of single-bit longs (powers of 2) from n, highest first
-#_
-(defn bsingles1 [^long n]
-  (loop [n n bs ()]
-    (if (zero? n)
-      bs
-      (let [h (Long/lowestOneBit n)]
-        (recur (bit-and-not n h) (conj bs h))))))
-
-;; returns vector of marked bit indices  (slightly faster if you don't need a real Clojure
-;; Set)
-;;  Actually, I think bseq is more natural.  Lowest to highest (similar to range, dotimes, etc)
-#_
-(defn bindices-hilo [^long n]
-  (loop [n n bs (transient [])]
-    (if (zero? n)
-      (persistent! bs)
-      (let [h (Long/highestOneBit n)]
-        (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros h)))))))
 
 ;; low to high
 (defn bvec [^long n]
@@ -142,7 +119,8 @@
     (- 63 (Long/numberOfLeadingZeros n))))
 
 (defn brest [^long n]
-  (bit-and-not n (Long/lowestOneBit n)))
+  (when-not (zero? n)
+    (bit-and-not n (Long/lowestOneBit n))))
 
 (defn breduce [f init n]
   (reduce f init (bseq n)))
@@ -177,3 +155,28 @@
      (if (> width len)
        (str (subs "0000000000000000" len) hs)
        hs))))
+
+
+
+;;; Retired code
+
+;; returns seq of single-bit longs (powers of 2) from n, highest first
+#_
+(defn bsingles1 [^long n]
+  (loop [n n bs ()]
+    (if (zero? n)
+      bs
+      (let [h (Long/lowestOneBit n)]
+        (recur (bit-and-not n h) (conj bs h))))))
+
+;; returns vector of marked bit indices  (slightly faster if you don't need a real Clojure
+;; Set)
+;;  Actually, I think bseq is more natural.  Lowest to highest (similar to range, dotimes, etc)
+#_
+(defn bindices-hilo [^long n]
+  (loop [n n bs (transient [])]
+    (if (zero? n)
+      (persistent! bs)
+      (let [h (Long/highestOneBit n)]
+        (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros h)))))))
+

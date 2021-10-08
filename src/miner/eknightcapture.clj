@@ -307,7 +307,7 @@
             (let [r2 (+ r rdiff)
                   f2 (+ f fdiff)]
               (if (and (>= r2 0) (>= f2 0) (<= r2 7) (<= f2 7))
-                (bit-set b (+ (* r2 8) f2))
+                (bit-set b (bit-or (bit-shift-left r2 3) f2))
                 b)))
           0
           [[-2 -1] [-1 -2] [-2 1] [-1 2] [1 2] [2 1] [1 -2] [2 -1]]))
@@ -335,11 +335,19 @@
       (let [h (Long/highestOneBit n)]
         (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
 
+(defn bfirst [^long n]
+  (when-not (zero? n)
+    (Long/numberOfTrailingZeros n)))
+
+(defn brest [^long n]
+  (when-not (zero? n)
+    (bit-and-not n (Long/lowestOneBit n))))
+
 
 ;; faster with all possible moves precomputed
 ;;; use bits to make the kset, much faster than Clojure set, but of course less flexible
 
-;;; by far the fastest
+;;; by far the fastest -- but see bcaps4 for improvement
 (defn bcaps [board]
   (let [kset (reduce-kv (fn [res r rank]
                           (reduce-kv (fn [res f x]
@@ -362,7 +370,7 @@
                []
                (iterate #(bit-xor % (Long/lowestOneBit ^long %)) kset))))
 
-
+;; slightly faster
 (defn bcaps3 [board]
   (transduce (take-while #(> (Long/bitCount ^long %) 1))
              (fn ([res ^long ks]
@@ -385,33 +393,76 @@
                                  board))))
 
 
-
-
-
-
 ;; 2x slower to compute moves on the fly with kbmoves, but still faster than non-bit approach
-(defn bcaps1 [board]
-  (let [kset (reduce-kv (fn [res r rank]
-                          (reduce-kv (fn [res f x]
-                                       (if (pos? x)
-                                         (bit-set res (+ (* 8 r) f))
-                                         res))
-                                     res
-                                     rank))
-                        0
-                        board)]
-    ;;(println kset)
+;; [code elided]
+
+
+(defn bcaps4 [board]
+  (transduce (take-while #(> (Long/bitCount ^long %) 1))
+             (fn ([res ^long ks]
+                  (let [k (bfirst ks)
+                        cok (bcoords k)]
+                    (into res
+                          (map #(hash-set cok (bcoords %)))
+                          (bseq (bit-and ks (all-bmoves k))))))
+               ([res] res))
+             []
+             (iterate brest
+                      (reduce-kv (fn [res r rank]
+                                   (reduce-kv (fn [res f x]
+                                                (if (pos? x)
+                                                  (bit-set res (bit-or (bit-shift-left r 3) f))
+                                                  res))
+                                              res
+                                              rank))
+                                 0
+                                 board))))
+
+
+
+
+(def k-moves
+  (into [] (for [r (range 8)
+                 f (range 8)]
+             (reduce (fn [b [rdiff fdiff]]
+                       (let [r2 (+ r rdiff)
+                             f2 (+ f fdiff)]
+                         (if (and (>= r2 0) (>= f2 0) (<= r2 7) (<= f2 7))
+                           (bit-set b (bit-or (bit-shift-left r2 3) f2))
+                           b)))
+                     0
+                     [[-2 -1] [-1 -2] [-2 1] [-1 2] [1 2] [2 1] [1 -2] [2 -1]]))))
+
+;;; fastest -- self-contained, except for k-moves above
+(defn bcaps5 [board]
+  (let [bfirst  (fn [n] (Long/numberOfTrailingZeros ^long n))
+        brest (fn [n] (bit-and-not n (Long/lowestOneBit ^long n)))
+        bseq (fn [n]
+               (loop [n n bs ()]
+                 (if (zero? n)
+                   bs
+                   (let [h (Long/highestOneBit ^long n)]
+                     (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
+        coords (fn [k] (vector (unsigned-bit-shift-right k 3) (bit-and 7 k)))]
     (transduce (take-while #(> (Long/bitCount ^long %) 1))
-               (fn ([res ^long ks]
-                    (let [k (Long/numberOfTrailingZeros ks)
-                          cok (bcoords k)]
+               (fn ([res ks]
+                    (let [k (bfirst ks)
+                          kco (coords k)]
                       (into res
-                            (map #(hash-set cok (bcoords %)))
-                            (bseq (bit-and ks (kbmoves k))))))
+                            (map #(hash-set kco (coords %)))
+                            (bseq (bit-and ks (k-moves k))))))
                  ([res] res))
                []
-               (iterate #(bit-xor % (Long/lowestOneBit ^long %)) kset))))
-
+               (iterate brest
+                        (reduce-kv (fn [res r rank]
+                                     (reduce-kv (fn [res f x]
+                                                  (if (pos? x)
+                                                    (bit-set res (bit-or (bit-shift-left r 3) f))
+                                                    res))
+                                                res
+                                                rank))
+                                   0
+                                   board)))))
 
 
 
