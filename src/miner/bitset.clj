@@ -61,8 +61,23 @@
 ;; FIXME: What about lazy?  Probably don't care as they're small
 
 
+;; min bit
+(defn bfirst [n]
+  (when-not (zero? n)
+    (Long/numberOfTrailingZeros n)))
+
+;; max bit
+(defn blast [n]
+  (when-not (zero? n)
+    (- 63 (Long/numberOfLeadingZeros n))))
+
+(defn brest [n]
+  (when-not (zero? n)
+    (bit-and-not n (Long/lowestOneBit n))))
+
+
 ;; returns seq of single-bit longs (powers of 2) from n, lowest first
-(defn bsingles [^long n]
+(defn bsingles [n]
   (loop [n n bs (transient [])]
     (if (zero? n)
       (persistent! bs)
@@ -70,7 +85,7 @@
         (recur (bit-and-not n h) (conj! bs h))))))
 
 ;; low to high
-(defn bvec [^long n]
+(defn bvec [n]
   (loop [n n bs (transient [])]
     (if (zero? n)
       (persistent! bs)
@@ -78,28 +93,34 @@
         (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros n)))))))
 
 ;;; natural order is least bit first.  Use brseq if you want reverse order (biggest first)
-(defn bseq [^long n]
+(defn bseq [n]
   (loop [n n bs ()]
     (if (zero? n)
       bs
       (let [h (Long/highestOneBit n)]
         (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
 
-(defn brseq [^long n]
+;; lazy but slow, better to be eager for small things
+#_
+(defn lbseq [n]
+  (sequence (comp (take-while (complement zero?)) (map bfirst)) (iterate brest n)))
+
+
+(defn brseq [n]
   (loop [n n bs ()]
     (if (zero? n)
       bs
       (recur (bit-and-not n (Long/lowestOneBit n)) (conj bs (Long/numberOfTrailingZeros n))))))
 
 ;; convert to conventional Clojure Set of longs (indices of marked bits)
-(defn bset [^long n]
+(defn bset [n]
   (loop [n n bs (transient #{})]
     (if (zero? n)
       (persistent! bs)
       (let [h (Long/lowestOneBit n)]
         (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros h)))))))
 
-(defn bsingle? [^long n]
+(defn bsingle? [n]
   (= (Long/bitCount n) 1))
 
 (defn bsubset? [bsub bsuper]
@@ -108,25 +129,12 @@
 (defn bsuperset? [bsuper bsub]
   (bsubset? bsub bsuper))
 
-;; min bit
-(defn bfirst [^long n]
-  (when-not (zero? n)
-    (Long/numberOfTrailingZeros n)))
-
-;; max bit
-(defn blast [^long n]
-  (when-not (zero? n)
-    (- 63 (Long/numberOfLeadingZeros n))))
-
-(defn brest [^long n]
-  (when-not (zero? n)
-    (bit-and-not n (Long/lowestOneBit n))))
 
 (defn breduce [f init n]
   (reduce f init (bseq n)))
 
 (defn bstr
-  ([^long n] (Long/toBinaryString n))
+  ([n] (Long/toBinaryString n))
   ([width n]
    {:pre [(<= 0 width 64)]}
    (let [bs (bstr n)
@@ -137,7 +145,7 @@
        bs))))
 
 (defn hexstr
-  ([^long n] (clojure.string/upper-case (Long/toHexString n)))
+  ([n] (clojure.string/upper-case (Long/toHexString n)))
   ([width n]
    {:pre [(<= 0 width 16)]}
    (let [hs (hexstr n)
@@ -147,7 +155,7 @@
        hs))))
 
 (defn hexstr2
-  ([^long n] (clojure.string/upper-case (Long/toHexString n)))
+  ([n] (clojure.string/upper-case (Long/toHexString n)))
   ([width n]
    {:pre [(<= 0 width 16)]}
    (let [hs (hexstr n)
@@ -162,7 +170,7 @@
 
 ;; returns seq of single-bit longs (powers of 2) from n, highest first
 #_
-(defn bsingles1 [^long n]
+(defn bsingles1 [n]
   (loop [n n bs ()]
     (if (zero? n)
       bs
