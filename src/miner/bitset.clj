@@ -9,7 +9,7 @@
 ;;  it can be much faster than using a generic Clojure set.
 
 ;;  You can depend on the "bfirst" being the smallest bit index, and "blast" being the
-;;  greatest.  "brest" disjoins the bfirst element (smallest).  "bseq" yields a seq in
+;;  greatest.  "bpop" disjoins the bfirst element (smallest).  "bseq" yields a seq in
 ;;  ascending order.  "brseq" gives you reverse order.
 
 
@@ -71,7 +71,7 @@
   (when-not (zero? n)
     (- 63 (Long/numberOfLeadingZeros n))))
 
-(defn brest [n]
+(defn bpop [n]
   (when-not (zero? n)
     (bit-and-not n (Long/lowestOneBit n))))
 
@@ -101,9 +101,11 @@
         (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
 
 ;; lazy but slow, better to be eager for small things
-#_
 (defn lbseq [n]
-  (sequence (comp (take-while (complement zero?)) (map bfirst)) (iterate brest n)))
+  (sequence (comp (take-while (complement zero?)) (map bfirst)) (iterate bpop n)))
+
+(defn xbvec [n]
+  (into [] (comp (take-while (complement zero?)) (map bfirst)) (iterate bpop n)))
 
 
 (defn brseq [n]
