@@ -43,7 +43,7 @@
                                    0
                                    board)))))
 
-
+;; faster
 (defn captures5 [board]
   (let [bfirst  (fn [n] (Long/numberOfTrailingZeros  n))
         bpop (fn [n] (bit-and-not n (Long/lowestOneBit  n)))
@@ -55,14 +55,14 @@
                      (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
         coords (fn [k] (vector (unsigned-bit-shift-right k 3) (bit-and 7 k)))
         bkset (reduce-kv (fn [res r rank]
-                                     (reduce-kv (fn [res f x]
-                                                  (if (pos? x)
-                                                    (bit-set res (bit-or (bit-shift-left r 3) f))
-                                                    res))
-                                                res
-                                                rank))
-                                   0
-                                   board)]
+                           (reduce-kv (fn [res f x]
+                                        (if (pos? x)
+                                          (bit-set res (bit-or (bit-shift-left r 3) f))
+                                          res))
+                                      res
+                                      rank))
+                         0
+                         board)]
     (transduce (take (dec (Long/bitCount bkset)))
                (fn ([res ks]
                     (let [k (bfirst ks)
@@ -77,30 +77,7 @@
 
 
 
-(defn captures1 [board]
-  (let [bfirst  (fn [n] (Long/numberOfTrailingZeros  n))
-        bpop (fn [n] (bit-and-not n (Long/lowestOneBit  n)))
-        bseq (fn [n]
-               (loop [n n bs ()]
-                 (if (zero? n)
-                   bs
-                   (let [h (Long/highestOneBit  n)]
-                     (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
-        coords (fn [k] (vector (unsigned-bit-shift-right k 3) (bit-and 7 k)))]
-    (transduce (take-while #(> (Long/bitCount  %) 1))
-               (fn ([res ks]
-                    (let [k (bfirst ks)
-                          kco (coords k)]
-                      (into res
-                            (map #(hash-set kco (coords %)))
-                            (bseq (bit-and ks (k-moves k))))))
-                 ([res] res))
-               []
-               (iterate bpop
-                        (transduce (comp cat (keep-indexed (fn [k b] (when (pos? b) k))))
-                                   (completing bit-set)
-                                   0
-                                   board)))))
+
 
 (defn captures3 [board]
   (let [bfirst  (fn [n] (Long/numberOfTrailingZeros  n))
@@ -115,9 +92,8 @@
         bkset (transduce (comp cat (keep-indexed (fn [k b] (when (pos? b) k))))
                                    (completing bit-set)
                                    0
-                                   board)
-        bkcnt (Long/bitCount bkset)]
-    (transduce (take (dec bkcnt))
+                                   board)]
+    (transduce (take (dec (Long/bitCount bkset)))
                (fn ([res ks]
                     (let [k (bfirst ks)
                           kco (coords k)]
