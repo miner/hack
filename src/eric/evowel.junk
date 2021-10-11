@@ -1,0 +1,31 @@
+
+(defn dvowels [string]
+  (let [cnt (count string)
+        dv (mapv (fn [c] (when (vowel? c) 0)) string)
+        zis (keep-indexed (fn [i x] (when (zero? x) i)) dv)]
+    (reduce (fn [dv zi]
+              (if-let [zn (findz (inc zi) inc)]
+                (reduce (fn [r i] (assoc r i (- i zi)) 
+                (reduce (fn [r i] (assoc r i (- i zi))) dv (range (inc zi) cnt))
+
+              )
+            (let [z0 (first siz)]
+              (reduce (fn [r i] (assoc r i (- z0 i))) (range (dec z0) -1 -1)))
+            zis)
+
+
+
+
+        segments (partition 2 1 (map #(quot (+ (inc %) %2)) vis (rest vis)))
+    (map-indexed (fn [i d]
+                   (if (zero? d) 0
+                       (let [prev (loop UNFINISHED
+                         
+
+
+        segments 
+    (mapv (fn [i] (apply min (map #(dist i %) vis))) (range (count string)))))
+
+
+
+
