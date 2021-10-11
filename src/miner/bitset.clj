@@ -19,7 +19,7 @@
 
 (def bempty? zero?)
 
-(defn bcount [^long b]
+(defn bcount [b]
   (Long/bitCount b))
 
 (defn bconj
@@ -72,25 +72,23 @@
     (- 63 (Long/numberOfLeadingZeros n))))
 
 (defn bpop [n]
-  (when-not (zero? n)
-    (bit-and-not n (Long/lowestOneBit n))))
+  (bit-xor n (Long/lowestOneBit n)))
 
 
-;; returns seq of single-bit longs (powers of 2) from n, lowest first
+;; returns vec of single-bit longs (powers of 2) from n, lowest first
 (defn bsingles [n]
   (loop [n n bs (transient [])]
     (if (zero? n)
       (persistent! bs)
       (let [h (Long/lowestOneBit n)]
-        (recur (bit-and-not n h) (conj! bs h))))))
+        (recur (bit-xor n h) (conj! bs h))))))
 
 ;; low to high
 (defn bvec [n]
   (loop [n n bs (transient [])]
     (if (zero? n)
       (persistent! bs)
-      (let [h (Long/lowestOneBit n)]
-        (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros n)))))))
+      (recur (bit-xor n (Long/lowestOneBit n)) (conj! bs (Long/numberOfTrailingZeros n))))))
 
 ;;; natural order is least bit first.  Use brseq if you want reverse order (biggest first)
 (defn bseq [n]
@@ -98,29 +96,29 @@
     (if (zero? n)
       bs
       (let [h (Long/highestOneBit n)]
-        (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
-
-;; lazy but slow, better to be eager for small things
-(defn lbseq [n]
-  (sequence (comp (take-while (complement zero?)) (map bfirst)) (iterate bpop n)))
-
-(defn xbvec [n]
-  (into [] (comp (take-while (complement zero?)) (map bfirst)) (iterate bpop n)))
-
+        (recur (bit-xor n h) (conj bs (Long/numberOfTrailingZeros h)))))))
 
 (defn brseq [n]
   (loop [n n bs ()]
     (if (zero? n)
       bs
-      (recur (bit-and-not n (Long/lowestOneBit n)) (conj bs (Long/numberOfTrailingZeros n))))))
+      (recur (bit-xor n (Long/lowestOneBit n)) (conj bs (Long/numberOfTrailingZeros n))))))
+
+;; lazy but slow, better to be eager for small things
+#_
+(defn lbseq [n]
+  (sequence (comp (take-while (complement zero?)) (map bfirst)) (iterate bpop n)))
+
+#_
+(defn xbvec [n]
+  (into [] (comp (take-while (complement zero?)) (map bfirst)) (iterate bpop n)))
 
 ;; convert to conventional Clojure Set of longs (indices of marked bits)
 (defn bset [n]
   (loop [n n bs (transient #{})]
     (if (zero? n)
       (persistent! bs)
-      (let [h (Long/lowestOneBit n)]
-        (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros h)))))))
+      (recur (bit-xor n (Long/lowestOneBit n)) (conj! bs (Long/numberOfTrailingZeros n))))))
 
 (defn bsingle? [n]
   (= (Long/bitCount n) 1))
@@ -131,7 +129,7 @@
 (defn bsuperset? [bsuper bsub]
   (bsubset? bsub bsuper))
 
-
+;; could be smarter and avoid the bseq
 (defn breduce [f init n]
   (reduce f init (bseq n)))
 
@@ -165,28 +163,4 @@
      (if (> width len)
        (str (subs "0000000000000000" len) hs)
        hs))))
-
-
-
-;;; Retired code
-
-;; returns seq of single-bit longs (powers of 2) from n, highest first
-#_
-(defn bsingles1 [n]
-  (loop [n n bs ()]
-    (if (zero? n)
-      bs
-      (let [h (Long/lowestOneBit n)]
-        (recur (bit-and-not n h) (conj bs h))))))
-
-;; returns vector of marked bit indices  (slightly faster if you don't need a real Clojure
-;; Set)
-;;  Actually, I think bseq is more natural.  Lowest to highest (similar to range, dotimes, etc)
-#_
-(defn bindices-hilo [^long n]
-  (loop [n n bs (transient [])]
-    (if (zero? n)
-      (persistent! bs)
-      (let [h (Long/highestOneBit n)]
-        (recur (bit-and-not n h) (conj! bs (Long/numberOfTrailingZeros h)))))))
 

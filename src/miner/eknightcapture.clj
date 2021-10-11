@@ -1,5 +1,95 @@
 (ns miner.eknightcapture)
 
+;;; https://gist.github.com/ericnormand/783c8ce1d6f5720144a90d36ed9b03db
+
+;;; Dueling Knights
+;;;
+;;; A chess board has nothing but knights and empty spaces. In this setup, the color of
+;;; the knights doesn't matter. Each knight could potentially capture any other. Your job is
+;;; to write a function to figure out which knights can capture each other, if any. A board
+;;; is represented as a vector of vectors, each 8 elements long. A 0 represents an empty
+;;; square. A 1 represents a knight. Your function should return a collection of pairs. The
+;;; pairs represent the positions of the two knights that can capture each other.
+
+
+;; SEM notes:
+;; Fastest approach.  Convert rank and file (row and col) into 0-63 squares and mark
+;; bits in single long.  The long is essentially a sorted-set of 0-63.  Just big enough to
+;; hold a chess board.  For each starting square, cache the possible knight moves.  Then
+;; compare set of knight starting positions to each set of possible moves.  Removing
+;; previous knight as you go to avoid duplicate captures.  Covert back to 2D coords for
+;; final results.
+
+
+(def k-moves
+  (into [] (for [r (range 8)
+                 f (range 8)]
+             (reduce (fn [b [rdiff fdiff]]
+                       (let [r2 (+ r rdiff)
+                             f2 (+ f fdiff)]
+                         (if (and (>= r2 0) (>= f2 0) (<= r2 7) (<= f2 7))
+                           (bit-set b (bit-or (bit-shift-left r2 3) f2))
+                           b)))
+                     0
+                     [[-2 -1] [-1 -2] [-2 1] [-1 2] [1 2] [2 1] [1 -2] [2 -1]]))))
+
+
+;; fast but lots more code than other solutions
+(defn captures [board]
+  (let [bfirst  (fn [n] (Long/numberOfTrailingZeros  n))
+        bpop (fn [n] (bit-xor n (Long/lowestOneBit  n)))
+        bseq (fn [n]
+               (loop [n n bs ()]
+                 (if (zero? n)
+                   bs
+                   (let [h (Long/highestOneBit  n)]
+                     (recur (bit-xor n h) (conj bs (Long/numberOfTrailingZeros h)))))))
+        coords (fn [k] (vector (unsigned-bit-shift-right k 3) (bit-and 7 k)))
+        bkset (reduce-kv (fn [res r rank]
+                           (reduce-kv (fn [res f x]
+                                        (if (pos? x)
+                                          (bit-set res (bit-or (bit-shift-left r 3) f))
+                                          res))
+                                      res
+                                      rank))
+                         0
+                         board)]
+    (transduce (take (dec (Long/bitCount bkset)))
+               (fn ([res ks]
+                    (let [k (bfirst ks)
+                          kco (coords k)]
+                      (into res
+                            (map #(hash-set kco (coords %)))
+                            (bseq (bit-and ks (k-moves k))))))
+                 ([res] res))
+               []
+               (iterate bpop bkset))))
+
+
+;;; @steffan-westcott -- clever to only jump down, less work to avoid duplicate captures.
+;;; About 5x slower than my bits.
+(defn piece-ij [board]
+  (set (mapcat (fn [i row] (keep-indexed #(when (= 1 %2) [i %1]) row))
+               (range)
+               board)))
+
+(defn knight-jumps-down [[i j]]
+  [[(inc i) (- j 2)]
+   [(inc i) (+ j 2)]
+   [(+ i 2) (dec j)]
+   [(+ i 2) (inc j)]])
+
+(defn sw-captures [board]
+  (let [knights (piece-ij board)]
+    (set (mapcat (fn [x] (keep #(when (knights %1) #{x %1}) (knight-jumps-down x)))
+                 knights))))
+
+
+
+;;; ----------------------------------------------------------------------
+
+
+
 
 
 ;;; Chess notations lists the "file" (A-H column) first and the "rank" (1-8 row) second.
@@ -301,175 +391,6 @@
 
 
 
-
-(defn bmoves [r f]
-  (reduce (fn [b [rdiff fdiff]]
-            (let [r2 (+ r rdiff)
-                  f2 (+ f fdiff)]
-              (if (and (>= r2 0) (>= f2 0) (<= r2 7) (<= f2 7))
-                (bit-set b (bit-or (bit-shift-left r2 3) f2))
-                b)))
-          0
-          [[-2 -1] [-1 -2] [-2 1] [-1 2] [1 2] [2 1] [1 -2] [2 -1]]))
-
-
-(def all-bmoves
-  (into [] (for [rank (range 8)
-                 file (range 8)]
-             (bmoves rank file))))
-
-(defn bcoords1 [rf]
-  (vector (quot rf 8) (rem rf 8)))
-
-;; slightly faster
-(defn bcoords [rf]
-  (vector (unsigned-bit-shift-right rf 3) (bit-and 7 rf)))
-
-(defn kbmoves [k]
-  (bmoves (unsigned-bit-shift-right k 3) (bit-and 7 k)))
-
-(defn bseq [^long n]
-  (loop [n n bs ()]
-    (if (zero? n)
-      bs
-      (let [h (Long/highestOneBit n)]
-        (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
-
-(defn bfirst [^long n]
-  (when-not (zero? n)
-    (Long/numberOfTrailingZeros n)))
-
-(defn brest [^long n]
-  (when-not (zero? n)
-    (bit-and-not n (Long/lowestOneBit n))))
-
-
-;; faster with all possible moves precomputed
-;;; use bits to make the kset, much faster than Clojure set, but of course less flexible
-
-;;; by far the fastest -- but see bcaps4 for improvement
-(defn bcaps [board]
-  (let [kset (reduce-kv (fn [res r rank]
-                          (reduce-kv (fn [res f x]
-                                       (if (pos? x)
-                                         (bit-set res (+ (* 8 r) f))
-                                         res))
-                                     res
-                                     rank))
-                        0
-                        board)]
-    ;;(println kset)
-    (transduce (take-while #(> (Long/bitCount ^long %) 1))
-               (fn ([res ^long ks]
-                    (let [k (Long/numberOfTrailingZeros ks)
-                          cok (bcoords k)]
-                      (into res
-                            (map #(hash-set cok (bcoords %)))
-                            (bseq (bit-and ks (all-bmoves k))))))
-                 ([res] res))
-               []
-               (iterate #(bit-xor % (Long/lowestOneBit ^long %)) kset))))
-
-;; slightly faster
-(defn bcaps3 [board]
-  (transduce (take-while #(> (Long/bitCount ^long %) 1))
-             (fn ([res ^long ks]
-                  (let [k (Long/numberOfTrailingZeros ks)
-                        cok (bcoords k)]
-                    (into res
-                          (map #(hash-set cok (bcoords %)))
-                          (bseq (bit-and ks (all-bmoves k))))))
-               ([res] res))
-             []
-             (iterate #(bit-xor % (Long/lowestOneBit ^long %))
-                      (reduce-kv (fn [res r rank]
-                                   (reduce-kv (fn [res f x]
-                                                (if (pos? x)
-                                                  (bit-set res (+ (* 8 r) f))
-                                                  res))
-                                              res
-                                              rank))
-                                 0
-                                 board))))
-
-
-;; 2x slower to compute moves on the fly with kbmoves, but still faster than non-bit approach
-;; [code elided]
-
-
-(defn bcaps4 [board]
-  (transduce (take-while #(> (Long/bitCount ^long %) 1))
-             (fn ([res ^long ks]
-                  (let [k (bfirst ks)
-                        cok (bcoords k)]
-                    (into res
-                          (map #(hash-set cok (bcoords %)))
-                          (bseq (bit-and ks (all-bmoves k))))))
-               ([res] res))
-             []
-             (iterate brest
-                      (reduce-kv (fn [res r rank]
-                                   (reduce-kv (fn [res f x]
-                                                (if (pos? x)
-                                                  (bit-set res (bit-or (bit-shift-left r 3) f))
-                                                  res))
-                                              res
-                                              rank))
-                                 0
-                                 board))))
-
-
-
-
-(def k-moves
-  (into [] (for [r (range 8)
-                 f (range 8)]
-             (reduce (fn [b [rdiff fdiff]]
-                       (let [r2 (+ r rdiff)
-                             f2 (+ f fdiff)]
-                         (if (and (>= r2 0) (>= f2 0) (<= r2 7) (<= f2 7))
-                           (bit-set b (bit-or (bit-shift-left r2 3) f2))
-                           b)))
-                     0
-                     [[-2 -1] [-1 -2] [-2 1] [-1 2] [1 2] [2 1] [1 -2] [2 -1]]))))
-
-;;; fastest -- self-contained, except for k-moves above
-(defn bcaps5 [board]
-  (let [bfirst  (fn [n] (Long/numberOfTrailingZeros ^long n))
-        brest (fn [n] (bit-and-not n (Long/lowestOneBit ^long n)))
-        bseq (fn [n]
-               (loop [n n bs ()]
-                 (if (zero? n)
-                   bs
-                   (let [h (Long/highestOneBit ^long n)]
-                     (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
-        coords (fn [k] (vector (unsigned-bit-shift-right k 3) (bit-and 7 k)))]
-    (transduce (take-while #(> (Long/bitCount ^long %) 1))
-               (fn ([res ks]
-                    (let [k (bfirst ks)
-                          kco (coords k)]
-                      (into res
-                            (map #(hash-set kco (coords %)))
-                            (bseq (bit-and ks (k-moves k))))))
-                 ([res] res))
-               []
-               (iterate brest
-                        (reduce-kv (fn [res r rank]
-                                     (reduce-kv (fn [res f x]
-                                                  (if (pos? x)
-                                                    (bit-set res (bit-or (bit-shift-left r 3) f))
-                                                    res))
-                                                res
-                                                rank))
-                                   0
-                                   board)))))
-
-
-
-;; test if bit-and-not is faster than bit-xor
-
-;;; SEM FIXME -- make bmoves that keeps all the destinations as bits in a single long
-;;;   bit-and to see the hits
 
 
 #_

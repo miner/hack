@@ -13,46 +13,17 @@
                      0
                      [[-2 -1] [-1 -2] [-2 1] [-1 2] [1 2] [2 1] [1 -2] [2 -1]]))))
 
-(defn captures [board]
-  (let [bfirst  (fn [n] (Long/numberOfTrailingZeros  n))
-        bpop (fn [n] (bit-and-not n (Long/lowestOneBit  n)))
-        bseq (fn [n]
-               (loop [n n bs ()]
-                 (if (zero? n)
-                   bs
-                   (let [h (Long/highestOneBit  n)]
-                     (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
-        coords (fn [k] (vector (unsigned-bit-shift-right k 3) (bit-and 7 k)))]
-    (transduce (take-while #(> (Long/bitCount  %) 1))
-               (fn ([res ks]
-                    (let [k (bfirst ks)
-                          kco (coords k)]
-                      (into res
-                            (map #(hash-set kco (coords %)))
-                            (bseq (bit-and ks (k-moves k))))))
-                 ([res] res))
-               []
-               (iterate bpop
-                        (reduce-kv (fn [res r rank]
-                                     (reduce-kv (fn [res f x]
-                                                  (if (pos? x)
-                                                    (bit-set res (bit-or (bit-shift-left r 3) f))
-                                                    res))
-                                                res
-                                                rank))
-                                   0
-                                   board)))))
 
 ;; faster
-(defn captures5 [board]
+(defn captures [board]
   (let [bfirst  (fn [n] (Long/numberOfTrailingZeros  n))
-        bpop (fn [n] (bit-and-not n (Long/lowestOneBit  n)))
+        bpop (fn [n] (bit-xor n (Long/lowestOneBit  n)))
         bseq (fn [n]
                (loop [n n bs ()]
                  (if (zero? n)
                    bs
                    (let [h (Long/highestOneBit  n)]
-                     (recur (bit-and-not n h) (conj bs (Long/numberOfTrailingZeros h)))))))
+                     (recur (bit-xor n h) (conj bs (Long/numberOfTrailingZeros h)))))))
         coords (fn [k] (vector (unsigned-bit-shift-right k 3) (bit-and 7 k)))
         bkset (reduce-kv (fn [res r rank]
                            (reduce-kv (fn [res f x]
