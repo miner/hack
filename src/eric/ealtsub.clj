@@ -9,8 +9,6 @@
 ;; the one that appears first.
 
 
-
-
 ;; nicest
 (defn longest-alt-subs-SEM [s]
   (let [chodd? (fn [ch] (case ch (\1 \3 \5 \7 \9) true false))]
