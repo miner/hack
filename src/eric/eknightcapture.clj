@@ -1,4 +1,4 @@
-(ns miner.eknightcapture)
+(ns eric.eknightcapture)
 
 ;;; https://gist.github.com/ericnormand/783c8ce1d6f5720144a90d36ed9b03db
 
