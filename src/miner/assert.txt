@@ -1,0 +1,46 @@
+https://stackoverflow.com/questions/4874517/how-to-make-clojure-respect-assert-variable
+
+*assert* is a compile-time variable, not a runtime variable. It's meant to be used with set! as a top-level statement, not with binding (of course unless you call eval inside the binding).
+
+
+(binding [*assert* false]
+   (eval '(assert false))
+   )
+
+(var-set (var *assert*) false)
+(assert false)
+
+
+
+
+
+;; SEM additional notes
+
+;; *assert* is dynamic.  You can change it in the REPL.  Default is true.
+(set! *assert* false)
+
+(defn foo [x] {:pre [(pos? x)]} (* 3 x))
+
+;;; The precondition is *NOT* compiled into the function if *assert* is false when it compiled
+;;; (typically at load time).  Even if you change *assert* in the REPL, you won't get any
+;;; precondition checking until you recompile the function.
+
+
+;;; SEM: but note that `binding` isn't good enough to get compile-time assertions.  The
+;;; environment that compiled the binding form is still in effect.  You need to:
+;;;    (set! *assert* false)
+;;; to affect the compilation environment.  The `eval` example gets around this but that's a
+;;; special case.
+
+
+user=> (set! *assert* false)
+false
+user=> *assert*
+false
+user=> (binding [*assert* true] (assert false))
+nil
+user=> (set! *assert* true)
+true
+user=> (binding [*assert* false] (assert false))
+Execution error (AssertionError) at user/eval18355 (REPL:1).
+Assert failed: false
