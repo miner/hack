@@ -20,6 +20,20 @@
 
 
 
+(defn cdigs [n]
+  (reduce * (map #(- (int %) (int \0)) (str n))))
+
+(defn sp7
+  ([n & nums] (sum-prod (reduce + n nums)))
+  ([n]
+   (if (< n 10)
+     n
+     (recur (reduce * (map #(- (int %) (int \0)) (str n)))))))
+
+
+
+
+
 
 
 
