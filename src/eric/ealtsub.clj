@@ -47,6 +47,21 @@
           (subs s longstart longend))))))
 
 
+;; not fast, but conventional
+(defn zalt [s]
+  (if (< (count s) 2)
+    s
+    (let [iodd? (fn [i] (odd? (+ (int (nth s i)) i)))]
+      (->> (into []
+                 (comp (partition-by iodd?)
+                       (map #(vector (nth % 0) (inc (peek %)))))
+                 (range (count s)))
+           rseq
+           (apply max-key (fn [[a b]] (- b a)))
+           (apply subs s)))))
+
+
+
 
 
 (defn chodd? [ch]
