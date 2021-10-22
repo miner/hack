@@ -7,16 +7,21 @@
 ;; it's done. If it's more than one digit, repeat and multiply the digits again.
 
 
-;; a bit faster
+
+
+;; much faster!! with type hints
 (defn sum-prod
   ([n & nums] (sum-prod (reduce + n nums)))
-  ([n]
+  ([^long n]
    (if (< n 10)
      n
-     (recur (loop [prod 1 n n]
-              (if (zero? n)
-                prod
-                (recur (long (* prod (rem n 10))) (quot n 10))))))))
+     (recur (long (loop [prod 1 n n]
+                    (if (zero? n)
+                      prod
+                      (recur (* prod (rem n 10)) (quot n 10)))))))))
+
+
+
 
 
 
