@@ -132,6 +132,15 @@
   ([n]  (first (filter #(< % 10) (iterate dtimes n))))
   ([n & nums] (fsp (reduce + n nums))))
 
+;; not great performance, but better than fsp
+(defn tsp
+  ([n & nums] (tsp (reduce + n nums)))
+  ([n]  (transduce (comp (filter #(< % 10)) (take 1))
+                   (completing conj first)
+                   nil
+                   (iterate dtimes n))))
+
+
 
 ;; very slow -- chunking?
 (defn ssp
