@@ -2,6 +2,8 @@
   (:require [clojure.string :as str]
             [clojure.edn :as edn]))
 
+;; https://gist.github.com/ericnormand/be324723b966bba6fd9dd117d6476031
+
 ;; reverse polish eval of string
 ;; All operations are binary.
 ;; There are some cases where there aren't enough arguments. You should throw an exception.
@@ -10,7 +12,6 @@
 
 
 ;; ns-resolve is faster than the eval
-
 
 (defn rpol [s]
   (transduce (map clojure.edn/read-string)
@@ -23,7 +24,7 @@
                       (conj stack ((ns-resolve *ns* x) op1 op2)))
                     (conj stack x)))
                ([stack] (peek stack)))
-             ()
+             nil
              (clojure.string/split s #" +")))
 
 
@@ -56,4 +57,21 @@
                         (conj stack x)))
                     []
                     exprs))))
+
+
+;; a little faster is you hard-wire ops and assume only long numbers
+(defn rpol8 [s]
+  (peek (reduce (fn [stack x]
+                  (let [op (case x
+                             "*" *
+                             "/" /
+                             "+" +
+                             "-" -
+                             nil)]
+                    (if op
+                      (conj (pop (pop stack))
+                            (op (peek (pop stack)) (peek stack)))
+                      (conj stack (Long/parseLong x)))))
+                nil
+                (clojure.string/split s #" +"))))
 
