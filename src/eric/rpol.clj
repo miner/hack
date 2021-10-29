@@ -1,0 +1,85 @@
+(ns eric.rpol
+  (:require [clojure.string :as str]
+            [clojure.edn :as edn]))
+
+;; reverse polish eval of string
+;; All operations are binary.
+;; There are some cases where there aren't enough arguments. You should throw an exception.
+;; There are some cases where there are too many arguments. Return the result of the last
+;; operation performed.
+
+
+;; ns-resolve is faster than the eval
+(defn rpol [s]
+  (let [exprs (map edn/read-string (str/split s #" +"))]
+    (peek (reduce (fn [stack x]
+              (if (symbol? x)
+                (let [op2 (peek stack)
+                      stack1 (pop stack)
+                      op1 (peek stack1)
+                      stack2 (pop stack1)]
+                  (conj stack2 ((ns-resolve *ns* x) op1 op2)))
+                (conj stack x)))
+            []
+            exprs))))
+
+(defn rpol1 [s]
+  (let [exprs (map edn/read-string (str/split s #" +"))]
+    (peek (reduce (fn [stack x]
+              (if (symbol? x)
+                (let [op2 (peek stack)
+                      stack1 (pop stack)
+                      op1 (peek stack1)
+                      stack2 (pop stack1)]
+                  (conj stack2 ((eval x) op1 op2)))
+                (conj stack x)))
+            []
+            exprs))))
+
+;; criterium seems to hang when timing rpol2
+;; using clojure.core/time shows that rpol is faster
+(defn rpol2 [s]
+  (let [exprs (map edn/read-string (str/split s #" +"))]
+    (peek (reduce (fn [stack x]
+              (if (symbol? x)
+                (let [op2 (peek stack)
+                      stack1 (pop stack)
+                      op1 (peek stack1)
+                      stack2 (pop stack1)]
+                  (conj stack2 (eval (list x op1 op2))))
+                (conj stack x)))
+            []
+            exprs))))
+
+
+
+(defmacro assert=
+  ([a b] `(assert (= ~a ~b)))
+  ([a b & more] `(do (assert= ~a ~b) (assert= ~@more))))
+
+(defn smoke-rpol [rpol]
+  (assert=
+   (rpol "1") 1
+   (rpol "1 2 +") 3
+   (rpol "1 2 + 3 +") 6
+   (rpol "4 2 * 2 2 + + 8 /") 3/2)
+  true)
+
+
+
+;; with-in-str, doall is important to defeat laziness.  Otherwise, the binding for *in* is
+;; resolved too late after the scope of with-in-str.  But overall this is slower so not
+;; worth the trickiness.
+(defn rpol3 [s]
+    (let [exprs (with-in-str s (doall (take-while some? (repeatedly #(edn/read {:eof nil} *in*)))))]
+      (peek (reduce (fn [stack x]
+                      (if (symbol? x)
+                        (let [op2 (peek stack)
+                              stack1 (pop stack)
+                              op1 (peek stack1)
+                              stack2 (pop stack1)]
+                          (conj stack2 (eval (list x op1 op2))))
+                        (conj stack x)))
+                    []
+                    exprs))))
+
