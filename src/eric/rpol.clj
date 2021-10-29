@@ -10,47 +10,21 @@
 
 
 ;; ns-resolve is faster than the eval
+
+
 (defn rpol [s]
-  (let [exprs (map edn/read-string (str/split s #" +"))]
-    (peek (reduce (fn [stack x]
-              (if (symbol? x)
-                (let [op2 (peek stack)
-                      stack1 (pop stack)
-                      op1 (peek stack1)
-                      stack2 (pop stack1)]
-                  (conj stack2 ((ns-resolve *ns* x) op1 op2)))
-                (conj stack x)))
-            []
-            exprs))))
-
-(defn rpol1 [s]
-  (let [exprs (map edn/read-string (str/split s #" +"))]
-    (peek (reduce (fn [stack x]
-              (if (symbol? x)
-                (let [op2 (peek stack)
-                      stack1 (pop stack)
-                      op1 (peek stack1)
-                      stack2 (pop stack1)]
-                  (conj stack2 ((eval x) op1 op2)))
-                (conj stack x)))
-            []
-            exprs))))
-
-;; criterium seems to hang when timing rpol2
-;; using clojure.core/time shows that rpol is faster
-(defn rpol2 [s]
-  (let [exprs (map edn/read-string (str/split s #" +"))]
-    (peek (reduce (fn [stack x]
-              (if (symbol? x)
-                (let [op2 (peek stack)
-                      stack1 (pop stack)
-                      op1 (peek stack1)
-                      stack2 (pop stack1)]
-                  (conj stack2 (eval (list x op1 op2))))
-                (conj stack x)))
-            []
-            exprs))))
-
+  (transduce (map clojure.edn/read-string)
+             (fn ([stack x]
+                  (if (symbol? x)
+                    (let [op2 (peek stack)
+                          stack (pop stack)
+                          op1 (peek stack)
+                          stack (pop stack)]
+                      (conj stack ((ns-resolve *ns* x) op1 op2)))
+                    (conj stack x)))
+               ([stack] (peek stack)))
+             ()
+             (clojure.string/split s #" +")))
 
 
 (defmacro assert=
