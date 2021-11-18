@@ -10,7 +10,7 @@
 ;; - the number must be produced by only one sum
 ;; - the smallest in case there are multiple candidates
 
-;; (take 17 (ulam)) ;=> (1 2 3 4 6 8 11 13 16 18 26 28 36 38 47 48 53)
+
 
 
 ;;; See   https://oeis.org/A002858
@@ -56,11 +56,72 @@
                                :burns #{1 2 3}
                                :sums (sorted-set 3)})))))
 
+;;; why doesn't this work?  Probably slow, but there's something else happening here?  This
+;;; goes deeper looking for dupes throughout full collection.  That's probably OK -- I
+;;; suspect that a later merger is causing the problem.
+(defn remove-dups [coll]
+  (sequence (comp (partition-by identity)
+                  (mapcat #(when (empty? (rest %)) %)))
+            coll))
+
+;;; drops any leading duplicates -- but doesn't go past first single value
+(defn drop-while-dups [coll]
+  (when-first [x coll]
+    (if (= (second coll) x)
+      (recur (drop-while #(= x %) (nnext coll)))
+      coll)))
+
+;; dropping dups
+;; by construction, colls are pre-sorted and uniqued.
+;; BUG-- they might already have dups!
+
+#_
+(defn BUG-my-merge-sums [xs ys]
+  (lazy-seq
+   #_ (when (= (first xs) (first ys))
+     (println "Collision") (println "  " xs) (println "   " ys) (println))
+              
+   (cond (empty? xs) ys
+         (empty? ys) xs
+         ;;(= (first xs) (first ys)) (my-merge-sums (next xs) (next ys))
+         (< (first xs) (first ys)) (cons (first xs) (my-merge-sums (rest xs) ys))
+         :else (cons (first ys) (my-merge-sums xs (rest ys))))))
+
+(defn merge-sums [xs ys]
+  (lazy-seq
+   (cond (empty? xs) ys
+         (empty? ys) xs
+         (< (first xs) (first ys)) (cons (first xs) (merge-sums (rest xs) ys))
+         :else (cons (first ys) (merge-sums xs (rest ys))))))
+
+;;; simpler? but not faster
+(defn ulam7 []
+  (let [ulam-next (fn [state]
+                    (let [usums (:sums state)
+                          uv (:uv state)
+                          x (first usums)
+                          xsums (map #(+ x %) uv)]
+                      {:uv (conj uv x)
+                       :sums (drop-while-dups (merge-sums (rest usums) xsums))}))]
+    (sequence
+     (map (comp peek :uv))
+     (cons {:uv [1]}
+           (iterate ulam-next {:uv [1 2] :sums '(3)})))))
 
 
-
-
-
+;; FAILS
+(defn ulam8-BUG []
+  (let [ulam-next (fn [state]
+                    (let [usums (:sums state)
+                          uv (:uv state)
+                          x (first usums)
+                          xsums (map #(+ x %) uv)]
+                      {:uv (conj uv x)
+                       :sums (remove-dups (merge-sums (rest usums) xsums))}))]
+    (sequence
+     (map (comp peek :uv))
+     (cons {:uv [1]}
+           (iterate ulam-next {:uv [1 2] :sums '(3)})))))
 
 
 
@@ -74,9 +135,14 @@
               273, 282, 309, 316, 319, 324, 339]))
   true)
 
+(defn smoke-ulam17 [ulam]
+  (assert (= (take 17 (ulam)) '(1 2 3 4 6 8 11 13 16 18 26 28 36 38 47 48 53)))
+  true)
 
 
-
+;;; Test with a smoke17
+;;; Consider lazy burns, as needed, maybe check later rather than for each iteration across
+;;; the board.
 
 
 
@@ -114,3 +180,19 @@
 
 
 
+
+
+;;; much slower
+(defn nexul [us]
+  (->> (for [a us b us :when (< a b)] (+ a b))
+       frequencies
+       (filter #(= 1 (val %)))
+       (map first)
+       (remove (set us))
+       (apply min)
+       (conj us)))
+
+(defn mc-ulam []
+  (->> (iterate nexul [1 2])
+       (map last)
+       (cons 1)))
