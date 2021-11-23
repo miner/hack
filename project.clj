@@ -31,7 +31,7 @@
                  [metrics-clojure "2.10.0"]
                  [net.cgrand/xforms "0.19.2"]
                  [digest "1.4.10"]
-                 [org.clojure/alpha.spec "0.2.177-SNAPSHOT"]
+                 [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [me.raynes/fs "1.4.6"]]
   :global-vars {*warn-on-reflection* true
