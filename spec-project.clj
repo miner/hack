@@ -5,6 +5,8 @@
 ;;  Note: spec is not published to maven central even though Clojure uses it internally.
 ;;  Maybe someday I should use the "new" deps.edn approach to simplify my installation.
 
+;; NOT REALLY SURE THIS WORKS!
+
 (defproject org.clojure/spec.alpha "0.3.214"
   :description "Unofficial spec alpha"
   :license {:name "Eclipse Public License"
