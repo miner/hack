@@ -37,7 +37,7 @@
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
   :profiles {:dev  {:dependencies [[org.clojure/clojure "1.11.0-alpha3"]
-                                   ;; [org.clojure/core.async "0.4.474"]
+                                   ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
              :clj18 {:dependencies [   
