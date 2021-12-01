@@ -71,10 +71,28 @@
 
 
 
+(defn consec9 [coll]
+  (let [sss (sort coll)
+        start (first sss)]
+    (if-not start
+      coll
+      (when (= sss (range start (+ start (count coll))))
+        sss))))
 
 
+;; not so bad, but waste of time to reassemble -- you already have sss
+(defn rconsec [coll]
+  (if (empty? coll)
+    coll
+    (let [sss (sort coll)]
+      (reduce (fn [r x]
+                (if (= (inc (peek r)) x)
+                  (conj r x)
+                  (reduced nil)))
+              [(first sss)]
+              (rest sss)))))
 
-
+          
 
 (defn smoke-consec [consec]
   (assert (= (consec []) ())) ;; trivially true
