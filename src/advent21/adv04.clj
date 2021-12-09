@@ -3,6 +3,9 @@
 ;; Squid bingo
 ;; 5x5, horz or vert wins, not diag
 
+;; I think my second rep is better.  That is: (list i) is more convenient than (- (inc i)) to
+;; name the board index.
+
 
 (def sample-input
   [7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1])
