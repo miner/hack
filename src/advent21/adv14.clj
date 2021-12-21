@@ -182,7 +182,7 @@ CN -> C")
                               (keys rules)))
         ;; cached 20, expanded pat 20 times, now use cache for "next" 20
         fqs (reduce (fn [fqs pair]
-                      (merge-with + fqs (fq-cache pair (frequencies pair))))
+                      (merge-with + fqs (fq-cache pair {(first pair) 1})))
                     {}
                     (partition-all 2 1 pat20))
         cnts (sort (vals fqs))]
