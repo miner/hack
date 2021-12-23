@@ -1,5 +1,6 @@
 (ns advent21.adv15
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [miner.astar :as astar]))
 
 (def sample-input
 "1163751742
@@ -149,7 +150,8 @@
           x (range xw)]
       (wrap9 (+ (at g x y) row col))))))
 
-;; too slow for real-input but it does work.  It would be better to implement A*
+;; too slow for real-input but it does work. Probably ran for many hours.  It would be
+;; better to implement A*
 (defn low-cost5 [input]
   (let [g (parse-grid input)
         g5 (gridx5 g)
@@ -157,11 +159,18 @@
     (lowest-cost pmap [0 0] [(dec (count (peek g5))) (dec (count g5))])))
        
 
-;; consider A* to get better performance
-;; h could be as simple as (h x y) => (+ (- xwdith x) (- ydepth y))
+;; consider A* to get better performance -- of course, cgrand has a nice implementation see
+;; miner/astar for his solution.  h is just the "Manhattan distance".  Could have been a bit
+;; faster to expose cost from A* rather than recalculating it from the path.
 
-
-
+;; MUCH FASTER, seconds instead of hours
+(defn low-cost-A* [input]
+  (let [g (parse-grid input)
+        g5 (gridx5 g)
+        goal [(dec (count (peek g5))) (dec (count g5))]
+        pmap (gen-path-map g5)]
+    (reduce + (map #(apply at g5 %)
+                   (rest (astar/A* pmap astar/manhattan-dist [0 0] goal))))))
 
 
 
