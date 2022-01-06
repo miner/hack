@@ -6,14 +6,14 @@
 ;; slightly updated for priority-map reference
 
 (defn A*
- "Finds a path between start and goal inside the graph described by edges
+  "Finds a path between start and goal inside the graph described by edges
   (a map of edge to distance); estimate is an heuristic for the actual
   distance. Accepts a named option: :monotonic (default to true).
   Returns the path if found or nil."
- [edges estimate start goal & {mono :monotonic :or {mono true}}]
+  [edges estimate start goal & {mono :monotonic :or {mono true}}]
   (let [f (memoize #(estimate % goal)) ; unsure the memoization is worthy
         neighbours (reduce (fn [m [a b]] (assoc m a (conj (m a #{}) b)))
-                      {} (keys edges))]
+                           {} (keys edges))]
     (loop [q (priority-map start (f start))
            preds {}
            shortest {start 0}
@@ -28,14 +28,19 @@
                          :when (< hn sn)]
                      [n hn])]
             (recur (into (pop q) bn)
-              (into preds (for [[n] bn] [n x]))
-              (into shortest bn)
-              (if mono (conj done x) done))))))))
+                   (into preds (for [[n] bn] [n x]))
+                   (into shortest bn)
+                   (if mono (conj done x) done))))))))
 
 
 ;;; SEM: I tried use Long/MAX_VALUE instead of Double/POSITIVE_INFINITY but no performance
 ;;; advantage.  It might be good if no-arg (estimate)
 
+
+;;; 01/06/22 02:10 by miner -- new idea:  apply edijkstra.clj ideas to cgrand's A*
+;;; implementation to keep full path rather than calculating at end from parents.  Also
+;;; consider cheaper lazy priority map with min search backup. (Also see "IDA*" comment below.)
+;;; good test in advent21/adv15.clj
 
 ;;; Example:
 (defn euclidian-distance [a b] ; multidimensional

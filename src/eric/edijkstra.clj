@@ -23,6 +23,12 @@
 ;; need for filtering by unvisited.  How could the representation combine unvisited?  Tried,
 ;; but not faster
 
+
+;;; 01/06/22  02:10 by miner -- new idea:  apply this to cgrand's A* implementation to keep
+;;; full path rather than calculating at end from parents.  Also consider cheaper lazy
+;;; priority map with min search backup
+
+
 ;;; seems like a map from terminal node to cost would work but the twist is that the cost is
 ;;; a vector of nodes and peek int cost.  Decided to elide the INF (just don't include key,
 ;;; assume MAX if you need it).
