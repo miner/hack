@@ -1,6 +1,6 @@
-(defproject hack "0.2.93-SNAPSHOT" 
+(defproject hack "0.2.95-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.18.0"]
+  :dependencies [[djblue/portal "0.19.2"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
                  [com.velisco/strgen "0.2.1"]
@@ -8,7 +8,7 @@
                  [org.clojure/data.int-map "1.0.0"]
                  [org.clojure/data.avl "0.1.0"]
                  [org.clojure/core.rrb-vector "0.1.2"]
-                 [org.clojure/core.async "1.5.640"]
+                 [org.clojure/core.async "1.5.648"]
                  [org.clojure/tools.macro "0.1.5"]
                  [org.clojure/data.priority-map "1.1.0"]
                  [com.datomic/datomic-free "0.9.5697"  :exclusions [joda-time]]
@@ -36,7 +36,7 @@
                  [me.raynes/fs "1.4.6"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
-  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.11.0-alpha3"]
+  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.11.0-alpha4"]
                                    ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
@@ -48,7 +48,7 @@
                                    [org.clojure/clojure "1.7.0"]
                                    ]}
              :rebl {:dependencies [
-                                   [org.clojure/core.async "1.5.640"]
+                                   [org.clojure/core.async "1.5.648"]
                                    [REBL "0.9.220"]
                                    ]
                     :main cognitect.rebl}
