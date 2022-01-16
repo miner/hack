@@ -98,7 +98,7 @@
     \8 7
     nil))
 
-(defn abs [n]
+(defn abso [n]
   (if (neg? n) (- n) n))
 
 ;; check valid positions in common logic
@@ -128,23 +128,23 @@
 
 ;; ignoring castling
 (defmethod dmove? :king [p df dr]
-  (and (<= (abs dr) 1) (<= (abs df) 1)))
+  (and (<= (abso dr) 1) (<= (abso df) 1)))
 
 (defmethod dmove? :queen [p df dr]
   (or (zero? df)
       (zero? dr)
-      (= (abs df) (abs dr))))
+      (= (abso df) (abso dr))))
 
 ;; ignoring castling
 (defmethod dmove? :rook [p df dr]
   (or (zero? df) (zero? dr)))
 
 (defmethod dmove? :bishop [p df dr]
-  (= (abs df) (abs dr)))
+  (= (abso df) (abso dr)))
 
 (defmethod dmove? :knight [p df dr]
-  (let [ar (abs dr)
-        af (abs df)]
+  (let [ar (abso dr)
+        af (abso df)]
     (and (= (min ar af) 1)
          (= (max ar af) 2))))
 
