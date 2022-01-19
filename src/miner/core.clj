@@ -9,6 +9,16 @@
   ([a b] (abs (- a b))))
 
 
+(defn ulp=
+  "Tests that x is approximately equal to y within a tolerance of m*ulp(x)"
+  ([x y] (ulp= x y 1.0))
+  ([x y m]
+   (or (= x y)
+       (if (> x y)
+         (<= (- x y) (* m (m/ulp x)))
+         (<= (- y x) (* m (m/ulp x)))))))
+
+
 ;;; Make a macro that automates this sort of counter (for testing side-effects and laziness)
 (let [counter (atom 0)]
   (defn fcount ([] @counter) ([n] (reset! counter n)))
