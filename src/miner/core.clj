@@ -1,46 +1,48 @@
 (ns miner.core
-  (:refer-clojure))
+  (:refer-clojure)
+  (:require [clojure.math :as m]
+            [clojure.string :as str]))
 
 ;;; Many semi-useful things moved into the halfbaked lib (now on clojars)
 
+;;; Clojure 1.11 will add a bunch of Math functions including `abs`
 ;;; absolute value
-(defn abs
+(defn abs-
   ([i] (if (neg? i) (- i) i))
-  ([a b] (abs (- a b))))
-
+  ([a b] (abs- (- a b))))
 
 (defn ulp=
   "Tests that x is approximately equal to y within a tolerance of m*ulp(x)"
   ([x y] (ulp= x y 1.0))
   ([x y m]
    (or (= x y)
-       (if (> x y)
-         (<= (- x y) (* m (m/ulp x)))
-         (<= (- y x) (* m (m/ulp x)))))))
+       (<= (abs- x y) (* m (clojure.math/ulp x))))))
 
+(defn hexstr [n]
+  (let [hs (clojure.string/upper-case (Long/toHexString n))
+        len (count hs)
+        phs (if (< len 16) (str (subs "0000000000000000" len) hs) hs)]
+    (clojure.string/join " " (map #(subs phs % (+ % 4)) [0 4 8 12]))))
+
+(defn dhexstr [^double d]
+  (hexstr (Double/doubleToRawLongBits d)))
 
 ;;; Make a macro that automates this sort of counter (for testing side-effects and laziness)
+#_
 (let [counter (atom 0)]
   (defn fcount ([] @counter) ([n] (reset! counter n)))
   (defn f [x]
     (swap! counter inc)
     [(inc x)]))
 
-
-(defn foo [x] (* 3 x))
-
 (defn match-step [f coll]
   (every? identity (map = (rest coll) (map f coll))))
-
 
 (defn match-indexed [f coll]
   (every? identity (map-indexed (fn [n val] (= (f n) val)) coll)))
 
-
 (defn match-reduction [f coll]
   (every? identity (map = coll (reductions f (range (count coll))))))
-
-
 
 ;; unlike regular =, compares records as maps (ignoring record-type)
 (defn isomorphic [x y]
@@ -48,10 +50,6 @@
       (and x y
            (= (if (instance? clojure.lang.IRecord x) (into {} x) x)
               (if (instance? clojure.lang.IRecord y) (into {} y) y)))))
-
-
-
-
 
 (defn reduce-nth [rf init coll]
   (let [initial (transient (vec init))
@@ -65,7 +63,6 @@
                  (rest coll)
                  (if (= i ilast) 0 (inc i)))
           (persistent! result))))))
-
 
 
 ;;; hacks for transients
