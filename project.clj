@@ -56,7 +56,8 @@
              :snapshot {:dependencies [[org.clojure/clojure "1.10.0-master-snapshot"]]}
              }
   :jvm-opts ["-Djdk.attach.allowAttachSelf"]
-  :repositories [["sonatype-oss-public" {:url "https://oss.sonatype.org/content/groups/public/"}]]
+  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
+
   ;; :bootclasspath true
   ;; :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   )
