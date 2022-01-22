@@ -44,17 +44,17 @@
       clojure.string/join))
 
 
+;; inspired by @jonasseglare -- mutation but fast
 (defn enco3 [^String s]
   (let [sb (StringBuilder. (.toUpperCase s))]
     (reduce (fn [rot i]
-              (let [c (.charAt sb i)
-                    alp (alnum c)]
-                (if alp
+              (let [c (.charAt sb i)]
+                (if-let [alp (alnum c)]
                   (do (.setCharAt sb i (rotaten c rot)) alp)
                   rot)))
             0
-            (range (count s)))
-    (str sb)))
+            (range (.length s)))
+    (.toString sb)))
 
 (defn deco3 [^String s]
   (let [sb (StringBuilder. (.toUpperCase s))]
@@ -67,8 +67,8 @@
                     (- (alnum cc)))
                   rot)))
             0
-            (range (count s)))
-    (str sb)))
+            (range (.length s)))
+    (.toString sb)))
 
 
 
