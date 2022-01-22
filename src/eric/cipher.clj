@@ -45,31 +45,29 @@
 
 
 ;; inspired by @jonasseglare -- mutation but fast
-(defn enco3 [^String s]
-  (let [sb (StringBuilder. (.toUpperCase s))]
-    (reduce (fn [rot i]
-              (let [c (.charAt sb i)]
-                (if-let [alp (alnum c)]
-                  (do (.setCharAt sb i (rotaten c rot)) alp)
-                  rot)))
-            0
-            (range (.length s)))
-    (.toString sb)))
+;; [My reduce version was slower so I deleted it]
 
-(defn deco3 [^String s]
-  (let [sb (StringBuilder. (.toUpperCase s))]
-    (reduce (fn [rot i]
-              (let [c (.charAt sb i)
-                    alp (alnum c)]
-                (if (alnum c)
-                  (let [cc (rotaten c rot)]
-                    (.setCharAt sb i cc)
-                    (- (alnum cc)))
-                  rot)))
-            0
-            (range (.length s)))
-    (.toString sb)))
+(defn encode3 [^String s]
+  (let [len (.length s)
+        s (.toUpperCase s)]
+    (loop [sb (StringBuilder. ^int len) i 0 rot 0]
+      (if (>= i len)
+        (.toString sb)
+        (let [c (.charAt s i)]
+          (if-let [alp (alnum c)]
+            (recur (.append sb ^char (rotaten c rot)) (inc i) (long alp))
+            (recur (.append sb ^char c) (inc i) rot)))))))
 
+(defn decode3 [^String s]
+  (let [len (.length s)
+        s (.toUpperCase s)]
+    (loop [sb (StringBuilder. ^int len) i 0 rot 0]
+      (if (>= i len)
+        (.toString sb)
+        (let [c (.charAt s i)]
+          (if-let [cc (when (alnum c) (rotaten c rot))]
+            (recur (.append sb ^char cc) (inc i) (long (- (alnum cc))))
+            (recur (.append sb ^char c) (inc i) rot)))))))
 
 
 (defn smoke-cipher [encode decode]
@@ -87,40 +85,7 @@
 
 
 
-#_
-(defn alphanum2 [c]
-  (let [c (int c)]
-    (cond (<= (int \A) c (int \Z)) (- c (dec (int \A)))
-          (<= (int \a) c (int \z)) (- c (dec (int \a)))
-          :else nil)))
-      
-
-
-;; slightly faster???  Probably more conventional
-#_
-(defn enc2 [s]
-  (-> (reduce (fn [r c]
-                (if-let [alph (alphanum c)]
-                  (-> r
-                      (update :res conj (rotn c (:offset r)))
-                      (assoc :offset alph))
-                  (update r :res conj c)))
-              {:offset 0 :res []}
-              s)
-      :res
-      str/join))
-
-
-
-#_
-(defn alnum-slow [c]
-  (let [i (int c)]
-    (when (<= (int \A) i (int \Z))
-      (- (inc i) (int \A)))))
-
-
-
-;; @jonasseglare -- SEM added hints for performance -- now fastest
+;; @jonasseglare -- SEM added hints for performance -- now fast.  But my encode2 is faster.
 (defn process [f ^String s]
   (let [b (StringBuilder. s)]
     (transduce (comp (map int)
