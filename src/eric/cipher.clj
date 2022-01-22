@@ -10,42 +10,94 @@
 ;; characters are shifted toward Z by the alphabetical position of the preceding alphabetical
 ;; character.  Non-alphabetical characters are left as-is.
 
-(defn alphanum [c]
+
+(defn alnum [c]
   (case c
-    (\A \a) 1 (\B \b) 2 (\C \c) 3 (\D \d) 4 (\E \e) 5 (\F \f) 6 (\G \g) 7 (\H \h) 8
-    (\I \i) 9 (\J \j) 10 (\K \k) 11 (\L \l) 12 (\M \m) 13 (\N \n) 14 (\O \o) 15
-    (\P \p) 16 (\Q \q) 17 (\R \r) 18 (\S \s) 19 (\T \t) 20 (\U \u) 21 (\V \v) 22
-    (\W \w) 23 (\X \x) 24 (\Y \y) 25 (\Z \z) 26
+    \A 1 \B 2 \C 3 \D 4 \E 5 \F 6 \G 7 \H 8 \I 9 \J 10
+    \K 11 \L 12 \M 13 \N 14 \O 15 \P 16 \Q 17 \R 18 \S 19 \T 20
+    \U 21 \V 22 \W 23 \X 24 \Y 25 \Z 26
     nil))
 
+;; assumes c is A-Z
+(defn rotaten [c n]
+  (char (+ (int \A) (mod (+ (- (int c) (int \A)) n) 26))))
+
+(defn encode [s]
+  (-> (reduce (fn [r c]
+                (if-let [alph (alnum c)]
+                  (conj (pop r) (rotaten c (peek r)) alph)
+                  (conj (pop r) c (peek r))))
+              [0]
+              (clojure.string/upper-case s))
+      pop
+      clojure.string/join))
+
+(defn decode [s]
+  (-> (reduce (fn [r c]
+                (if (alnum c)
+                  (let [cc (rotaten c (peek r))]
+                    (conj (pop r) cc (- (alnum cc))))
+                  (conj (pop r) c (peek r))))
+              [0]
+              (clojure.string/upper-case s))
+      pop
+      clojure.string/join))
+
+
+(defn enco3 [^String s]
+  (let [sb (StringBuilder. (.toUpperCase s))]
+    (reduce (fn [rot i]
+              (let [c (.charAt sb i)
+                    alp (alnum c)]
+                (if alp
+                  (do (.setCharAt sb i (rotaten c rot)) alp)
+                  rot)))
+            0
+            (range (count s)))
+    (str sb)))
+
+(defn deco3 [^String s]
+  (let [sb (StringBuilder. (.toUpperCase s))]
+    (reduce (fn [rot i]
+              (let [c (.charAt sb i)
+                    alp (alnum c)]
+                (if (alnum c)
+                  (let [cc (rotaten c rot)]
+                    (.setCharAt sb i cc)
+                    (- (alnum cc)))
+                  rot)))
+            0
+            (range (count s)))
+    (str sb)))
+
+
+
+(defn smoke-cipher [encode decode]
+  (assert (= (encode "")  ""))
+  (assert (= (encode "a")  "A"))
+  (assert (= (encode "hello")  "HMQXA"))
+  (assert (= (encode "newsletter") "NSBPEQYNYW"))
+  (assert (= (encode "1 hug") "1 HCB"))
+  (assert (= (decode "")  ""))
+  (assert (= (decode "1") "1"))
+  (assert (= (decode "HMQXA") "HELLO"))
+  (let [msg "GO 4 IT BE4 IT'S 2 LATE"]
+    (assert (= msg (decode (encode msg)))))
+  true)
+
+
+
+#_
 (defn alphanum2 [c]
   (let [c (int c)]
     (cond (<= (int \A) c (int \Z)) (- c (dec (int \A)))
           (<= (int \a) c (int \z)) (- c (dec (int \a)))
           :else nil)))
       
-  
-(defn rotn [c n]
-  (let [d (int c)]
-    (cond (<= (int \A) d (int \Z)) (char (+ (int \A) (mod (+ (- d (int \A)) n) 26)))
-          (<= (int \a) d (int \z)) (char (+ (int \A) (mod (+ (- d (int \a)) n) 26)))
-          :else c)))
-    
-
-(defn encode [s]
-  (-> (reduce (fn [r c]
-                (let [off (peek r)
-                      alph (alphanum c)]
-                  (if alph
-                    (conj (pop r) (rotn c off) alph)
-                    (conj (pop r) c off))))
-              [0]
-              s)
-      pop
-      str/join))
 
 
 ;; slightly faster???  Probably more conventional
+#_
 (defn enc2 [s]
   (-> (reduce (fn [r c]
                 (if-let [alph (alphanum c)]
@@ -60,34 +112,30 @@
 
 
 
-
-(defn decode [s]
-  (-> (reduce (fn [r c]
-                (let [off (peek r)
-                      alph (alphanum c)]
-                  (if alph
-                    (let [ccc (rotn c off)]
-                      (conj (pop r) ccc (- (alphanum ccc))))
-                    (conj (pop r) c off))))
-              [0]
-              s)
-      pop
-      str/join))
+#_
+(defn alnum-slow [c]
+  (let [i (int c)]
+    (when (<= (int \A) i (int \Z))
+      (- (inc i) (int \A)))))
 
 
 
-(defn smoke-cipher [encode decode]
-  (assert (= (encode "")  ""))
-  (assert (= (encode "a")  "A"))
-  (assert (= (encode "hello")  "HMQXA"))
-  (assert (= (encode "newsletter") "NSBPEQYNYW"))
-  (assert (= (encode "1 hug") "1 HCB"))
-  (assert (= (decode "")  ""))
-  (assert (= (decode "1") "1"))
-  (assert (= (decode "HMQXA") "HELLO"))
-  true)
+;; @jonasseglare -- SEM added hints for performance -- now fastest
+(defn process [f ^String s]
+  (let [b (StringBuilder. s)]
+    (transduce (comp (map int)
+                     (keep-indexed #(if (Character/isAlphabetic %2) [%1 (- (int
+                                                                            (Character/toUpperCase
+                                                                             ^int %2)) 65)])))
+               (completing (fn [key [at x]]
+                             (let [[diff y] (f key x)]
+                               (.setCharAt b at (char (+ 65 (mod y 26))))
+                               (inc diff)))) 0 s)
+    (str b)))
+
+(def jo-encode (partial process #(vector %2 (+ %1 %2))))
+(def jo-decode (partial process (comp #(vector % %) - -)))
 
 
-
-
-
+;; @mchampine -- fails on "GO 4 IT"
+;; source elided as unfixable
