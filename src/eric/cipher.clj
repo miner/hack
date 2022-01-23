@@ -46,28 +46,33 @@
 
 ;; inspired by @jonasseglare -- mutation but fast
 ;; [My reduce version was slower so I deleted it]
+;; just as fast to use .length as it is to count i with inc
 
-(defn encode3 [^String s]
+(defn encode4 [^String s]
   (let [len (.length s)
         s (.toUpperCase s)]
-    (loop [sb (StringBuilder. ^int len) i 0 rot 0]
-      (if (>= i len)
-        (.toString sb)
-        (let [c (.charAt s i)]
-          (if-let [alp (alnum c)]
-            (recur (.append sb ^char (rotaten c rot)) (inc i) (long alp))
-            (recur (.append sb ^char c) (inc i) rot)))))))
+    (loop [sb (StringBuilder. ^int len) rot 0]
+      (let [i (.length sb)]
+        (if (>= i len)
+          (.toString sb)
+          (let [c (.charAt s i)]
+            (if-let [alp (alnum c)]
+              (recur (.append sb ^char (rotaten c rot)) (long alp))
+              (recur (.append sb ^char c) rot))))))))
 
-(defn decode3 [^String s]
+(defn decode4 [^String s]
   (let [len (.length s)
         s (.toUpperCase s)]
-    (loop [sb (StringBuilder. ^int len) i 0 rot 0]
-      (if (>= i len)
-        (.toString sb)
-        (let [c (.charAt s i)]
-          (if-let [cc (when (alnum c) (rotaten c rot))]
-            (recur (.append sb ^char cc) (inc i) (long (- (alnum cc))))
-            (recur (.append sb ^char c) (inc i) rot)))))))
+    (loop [sb (StringBuilder. ^int len) rot 0]
+      (let [i (.length sb)]
+        (if (>= i len)
+          (.toString sb)
+          (let [c (.charAt s i)]
+            (if-let [cc (when (alnum c) (rotaten c rot))]
+              (recur (.append sb ^char cc) (long (- (alnum cc))))
+              (recur (.append sb ^char c) rot))))))))
+
+
 
 
 (defn smoke-cipher [encode decode]
