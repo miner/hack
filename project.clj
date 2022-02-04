@@ -1,4 +1,4 @@
-(defproject hack "0.2.95-SNAPSHOT" 
+(defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
   :dependencies [[djblue/portal "0.19.2"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
@@ -36,7 +36,7 @@
                  [me.raynes/fs "1.4.6"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
-  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.11.0-alpha4"]
+  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.11.0-beta1"]
                                    ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
