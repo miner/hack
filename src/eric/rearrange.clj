@@ -51,8 +51,35 @@
   (assert (= (rearrange "fo3r 5more Elegan1t 2weapons age.7 civil6ized a4")
              "Elegant weapons for a more civilized age."))
   (assert (= (rearrange "") ""))
+  true)
+
+
+(defn smoke-ren [rearrange]
+  (assert (= (rearrange "World2! He1llo,") "Hello, World!"))
+  (assert (= (rearrange "fo3r 5more Elegan1t 2weapons age.7 civil6ized a4")
+             "Elegant weapons for a more civilized age."))
+  (assert (= (rearrange "") ""))
   (assert (= (rearrange  "Th1is i2s a3 l4onger ex5ample tha6t t7akes 8multiple digits9 so10 i11t's 12a 13bit hard14er.")
     "This is a longer example that takes multiple digits so it's a bit harder."))
   true)
 
 
+(defn sa-rearrange [s]
+  (->> (str/split s #" ")
+       (sort-by (partial re-find #"\d+"))
+       (str/join " ")
+       (#(str/replace % #"\d+" ""))))
+
+(defn nb-rearrange [sentence]
+  (letfn [(over-words [s f] (->> (str/split s #" ") f (str/join " ")))
+          (first-long [s] (some->> s (re-find #"\d+") (Long/parseLong)))
+          (remove-numbers [s] (str/replace s #"\d+" ""))]
+    (-> sentence
+        (over-words #(sort-by first-long %))
+        remove-numbers)))
+
+(defn mc-rearrange [words]
+  (let [digs #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9}]
+    (->> (sort-by #(some digs %) (str/split words #" "))
+         (map #(apply str (remove digs %)))
+         (str/join " "))))
