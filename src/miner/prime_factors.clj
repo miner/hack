@@ -70,3 +70,36 @@
   )
 
   
+;;; How useful is laziness for factors?  Seems like you will always want all the factors so
+;;; you might as well be eager.
+
+(defn prime-factors4
+  ([^long n]
+   (cond (<= n 1) ()
+         (even? n) (cons 2 (prime-factors4 (/ n 2)))
+         :else (prime-factors4 n 3)))
+  ([^long n ^long candidate]
+   (when (> n 2)
+     (let [q (quot n candidate)]
+       (cond (< q candidate) (list n)
+             (zero? (rem n candidate)) (cons candidate (prime-factors4 q candidate))
+             :else (recur n (+ 2 candidate)))))))
+
+
+(defn prime1? [n]
+  (= 1 (count (prime-factors4 n))))
+
+;; not faster but tail recursive
+(defn prime-factors5
+  ([^long n]
+   (if (<= n 1) [] (prime-factors5 [] n)))
+  ([factors ^long n]  
+   (if (even? n) (prime-factors5 (conj factors 2) (/ n 2))
+       (prime-factors5 factors n 3)))
+  ([factors ^long n ^long candidate]
+   (if (> n 2)
+     (let [q (quot n candidate)]
+       (cond (< q candidate) (conj factors n)
+             (zero? (rem n candidate)) (prime-factors5 (conj factors candidate) q candidate)
+             :else (recur factors n (+ 2 candidate))))
+     factors)))
