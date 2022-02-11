@@ -1,7 +1,6 @@
 (ns eric.intp)
 
-
-;;; https://gist.github.com/ericnormand/a3489d47e163d84650a7c2f5ff32ecd6
+;;; https://gist.github.com/ericnormand/d52d1fe0e80f06e4b517d45a082765a0
 
 ;;; Primes in a number
 
@@ -22,14 +21,43 @@
                    (zero? (rem n candidate)) false
                    :else (recur (inc (inc candidate)))))))))
 
-
+;;; fastest, parsing substrings (inspired by other people's solutions)
 (defn find-primes [n]
+  (let [s (str n)
+        c (inc (count s))]
+    (->> (for [b (range c)
+               e (range (inc b) c)]
+           (Long/parseLong (subs s b e)))
+         (filter prime?)
+         sort)))
+
+;;; I originally did the math on partitions of digits
+(defn find-primes-SUBMITTED [n]
   (let [digs (into () (comp (take-while pos?) (map #(rem % 10))) (iterate #(quot % 10) n))
         parts (reduce (fn [ps w] (into ps (partition w 1 digs)))
                       []
                       (range 1 (inc (count digs))))
         cands (map #(reduce (fn [r i] (+ (* 10 r) i)) 0 %) parts)]
     (sort (filter prime? cands))))
+
+;; mapcat is prettier, slightly slower
+(defn fp7 [n]
+  (let [digs (into () (comp (take-while pos?) (map #(rem % 10))) (iterate #(quot % 10) n))]
+    (sort (into [] (comp (mapcat (fn [w] (partition w 1 digs)))
+                         (map #(reduce (fn [r i] (+ (* 10 r) i)) 0 %))
+                         (filter prime?))
+                (range 1 (inc (count digs)))))))
+
+;; almost fast enough, kind of fun with transducers
+(defn fp77 [n]
+  (let [digs (into () (comp (take-while pos?) (map #(rem % 10))) (iterate #(quot % 10) n))]
+    (transduce (comp (mapcat #(partition % 1 digs))
+                     (map #(reduce (fn [r i] (+ (* 10 r) i)) 0 %))
+                     (filter prime?))
+               (completing conj! (comp sort persistent!))
+               (transient [])
+               (range 1 (inc (count digs))))))
+
 
 
 
@@ -195,4 +223,27 @@
                 (if (< n (* 2 (.size ^java.util.BitSet cmpcache)))
                   (not (.get ^java.util.BitSet cmpcache (int (bit-shift-right n 1))))
                   (recur (reset! cache (bitset-not-primes n))))))))
+
+
+;; @jonasseglare
+(defn jo-prime? [x]
+  (and (not (some #(= 0 (rem x %)) (range 2 x)))
+       (<= 2 x)))
+
+(defn jo-find-primes [x]
+  (let [x (str x)]
+    (->> (subs x j i)
+         read-string
+         (for [i (range (inc (count x))) j (range i)])
+         (filter jo-prime?)
+         sort)))
+
+
+;; @mchampine, slightly refactored
+(defn mc-find-primes [n]
+  (let [prime? (fn [n] (and (< 1 n) (not-any? #(zero? (rem n %)) (range 2 n))))
+        subseqs (fn [s]
+                  (let [ls (inc (count s))]
+                    (for [b (range ls) e (range (inc b) ls)] (subs s b e))))]
+    (sort (filter prime? (map read-string (subseqs (str n)))))))
 
