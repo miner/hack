@@ -12,6 +12,43 @@
 ;;; than once, it should be in the returned sequence that many times.
 
 
+(defn prime? [n]
+  (if (even? n)
+    (= n 2)
+    (and (> n 1)
+         (let [sqrt (Math/sqrt n)]
+           (loop [candidate 3]
+             (cond (> candidate sqrt) true
+                   (zero? (rem n candidate)) false
+                   :else (recur (inc (inc candidate)))))))))
+
+
+(defn find-primes [n]
+  (let [digs (into () (comp (take-while pos?) (map #(rem % 10))) (iterate #(quot % 10) n))
+        parts (reduce (fn [ps w] (into ps (partition w 1 digs)))
+                      []
+                      (range 1 (inc (count digs))))
+        cands (map #(reduce (fn [r i] (+ (* 10 r) i)) 0 %) parts)]
+    (sort (filter prime? cands))))
+
+
+
+
+(defn smoke-fp [find-primes]
+  (assert (= (find-primes 2)  [2]))
+  (assert (= (find-primes 22) [2 2]))
+  (assert (= (find-primes 717) [7 7 17 71]))
+  (assert (= (find-primes 23717) [2 3 7 7 17 23 37 71 2371]))
+  (assert (= (find-primes 1)  []))
+  (assert (= (find-primes 44) []))
+  true)
+
+
+
+
+
+
+
 (defn infinite-primes []
   (let [sieve (fn sieve [s]
                 ;; first item is always a known prime, rest are candidates
@@ -25,8 +62,8 @@
 ;; need to keep largest to decide when to expand
 ;; sorted-set is maybe slow and you only need to know max so maybe map or meta
 
-
-(defn find-primes [n]
+;;; too slow to recalc all primes < N every time.
+(defn find-primes1 [n]
   (let [nprimes (set (take-while #(<= % n) (infinite-primes)))
         dv (into nil (comp (take-while pos?) (map #(mod % 10))) (iterate #(quot % 10) n))
         parts (reduce (fn [ps w] (into ps (partition w 1 dv)))
@@ -34,17 +71,6 @@
                    (range 1 (inc (count dv))))
         cands (map #(reduce (fn [r i] (+ (* 10 r) i)) 0 %) parts)]
     (sort (filter nprimes cands))))
-
-
-
-(defn smoke-fp [find-primes]
-  (assert (= (find-primes 2)  [2]))
-  (assert (= (find-primes 22) [2 2]))
-  (assert (= (find-primes 717) [7 7 17 71]))
-  (assert (= (find-primes 1)  []))
-  (assert (= (find-primes 44) []))
-  true)
-
 
 
 
@@ -169,3 +195,4 @@
                 (if (< n (* 2 (.size ^java.util.BitSet cmpcache)))
                   (not (.get ^java.util.BitSet cmpcache (int (bit-shift-right n 1))))
                   (recur (reset! cache (bitset-not-primes n))))))))
+
