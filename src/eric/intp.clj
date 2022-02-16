@@ -240,6 +240,7 @@
 
 
 ;; @mchampine, slightly refactored
+;; his prime is slow, but the parsing substrings is faster
 (defn mc-find-primes [n]
   (let [prime? (fn [n] (and (< 1 n) (not-any? #(zero? (rem n %)) (range 2 n))))
         subseqs (fn [s]
