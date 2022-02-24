@@ -114,6 +114,19 @@
        set
        (= #{1 (dec (count strings))})))
 
+;; SEM my fix
+(defn sw-odd-one1? [strings]
+  (let [cnt (count strings)]
+    (or (= cnt 1)
+        (->> strings
+             (map count)
+             frequencies
+             vals
+             sort
+             (= [1 (dec cnt)])))))
+
+
+
 ;; doesn't work with two string: a ab
 (defn se-odd-one? [words]
   (-> (map count words)
@@ -122,3 +135,12 @@
       frequencies
       (get 1)
       (= 1)))
+
+;; original failed, BUGS: had keys instead of vals, fixed
+;; failed on single string, fixed
+;; now pretty good -- similar idea to sw
+(defn rm-odd-one1? [input]
+  (let [cnt (count input)]
+    (or (= cnt 1)
+        (= [1 (dec cnt)]
+           (sort (vals (frequencies (map count input))))))))
