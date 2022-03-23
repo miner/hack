@@ -14,6 +14,8 @@
     (println "  Clojure" (clojure-version))
     (println "  Java" (System/getProperty "java.version"))
     (println "  JDK vendor:" (System/getProperty "jdk.vendor.version"))
+    (println "  Java vendor:" (System/getProperty "java.vendor"))
+    (println "  Java home:" (System/getProperty "java.home"))
     (println)
     true))
 
