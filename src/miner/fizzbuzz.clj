@@ -250,7 +250,6 @@
             (cycle ["fizz" nil nil])
             (range n)))
 
-
 (defn fb-natural [n]
   (let [zmod (fn [^long m ^long d] (= 0 (rem m d)))]
     (map (fn [i] (cond (zmod i 15) "fizzbuzz"
@@ -287,6 +286,13 @@
                   1 n))
        (range n)))
 
+(defn efb [n]
+  (case (rem (* n n n n) 15)
+    0 "FizzBuzz"
+    6 "Fizz"
+    10 "Buzz"
+    1 n))
+
 (def fb20 '("FizzBuzz" 1 2 "Fizz" 4 "Buzz" "Fizz" 7 8 "Fizz" "Buzz" 11 "Fizz" 13 14
             "FizzBuzz" 16 17 "Fizz" 19))
   
@@ -319,3 +325,64 @@
            (5 10) "Buzz"
            n))
        (range n)))
+
+;;; long discussion about "n ways to FizzBuzz in Clojure"
+;;; https://www.evalapply.org/posts/n-ways-to-fizzbuzz-in-clojure/
+;;; 
+;;; Author starts at 1.  Prefers single x, rather than sequence based (0 ... N)
+
+(defn case-fb [n]
+  (case (rem n 15)
+    0 "FizzBuzz"
+    (3 6 9 12) "Fizz"
+    (5 10) "Buzz"
+    n))
+
+
+
+;;; zero-based
+(defn xfb
+  "Returns a lazy sequence of FizzBuzzes for 0 to N (exclusive)"
+  [n]
+  (sequence (map (some-fn identity))
+            (cycle (cons "fizzbuzz" (repeat 14 nil)))
+            (cycle ["buzz" nil nil nil nil])
+            (cycle ["fizz" nil nil])
+            (range n)))
+
+
+;;; show that they're lazy
+#_ (= (take 20 (xfb 1000)) (into ["fizzbuzz"] (take 19 (xfb1 1000))))
+
+
+
+(defn lazy-inf-fb
+  "Returns a lazy, infinite sequence of FizzBuzzes, starting at 0."
+  []
+  (sequence (map (some-fn identity))
+            (cycle (cons "fizzbuzz" (repeat 14 nil)))
+            (cycle ["buzz" nil nil nil nil])
+            (cycle ["fizz" nil nil])
+            (range)))
+
+(defn take-fb1 [n]
+  (drop 1 (take (inc n) (lazy-inf-fb))))
+
+(defn take-fb11 [n]
+  (sequence (comp (map (some-fn identity)) (take (inc n)) (drop 1))
+            (cycle (cons "fizzbuzz" (repeat 14 nil)))
+            (cycle ["buzz" nil nil nil nil])
+            (cycle ["fizz" nil nil])
+            (range)))
+
+
+;; 1-based
+(defn xfb1
+  "Returns a lazy sequence of N FizzBuzzes, starting at 1."
+  [n]
+  (let [cyc (fn [n label] (cycle (into (list label) (repeat (dec n) nil))))]
+    (sequence (map (some-fn identity))
+              (cyc 15 "FizzBuzz")
+              (cyc 5 "Buzz")
+              (cyc 3 "Fizz")
+              (range 1 (inc n)))))
