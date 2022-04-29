@@ -67,7 +67,8 @@
                             "bbbbbbbbbbbbbbbbbbbb"
                             "cccccccccccccccccccc"]
                            "aaaaaaaaaaaaaaaaaaaa")
-             [nil nil nil]))                           
+             [nil nil nil]))
+  (assert (= (letter-swaps ["aa" "bb" "ba" "ab"] "aa") [nil nil nil nil]))
   true)
 
 
@@ -78,13 +79,63 @@
 ;;; Made lots of wrong assumptions about problem.  Deleted some bad attemps.
 ;;;  Vectors of chars are slow compared to accessing chars using nth
 
-;;;; other people's solutions
-(defn do-find-swap [cand ref]
-  (when (= (count cand) (count ref))
-    (let [[swap & others] (->> (map (comp set list) cand ref)
-                               (filter #(= 2 (count %))))]
-      (when (= [swap] others)
-        swap))))
 
-(defn do-letter-swaps [coll ref]
-  (mapv #(do-find-swap % ref) coll))
+(defn jo-letter-swap
+  "When input string is equal to the target string after exactly one letter swap,
+  return the sequence of letter pairs that are swapped"
+  [input target]
+  (when (= (count input) (count target))
+    (loop [[x & xs] input
+           [y & ys] target
+           swap     nil]
+      (cond
+        (not x)        (when (set? swap) swap)
+        (= x y)        (recur xs ys swap)
+        (set? swap)    nil
+        (nil? swap)    (recur xs ys [x y])
+        (= swap [y x]) (recur xs ys (set swap))))))
+(defn jo-letter-swaps [s src]
+  (map (partial jo-letter-swap src) s))
+
+
+(defn bn-letter-swaps [strs target]
+  (let [swapped (fn swapped [fstr sstr]
+                  (let [[f s] (clojure.data/diff (seq fstr) (seq sstr))
+                        fv (sort (remove nil? f))
+                        sv (sort (remove nil? s))]
+                    (when
+                      (and
+                        (= (count fv) (count sv) 2)
+                        (= fv sv))
+                      (set sv))))]
+    (map (partial swapped target) strs)))
+
+
+(defn sw-letter-swap [xs ys]
+  (when (= (count xs) (count ys))
+    (let [[[a b] & other-swaps] (remove #(apply = %) (map vector xs ys))]
+      (when (= [[b a]] other-swaps)
+        #{a b}))))
+
+(defn sw-letter-swaps [coll s]
+  (mapv sw-letter-swap coll (repeat s)))
+
+
+
+(defn pez-letter-swaps-1 [s target]
+  (when-not (or
+             (= s target)
+             (not= (count s) (count target))
+             (not= (sort s) (sort target)))
+    (let [diffs (->> target
+                     (map (fn [c1 c2]
+                            (when-not (= c1 c2)
+                              #{c1 c2}))
+                          s)
+                     (remove nil?))]
+      (when (and (= 2 (count diffs))
+                 (apply = diffs))
+        (first diffs)))))
+
+(defn pez-letter-swaps [c target]
+  (mapv (fn [s] (pez-letter-swaps-1 s target)) c))
