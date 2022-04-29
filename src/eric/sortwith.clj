@@ -54,3 +54,59 @@
 (defn bn-sort-with [order xs]
   (let [order-map (into {} (map-indexed (fn [idx v] [v idx]) order))]
     (sort-by order-map xs)))
+
+
+;; @sw: The original problem asks for the unmatched elements to be appended to the result, in
+;; natural sort order. Just for fun, I came up with a solution for this variant:
+
+(defn sw-sort-with-original [order xs]
+  (let [m (zipmap order (range))]
+    (sort-by #(if-let [i (m %)]
+                [i]
+                [nil %])
+             xs)))
+
+
+
+(defn smoke-sw [sort-with]
+  (assert (= (sort-with [:breakfast :lunch :dinner]     #{:lunch :breakfast :dinner})
+             '(:breakfast :lunch :dinner)))
+  (assert (= (sort-with [2 3 4 :jack :queen :king :ace] [4 2 4 :king 2])
+             [2 2 4 4 :king]))
+  (assert (= (sort-with (range 1000 -1 -2) (range 0 100 2))
+             (range 98 -1 -2)))
+  (assert (= (sort-with (range 1000) (range 100))
+             (range 100)))
+  (assert (= (sort-with [] ()) ()))
+  (assert (= (apply str (sort-with "edc" "abcdefzyx"))  "edcabfxyz"))
+  true)
+
+
+
+;;; SEM version slower
+(defn swso [order xs]
+  (let [m (zipmap order (map vector (range)))]
+    (sort-by #(m % [nil %]) xs)))
+
+
+;; slightly faster but not worth it
+(defn swso2 [ordering coll]
+  (let [tm (reduce (fn [res x] (assoc! res x [(count res)])) (transient {}) ordering)]
+    (sort-by #(tm % [nil %]) coll)))
+
+
+(defn swso3 [ordering coll]
+  (let [tm (reduce (fn [res x] (assoc! res x (count res))) (transient {}) ordering)
+        mout (complement tm)
+        presorted (sort-by tm coll)
+        ins (drop-while mout presorted)
+        outs (sort (take-while mout presorted))]
+    (concat ins outs)))
+
+
+(defn swso4 [ordering coll]
+  (let [tm (reduce (fn [res x] (assoc! res x (count res))) (transient {}) ordering)
+        ins (filter tm coll)
+        outs (remove tm coll)]
+    (concat (sort-by tm ins) (sort outs))))
+
