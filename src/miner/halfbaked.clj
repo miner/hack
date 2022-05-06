@@ -239,7 +239,7 @@ infinite sequences."
         [q r] ((juxt quot rem) y x)]
     (if (zero? r) x (recur x r))))
 
-(defn abs [n] (if (neg? n) (- n) n))
+(defn my-abs [n] (if (neg? n) (- n) n))
 
 ;; version taken from math.number-tower
 (defn mgcd
@@ -413,6 +413,9 @@ infinite sequences."
 (defn realize [x]
   (if (lazy? x) (doall x) x))
 
+;;; I'm starting to think this is only marginally useful.  And only for integers arguments.
+
+;;; appropriate for integers, strange results for floats
 (defn range-down
   "Returns a seq of integers from HIGH (exclusive) down to LOW (inclusive).
    LOW defaults to 0. STEP is a positve decrement, defaults to 1.  Like
@@ -427,40 +430,67 @@ infinite sequences."
          ;; GIGO for zero step -- but safer than infinite seq like range does
          :else nil)))
 
-
-
-(defn rem-down
-  "Returns a seq of integers from HIGH (exclusive) down to LOW (inclusive).
-   LOW defaults to 0. STEP is a positve decrement, defaults to 1.  Like
-   `(reverse (range low high step))' but a bit faster."
-  ([high] (range (dec high) -1 -1))
-  ([high low] (range (dec high) (dec low) -1))
-  ([high low step]
-   ;; calculate nearest multiple of step + offset using mod
-   (cond (pos? step) (range (- (dec high) (rem (- (dec high) low) step)) (dec low) (- step))
-         (neg? step) (range (+ (inc high) (rem (- low (inc high)) (- step)))
-                            (inc low) (- step))
-         ;; GIGO for zero step -- but safer than infinite seq like range does
-         :else nil)))
-
+;; rem is theoretically faster than mod but not noticeable in this case
 
 
 (defn rdown
   "Returns a seq of integers from HIGH (exclusive) down to LOW (inclusive).
    LOW defaults to 0. STEP is a positve decrement, defaults to 1.  Like
    `(reverse (range low high step))' but a bit faster."
-  ([high] (range (dec high) -1 -1))
-  ([high low] (range (dec high) (dec low) -1))
+  ([high] (if (float? high)
+            (range (dec high) (Math/nextUp 0.0) -1.0)
+            (range (dec high) -1 -1)))
+  ([high low] (if (float? low)
+                (range (dec high) (Math/nextUp (double low)) -1.0)
+                (range (dec high) (dec low) -1)))
   ([high low step]
-   ;; calculate nearest multiple of step + offset using mod
-   (cond (pos? step) (range (- (dec high) (rem (- (dec high) low) step)) (dec low) (- step))
+   ;; GIGO for zero step -- but safer than infinite seq like range does
+   (cond (zero? step) nil
+         (or (float? high) (float? low) (float? step))
+             ;; punt on complicated floating-point calculation
+             (reverse (range low high step))
+         ;; calculate nearest multiple of step + offset using mod
+         (pos? step) (range (- (dec high) (rem (- (dec high) low) step)) (dec low) (- step))
          (neg? step) (range (+ (inc high) (rem (- low (inc high)) (- step)))
                             (inc low) (- step))
-         ;; GIGO for zero step -- but safer than infinite seq like range does
          :else nil)))
+
+;; slower than natural
+(defn revr
+  ([high] (revr high 0 1))
+  ([high low] (revr high low 1))
+  ([high low step]
+   (let [cnt (quot (- high low) step)
+         start (+ low (* cnt step))
+         start (if (= start high) (- start step) start)]
+     (range start (- low step) (- step)))))
+
+
+;;; for testing, natural way
+#_
+(defn rr
+  ([h] (rr h 0 1))
+  ([h l] (rr h l 1))
+  ([h l st] (reverse (range l h st))))
 
 
 (defn smoke-down
+  ([] (smoke-down range-down))
+  ([range-down]
+   (assert (= (reverse (range 10)) (range-down 10)))
+   (assert (= (reverse (range 3 100 7)) (range-down 100 3 7)))
+   (assert (= (reverse (range -3 -100 -7)) (range-down -100 -3 -7)))
+   (assert (= (reverse (range 30 -10 -7)) (range-down -10 30 -7)))
+   (assert (= (reverse (range -30 -10 7)) (range-down -10 -30 7)))
+   (doseq [n (range 1 10)]
+     (assert (= (reverse (range 3 100 n)) (range-down 100 3 n))))
+   (doseq [n (range -1 -10 -1)]
+     (assert (= (reverse (range 100 3 n)) (range-down 3 100 n))))
+   true))
+
+
+;;; not good for timing as you're doing the reverse to confirm test
+(defn smoke-down-ORIG
   ([] (smoke-down range-down))
   ([range-down]
    (assert (= (reverse (range 10)) (range-down 10)))
