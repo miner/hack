@@ -34,6 +34,26 @@
             {}
             (range (dec (count xv))))))
 
+;; slow but maybe there's an idea of xs once
+(defn ispots [xs x]
+  (let [test? (if (odd? x) odd? even?)
+        cnt (count xs)
+        spots (range 0.5 (dec cnt))
+        haps (transduce (comp (map-indexed (fn [i a] (cond (not (test? a)) nil
+                                                           (zero? i) (list (+ i 0.5))
+                                                           (= i (dec cnt)) (list (- i 0.5))
+                                                           :else (list (- i 0.5) (+ i 0.5)))))
+                              cat)
+                        conj
+                        (sorted-set)
+                        xs)
+        unhaps (reduce disj (set spots) haps)]
+    (cond (and (seq haps) (seq unhaps)) {:happy (vec haps) :unhappy (vec unhaps)}
+          (seq haps) {:happy (vec haps)}
+          (seq unhaps) {:unhappy (vec unhaps)}
+          :else {})))
+
+
 
 ;;; Idea:  only two adjacent wrong parity are unhappy, otherwise happy
 
@@ -247,3 +267,20 @@
              {:happy [spot]}
              {:unhappy [spot]}))
          (reduce (partial merge-with into)))))
+
+;; slow
+(defn jo-spots [neighborhood neighbor]
+  (->> neighborhood
+       (map #(even? (+ neighbor %)))
+       (partition 2 1)
+       (map-indexed (fn [i [x y]]
+                      {(if (or x y) :happy :unhappy) [(+ 0.5 i)] }))
+       (apply merge-with concat)))
+
+(defn jo-spots2 [neighborhood neighbor]
+  (->> neighborhood
+       (map #(even? (+ neighbor %)))
+       (partition 2 1)
+       (map-indexed (fn [i [x y]]
+                      {(if (or x y) :happy :unhappy) [(+ 0.5 i)] }))
+       (apply merge-with into)))
