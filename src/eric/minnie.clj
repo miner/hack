@@ -17,7 +17,11 @@
 ;; No leading zeroes
 ;; Don't swap if you can't make it bigger/smaller
 
-;;; refactor search function, submitted later
+
+;;; refactor search function, submitted later.
+
+;;; trick is that reducing function depends on `from` starting point as special rule about
+;;; no leading zeros, which only affects finding min.
 
 (defn swapmaxmin [n]
   (let [dv (mapv (fn [c] (- (long c) (long \0))) (str n))
