@@ -218,6 +218,22 @@
   (first (fib2 n)))
 
 
+(defn fib11 [n]
+  (letfn [(fib2 [^long n]
+                 ;; return vector [f(n), f(n+1)]
+                 (if (zero? n)
+                   [0 1]
+                   (let [[^long a ^long b] (fib2 (quot n 2))
+                         c (* a (- (* b 2) a))
+                         d (+ (* a a) (* b b))]
+                     (if (even? n)
+                       [c d]
+                       [d (+ c d)]))))]
+    ((fib2 n) 0)))
+
+
+
+
 ;; pretty good but it got a bit better below
 (defn fib-nr [^long n]
   ;; (assert (< n 93))
@@ -364,6 +380,10 @@
 ;; from Alan Dipert
 (def afib (lazy-seq (cons 0 (reductions + 1 afib))))
 
+;;; classic from @steffan-westcott, revised for 0 start, which I prefer
+(defn lazy-fib-seq
+  ([] (lazy-fib-seq 0 1))
+  ([a b] (lazy-seq (cons a (lazy-fib-seq b (+ a b))))))
 
 
 (comment
