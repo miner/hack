@@ -19,9 +19,6 @@
   ([op x y]
    (map #(% 0) (iterate (fn [[a b]] [b (op a b)]) [x y]))))
 
-;; old idea from Alan Dipert but depends on def for recursive var, not a funtion call
-;; (def afib (lazy-seq (cons 0 (reductions + 1 afib))))
-
 
 ;; same, so no advantage
 (defn sfb
@@ -79,7 +76,21 @@
 ;; (take 10 (fib-seq vector [] []))
 
 
-;; @sw
+;; @sw -- classic and probably best
 (defn sw-fib-seq
   ([] (fib-seq + 1 1))
   ([f a b] (lazy-seq (cons a (fib-seq f b (f a b))))))
+
+
+
+
+;; ----------------------------------------------------------------------
+
+;; old idea from Alan Dipert but depends on def for recursive var, not a funtion call
+;; (def afib (lazy-seq (cons 0 (reductions + 1 afib))))
+;; note: had to swap arg order to get op to work in reductions
+;; Not a good way to do it, but kind of amazing that it works!
+
+(defn afib-seq
+  ([] (afib-seq + 1 1))
+  ([op a b] ((fn fibs [] (lazy-seq (cons a (reductions #(op %2 %) b (fibs))))))))
