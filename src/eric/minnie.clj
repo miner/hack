@@ -357,3 +357,43 @@
                           (assoc dv from (dv i) i (dv from))))))]
     [(sumv (find-max))
      (sumv (find-min))]))
+
+
+
+;;; not so important but different ways to get digits
+
+(defn digv [n]
+  (mapv (fn [c] (- (long c) (long \0))) (str n)))
+
+(defn digv11 [n]
+  (let [strn (str n)
+        z0 (long \0)]
+    (mapv (fn [i] (- (long (nth strn i)) z0)) (range (count strn)))))
+
+
+
+;; faster, but not a vector return
+(defn digv2 [n]
+  (loop [n n digs nil]
+    (if (zero? n)
+      digs
+      (recur (quot n 10) (conj digs (rem n 10))))))
+
+;; slows down with into
+(defn digv21 [n]
+  (loop [n n digs nil]
+    (if (zero? n)
+      (into [] digs)
+      (recur (quot n 10) (conj digs (rem n 10))))))
+
+(defn digv3 [n]
+  (into nil (comp (take-while pos?) (map #(rem % 10))) (iterate #(quot % 10) n)))
+
+;; slower
+(defn digv4 [n]
+  (into nil (comp (halt-when zero? (fn [a b] a)) (map #(rem % 10))) (iterate #(quot % 10) n)))
+
+(defn digv5 [n]
+  (mapv #(parse-long (str %)) (str n)))
+
+
