@@ -182,6 +182,10 @@
 (defn primes [nprimes]
   (take nprimes lazy-infinite-primes))
 
+;; inclusive A, exclusive B -- like `range` -- but only primes
+(defn prime-range [a b]
+  (sequence (comp (drop-while #(< % a)) (take-while #(< % b))) lazy-infinite-primes))
+
 ;; -----
 
 ;; http://clojure.lang.dk/?p=101

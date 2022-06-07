@@ -270,9 +270,6 @@ infinite sequences."
       a
       (recur b (rem a b)))))
 
-
-
-
 (defn test-gcd
   ([] (test-gcd gcd))
   ([gcd]
@@ -506,8 +503,8 @@ infinite sequences."
 
 (defn smoker []
   (and (smoke-down range-down)
-       (smoke-down rdown)
-       (smoke-down rem-down)))
+       (smoke-down rdown)))
+
 
 
 ;; Something like this used to be in the fs lib, but it was dropped in v1.0.0.
