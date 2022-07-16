@@ -17,11 +17,13 @@
                  (StringBuilder. base)
                  (range (- cnt width) 0 (- width))))))
 
+;; not submitted but a little faster
 (defn regroup-fastest [s width]
   (let [base (.replace ^String s "-" "")]
     (str (reduce (fn [sb i] (.insert ^StringBuilder sb ^int i \-))
                  (StringBuilder. base)
                  (range (- (.length base) width) 0 (- width))))))
+
 
 (defn reg1 [s width]
   (let [letters (into [] (remove #(= % \-)) s)
