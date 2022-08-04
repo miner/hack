@@ -158,9 +158,8 @@
   ([n] (clojure.string/upper-case (Long/toHexString n)))
   ([width n]
    {:pre [(<= 0 width 16)]}
-   (let [hs (hexstr n)
+   (let [hs (hexstr2 n)
          len (count hs)]
      (if (> width len)
-       (str (subs "0000000000000000" len) hs)
+       (str (subs "0000000000000000" 0 (- width len)) hs)
        hs))))
-
