@@ -115,3 +115,27 @@
 
 ;; SEM need a whole file of transient work-arounds!
 
+
+
+;;; Fix for partitionv in 1.12.0-alpha1.  See CLJ-2715.  My patch just added the missing
+;;; `list`.  This version calculates the amount of padding needed, and avoids the call to
+;;; `concat`.  Perhaps faster with less garbage, but I didn't do any performance testing.
+
+
+(defn partv
+  ([n coll]
+   (partv n n coll))
+  ([n step coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [p (into [] (take n) s)]
+         (when (= n (count p))
+           (cons p (partv n step (nthrest s step))))))))
+  ([n step pad coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [p (into [] (take n) s)
+             need (- n (count p))]
+         (if (zero? need)
+           (cons p (partv n step pad (nthrest s step)))
+           (list (into p (take need) pad))))))))
