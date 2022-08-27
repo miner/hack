@@ -3,6 +3,14 @@
   (:require [clojure.math :as m]
             [clojure.string :as str]))
 
+;; I use this all the time for testing and benchmarking.  Intentionally returns true if
+;; everything succeeds.  Otherwise, will throw like `assert`.
+(defmacro assert=
+  ([] true)
+  ([form result & more]
+   `(do (assert (= ~form ~result))
+        (assert= ~@more))))
+
 ;;; Many semi-useful things moved into the halfbaked lib (now on clojars)
 
 ;;; Clojure 1.11 will add a bunch of Math functions including `abs`
