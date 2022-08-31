@@ -319,3 +319,18 @@
               (< p m) (recur (next-power10 p) (+ cnt (count-digits-power10 (m/log10 p))))
               :else (- cnt (count-digits-up10x m)))))))
 
+
+
+;; slightly hacked by SEM, not bad, but I like mine better
+(defn ju-num-digits [n m]
+  #_ {:pre [(>= n 0) ; !! not at all assumed in challenge
+         (< n m)]}
+  (loop [x (inc n)
+         sum 0
+         length (count (str x))]
+    (if (>= x m) 
+      sum
+      (let [delta (long (- (min m (m/pow 10.0 length)) x))]
+        (recur (+ x delta)
+               (+ sum (* length delta))
+               (inc length))))))
