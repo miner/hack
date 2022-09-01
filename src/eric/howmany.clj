@@ -334,3 +334,66 @@
         (recur (+ x delta)
                (+ sum (* length delta))
                (inc length))))))
+
+
+;;; similar idea but much slower than mine
+(defn sa-all-digits [n]
+  (->> (inc n)
+       (conj (mapv #(m/pow 10.0 %) (range (m/log10 (inc n)))))
+       (partition 2 1)
+       (map-indexed (fn [i [j k]] (* (- k j) (inc i))))
+       (apply +)))
+
+(defn sa-num-digits [m n]
+  (long (- (sa-all-digits (dec n)) (sa-all-digits m))))
+
+
+
+;;; SEM hack
+(defn sa3-num-digits [m n]
+  (let [all-digits
+        (fn [n]
+          (->> (conj (mapv #(m/pow 10.0 %) (range (m/log10 (inc n)))) (inc n))
+               (partitionv 2 1)
+               (map-indexed (fn [i [j k]] (* (- k j) (inc i))))
+               (reduce +)))]
+    (long (- (all-digits (dec n)) (all-digits m)))))
+
+
+
+(defn sa5-num-digits [m n]
+  (let [all-digits
+        (fn [n]
+          (->> (conj (into [] (take (long (m/ceil (m/log10 (inc n))))) (iterate #(* % 10) 1))
+                     (inc n))
+               (partitionv 2 1)
+               (map-indexed (fn [i [j k]] (* (- k j) (inc i))))
+               (reduce +)))]
+    (long (- (all-digits (dec n)) (all-digits m)))))
+
+
+(defn sa6-num-digits [m n]
+  (let [all-digits
+        (fn [n]
+          (let [pv (conj (into [] (take (long (m/ceil (m/log10 (inc n))))) (iterate #(* % 10) 1))
+                         (inc n))]
+            (reduce + 0
+                    (map (fn [w j k] (* (- k j) w))
+                         (range 1 (count pv))
+                         pv
+                         (subvec pv 1)))))]
+    (long (- (all-digits (dec n)) (all-digits m)))))
+
+;; faster without explicit range/count
+
+(defn sa61-num-digits [m n]
+  (let [all-digits
+        (fn [n]
+          (let [pv (conj (into [] (take (long (m/ceil (m/log10 (inc n))))) (iterate #(* % 10) 1))
+                         (inc n))]
+            (reduce + 0
+                    (map (fn [w j k] (* (- k j) (inc w)))
+                         (range)
+                         pv
+                         (subvec pv 1)))))]
+    (long (- (all-digits (dec n)) (all-digits m)))))
