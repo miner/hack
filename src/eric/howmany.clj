@@ -10,6 +10,12 @@
 ;;; possible to build the string in the general case.
 
 
+
+;;; After various refactoring, it was obvious that potentially large runs of the same width
+;;; could be calculated together.  A little math gave a good answer for range N to next
+;;; power of 10 (exclusive).  Correct for ending M by subtracting.  For performance on
+;;; typicall small indices, it's worth testing for <10 at beginning.
+
 (require '[clojure.math :as m])
 
 ;;; slightly updated after submission
@@ -25,41 +31,22 @@
           (recur (inc width) (* p10w 10) (+ cnt (* (inc width) p10w 9)))
           (- cnt (* (- p10w m) width)))))))
 
-
-
-;;; slower (2x)
-(defn fnd5 [n m]
+;; purest form, but not as fast on examples
+(defn znd [n m]
   #_ (assert (< n m))
-  (let [n (inc n)]
-    (if (and (< n 10) (<= m 10))
-      (- m n)
-      (let [www (long (m/ceil (m/log10 (inc n))))]
-        (loop [p10w (long (m/pow 10.0 www))
-               cnt (* (- p10w n) www)]
-          (let [width (long (m/log10 p10w))]
-            (if (< p10w m)
-              (recur (* p10w 10) (+ cnt (* (inc width) p10w 9)))
-              (- cnt (* (- p10w m) width)))))))))
+  (loop [width (long (m/ceil (m/log10 (+ n 2))))
+         p10w (long (m/pow 10.0 width))
+         cnt (* (- p10w (inc n)) width)]
+    (if (< p10w m)
+      (recur (inc width) (* p10w 10) (+ cnt (* (inc width) p10w 9)))
+      (- cnt (* (- p10w m) width)))))
 
 
 
 
-;;; works but not fast enough (4x)
-(defn fnd2 [n m]
-  #_ (assert (< n m))
-  (let [n (inc n)]
-    (if (and (< n 10) (<= m 10))
-      (- m n)
-      (let [calc-width (fn [i] (long (m/ceil (m/log10 (inc i)))))
-            p10w (fn [w] (long (m/pow 10.0 w)))
-            start-width (calc-width n)
-            end-width (calc-width m)]
-        (transduce (map-indexed (fn [i w] (* (p10w w) 9 (+ (inc i) start-width))))
-                   (completing + (fn [cnt] (- cnt (* (- (p10w end-width) m) end-width))))
-                   (* (- (p10w start-width) n) start-width)
-                   (range start-width end-width))))))
 
-;;; not good enough
+
+;;; works but not fast enough (3x)
 (defn fnd3 [n m]
   #_ (assert (< n m))
   (let [n (inc n)]
@@ -74,17 +61,12 @@
                    (* (- (p10w start-width) n) start-width)
                    (range start-width end-width))))))
 
-
-
-
+;;; Natural Clojure solution, but brute force
 (defn num-digits [n m]
   ;; (assert (< n m))
   (reduce + (map #(count (str %)) (range (inc n) m))))
 
-;; slightly faster
-(defn num-digits1 [n m]
-  ;; (assert (< n m))
-  (reduce + (map #(.length (str %)) (range (inc n) m))))
+;; slightly faster with .length
 
 
 (defn num-digits2 [n m]
@@ -102,22 +84,15 @@
              0
              (range (inc n) m)))
 
-;; even slower
-(defn num-digits4 [n m]
-  ;; (assert (< n m))
-  (transduce (comp (map m/log10) (map inc) (map long))
-             +
-             0
-             (range (inc n) m)))
-
-;; new idea -- just consider end points and infer ranges
 
 
+;; The one true assert=.  I have lots of variations but this is the best.
 (defmacro assert=
   ([] true)
   ([form result & more]
    `(do (assert (= ~form ~result))
         (assert= ~@more))))
+
 
 (defn smoke-nd [num-digits]
   (assert=
