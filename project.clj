@@ -33,7 +33,7 @@
                  [digest "1.4.10"]
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
-                 [me.raynes/fs "1.4.6"]]
+                 [clj-commons/fs "1.6.307"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
   :profiles {:dev  {:dependencies [[org.clojure/clojure "1.12.0-alpha1"]
