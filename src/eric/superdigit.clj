@@ -167,3 +167,53 @@
       (if (< p 10)
         p
         (recur (sumd p))))))
+
+
+;; based on rsd4
+(defn isd [n k]
+  (let [sumd (fn [n] (reduce (fn [r d] (+ r (- (long d) (long \0)))) 0 (str n)))]
+    (first (filter #(< % 10) (iterate sumd (* k (sumd n)))))))
+
+;; slow!  maybe chunking the seq/iterate???
+(defn sisd [n k]
+  (let [sumd (fn [n] (reduce (fn [r d] (+ r (- (long d) (long \0)))) 0 (str n)))]
+    (first (sequence (filter #(< % 10)) (iterate sumd (* k (sumd n)))))))
+
+
+(defn tisd [n k]
+  (let [sumd (fn [n] (reduce (fn [r d] (+ r (- (long d) (long \0)))) 0 (str n)))]
+    (transduce (halt-when #(< % 10))
+               (fn ([r x] x) ([r] r))
+               nil
+               (iterate sumd (* k (sumd n))))))
+
+;;; slower
+(defn tisd2 [n k]
+  (let [sumd (fn [n] (reduce (fn [r x]
+                               (+ r (rem x 10))) 0 (take-while pos? (iterate #(quot % 10) n))))]
+    (transduce (halt-when #(< % 10))
+               (fn ([r x] x) ([r] r))
+               nil
+               (iterate sumd (* k (sumd n))))))
+
+(defn tisd3 [n k]
+  (let [sumd (fn [n] (loop [sum 0 x n]
+                       (if (zero? x)
+                         sum
+                         (recur (long (+ sum (rem x 10))) (quot x 10)))))]
+    (transduce (halt-when #(< % 10))
+               (fn ([r x] x) ([r] r))
+               nil
+               (iterate sumd (* k (sumd n))))))
+
+
+;; not faster
+(defn tisd4 [n k]
+  (let [sumd (fn [n]
+               (let [s (str n)]
+                 (reduce (fn [r c] (+ r (long c))) (* (count s) (- (long \0))) (str n))))]
+    (transduce (halt-when #(< % 10))
+               (fn ([r x] x) ([r] r))
+               nil
+               (iterate sumd (* k (sumd n))))))
+
