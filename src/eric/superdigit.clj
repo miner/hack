@@ -217,3 +217,14 @@
                nil
                (iterate sumd (* k (sumd n))))))
 
+
+
+
+;;; @nbardiuk 
+(defn nb-superdigit
+  ([n k]
+   (nb-superdigit (* n k)))
+  ([n]
+   (if (<= 10 n)
+     (recur (+ (quot n 10) (mod n 10)))
+     n)))
