@@ -65,11 +65,13 @@
               [tv stack] (loop [i left j right tv tv]
                            (let [i (loop [i i] (if (< (tv i) pivot) (recur (inc i)) i))
                                  j (loop [j j] (if (> (tv j) pivot) (recur (dec j)) j))]
-                             (if (>= i j) [tv (cond-> stack
-                                                (< (inc j) right) (conj right (inc j))
-                                                (< left j) (conj j left))]
-                                 (recur (inc i) (dec j)
-                                        (assoc! tv i (tv j) j (tv i))))))]
+                             (if (>= i j)
+                               [tv (cond-> stack
+                                     (< (inc j) right) (conj right (inc j))
+                                     (< left j) (conj j left))]
+                               (recur (inc i)
+                                      (dec j)
+                                      (assoc! tv i (tv j) j (tv i))))))]
           (recur tv stack))
         (persistent! tv)))))
 
