@@ -21,7 +21,7 @@
   (assert (= (nth-elements 4 r30) '(3 7 11 15 19 23 27)))
   true)
 
-
+;; simplest and best
 (defn tnel [n coll]
   (take-nth n (drop (dec n) coll)))
 
