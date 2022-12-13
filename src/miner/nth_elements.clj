@@ -1,6 +1,6 @@
 (ns miner.nth-elements)
 
-;;; This is all a bad idea
+;;; SEM: This is a bad idea.
 
 ;;; https://clojure-diary.gitlab.io/2022/12/05/get-every-nth-element-from-a-sequence-in-clojure.html
 
@@ -14,25 +14,33 @@
 
 ;;;;;;;;;
 
-(defn test-nl [nth-elements]
+(def r30 (range 30))
+
+(defn test-nel [nth-elements]
   (assert (= (nth-elements 12 a-list) '(11 23 35 47 59)))
+  (assert (= (nth-elements 4 r30) '(3 7 11 15 19 23 27)))
   true)
 
 
-(defn sem-nl [n coll]
+(defn tnel [n coll]
   (take-nth n (drop (dec n) coll)))
 
-(defn sem-nl2 [n coll]
+(defn xnel [n coll]
   (sequence (comp (drop (dec n)) (take-nth n)) coll))
 
-(defn sem-nl3 [n coll]
+(defn vnel [n coll]
   (mapv peek (partitionv n coll)))
 
-#_
-(quick-bench (count (nth-elements 12 a-list)))
-;; Execution time mean : 4.665623 µs
+(defn inel [n coll]
+  (into [] (comp (drop (dec n)) (take-nth n)) coll))
 
-#_
-(quick-bench (count (sem-nl 12 a-list)))
-;; Execution time mean : 121.863602 ns
 
+(comment
+;;; times on MacBook Air M1
+(quick-bench (test-nel nth-elements)) ;; Execution time mean : 6.572812 µs
+(quick-bench (test-nel tnel))         ;; Execution time mean : 325.880615 ns
+(quick-bench (test-nel xnel))         ;; Execution time mean : 2.098459 µs
+(quick-bench (test-nel vnel))         ;; Execution time mean : 2.593674 µs
+(quick-bench (test-nel inel))         ;; Execution time mean : 1.912267 µs
+
+)
