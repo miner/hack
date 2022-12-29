@@ -1,6 +1,10 @@
 (ns miner.twintree
   (:require [clojure.math.combinatorics :as combo]))
 
+
+#_
+(require '[clojure.math.combinatorics :as c])
+
 ;; Knuth Christmas Tree lecture 2023
 ;; https://www.youtube.com/watch?v=zg6YRqT4Duo
 ;; https://news.ycombinator.com/item?id=34128140
@@ -10,8 +14,15 @@
 ;; TwinTree
 ;; turn random order values into binary tree by tree insertion (left less, right greater)
 ;; also do it in reverse order to create twin
-;; such that every node has left child in one tree and right child in one tree
+;; such that every node has left child in exactly one of the twin trees 1 <= k < n
+;; also one right child in exactly one tree 1 < k <= n
+;; end points only have one child
 
+;;; Knuth's first example input
+(def kex [ 7 1 5 3 2 8 4 6])
+
+;;; non-Baxter, also reverse
+(def kpi [3 1 4 2])
 
 ;; Baxter permutations
 ;; p[k] = l iff p[l] = k
@@ -28,6 +39,19 @@
 ;; Baxter 1...m concat with Baxter m+1...n always Baxter
 ;; also reverse Baxter is Baxter
 ;; and some other good properties
+
+
+
+;;; From my googling, other info on Baxter permutations:
+;;; https://www.alfonsobeato.net/tag/baxter-permutations/
+;;;
+;;; Baxter permutations can be defined by using the generalized pattern avoidance
+;;; framework3. The way it works is that a sequence is Baxter if there is no subsequence of
+;;; 4 elements that you can find in it that matches one of the generalized patterns 3-14-2
+;;; and 2-41-3.  [See vincular patterns below for dashed notation.  See link for cross
+;;; references.]
+
+
 
 
 
@@ -51,9 +75,27 @@
 ;;; look for twintree
 
 
+;;; https://en.wikipedia.org/wiki/Permutation_pattern
+;;;
+;;; Permutations patterns are loose ordering patterns of single digits, normally with no
+;;; adjacent constraint (so anything can be between the matches).  pattern 213 means there
+;;; are some digits x, y, z in that relative order where the values are arranged such
+;;; that (y < x < z).  They are not literal matches with the pattern digits, just same
+;;; ordering, and we don't care if other digits are in between.
 
+;;; 32415 contains 213 five ways: 3··15, ··415, 32··5, 324··, and ·2·15.
+;;; 51342 avoids 213 -- no subsequence of three digits has the ordering implied by pattern
+;;; 213.
 
-
+;;; A dashed pattern (or vincular pattern) can be used when adjacency is required.  The
+;;; dashes are like wilcards, otherwise adjacency is required.
+;;;
+;;; 314265 has two copies of the dashed pattern 2-31-4, given by the entries 3426 and 3425
+;;;
+;;; SEM: The pattern digit 1 means the smallest value, 4 means the greatest of that
+;;; subordering.  Notice that you can leave out a bunch of digits in the source permutation
+;;; (literal) when matching dashes, but in this case the third and first smallest digits of
+;;; the match must also be adjacent in the original permutation.
 
 ;;;; borrowed from my miner/permutations.clj
 
@@ -77,7 +119,161 @@
           (range n)))
 
 
+;;; will overflow for large inputs but I don't care
+;;; n items, taking k each
+(defn count-combos [n k]
+  (quot (reduce * 1 (range (inc (- n k)) (inc n)))
+        (reduce * (range 1 (inc k)))))
+
+
+
+(defn index-combinations [n k]
+  (let [incvk (fn [v]
+                (loop [v v dmx n]
+                  (when-not (zero? (count v))
+                    (let [d (inc (peek v))]
+                      (cond (>= d dmx) (recur (pop v) (dec dmx))
+                            (= dmx n) (conj (pop v) d)
+                            :else (into (pop v) (range d (+ (inc d) (- n dmx)))))))))]
+    (loop [res [(vec (range k))]]
+      (if-let [pv (incvk (peek res))]
+        (recur (conj res pv))
+        res))))
+
+
+
+(defn index-combinations-WORKS [n k]
+  (let [incvk (fn [v]
+                (let [nv (loop [v v]
+                           (if (empty? v)
+                             nil
+                             (let [d (inc (peek v))]
+                               (if (< d (- n (- k (count v))))
+                                 (conj (pop v) d)
+                                 (recur (pop v))))))]
+                  (when nv
+                    (loop [nv nv]
+                      (if (= (count nv) k)
+                        nv
+                        (recur (conj nv (inc (peek nv)))))))))]
+    (loop [res [(vec (range k))]]
+      (if-let [pv (incvk (peek res))]
+        (recur (conj res pv))
+        res))))
+
+
+;;; all combinations of size WIDTH from the elements of (range N)
+;;; eager to be faster, not sure if that's good
+#_
+(defn index-combinations [n width]
+  (let [res [(vec (range width))]]
+    (let [top (peek res)
+          dig (inc (peek top))]
+      (if (< dig n)
+        (recur (conj res (conj (pop top) dig)))
+        ))))
+;;        (let [back(loop [dig (peek top)]
+;;        (for [i (range width)])))
+
+
+
+;;; this is taking ordered subelements, not the same as combo/selections
+(defn subelements [elements n]
+  "Returns a sequence of vectors of size N, yielding all the ways to take N items from ELEMENTS in
+the same relative order as the given ELEMENTS sequence."
+  (let [vel (vec elements)]
+    (map #(mapv vel %) (combo/combinations (range (count vel)) n))))
+
+;;; vector dissoc, but not a good idea
+#_ (defn vdis1 [v i]
+  (reduce-kv (fn [r k v] (if (= k i) r (conj r v))) [] v))
+
+#_ (defn vdis [v i]
+  (cond (zero? i) (subvec v 1)
+        (= i (dec (count v))) (pop v)
+        :else (into (subvec v 0 i) (subvec v (inc i)))))
+
+;;; remaps values in pvec to the canonical digits of the one-based pattern notation
+;;; (perm-reduction [12 5 4 6 8])  ==>  [5 2 1 3 4]
+(defn perm-reduction [pvec]
+  (let [rmp (zipmap (sort (set pvec)) (range 1 (inc (count pvec))))]
+    (mapv rmp pvec)))
+
+(defn subp4 [pvec]
+  (set (map perm-reduction (subelements pvec 4))))
+
+
+(defn baxter1? [pvec]
+  (let [rp4s (into #{} (map perm-reduction) (subelements pvec 4))]
+    (not (or (contains? rp4s [3 1 4 2]) (contains? rp4s [2 4 1 3])))))
+
+(defn baxter2? [pvec]
+  (empty? (sequence (comp (map #(mapv pvec %))
+                          (map perm-reduction)
+                          (filter #(or (= [3 1 4 2] %) (= [2 4 1 3] %)))
+                          (take 1))
+                    (combo/combinations (range (count pvec)) 4))))
+
+;;; halt-when doesn't work right with sequence and still didn't work for me in a transduce
+
+(defn baxter3? [pvec]
+  (empty? (sequence (comp (map #(mapv pvec %))
+                          (map perm-reduction)
+                          (filter #{[3 1 4 2] [2 4 1 3]})
+                          (take 1))
+                    (combo/combinations (range (count pvec)) 4))))
+
+(defn baxter31? [pvec]
+  (empty? (into nil (comp (map #(mapv pvec %))
+                          (map perm-reduction)
+                          (filter #{[3 1 4 2] [2 4 1 3]})
+                          (take 1))
+                    (combo/combinations (range (count pvec)) 4))))
+
+
+(defn baxter42? [pvec]
+  (empty? (into nil (comp (map #(mapv pvec %))
+                          (map perm-reduction)
+                          (filter #(or (= [3 1 4 2] %) (= [2 4 1 3] %)))
+                          (take 1))
+                (combo/combinations (range (count pvec)) 4))))
+
+
+;;; slightly faster
+(defn baxter4? [pvec]
+  (nil? (into nil (comp (map #(mapv pvec %))
+                        (map perm-reduction)
+                        (filter #(or (= [3 1 4 2] %) (= [2 4 1 3] %)))
+                        (take 1))
+              (combo/combinations (range (count pvec)) 4))))
+
+
+(defn bax-test [bax?]
+  (assert (false? (bax? [3 1 4 2])))
+  (assert (false? (bax? [2 4 1 3])))
+  (assert (= (count (filter bax? (cperms 4))) 22))
+  (assert (true? (bax? [4 5 2 1 3 8 6 7])))
+  true)
+
+
+
+
+(defn disvec
+  "Returns a vector based on the vector V with the indices removed from index START
+  (inclusive) to END (exclusive, default START+1)."
+  ;; (> end start) (pos? end)
+  ([v start] (disvec v start (inc start)))
+  ([v start end]
+   (cond (zero? start) (subvec v end)
+         (= end (count v)) (subvec v 0 start)
+         :else (into (subvec v 0 start) (subvec v end)))))
+
+
+
 ;;; This is just binary tree stuff.  Maybe deserved own file.
+
+;;; Rich Hickey has a gist for a deftype binary TreeNode
+;;; https://gist.github.com/richhickey/874276
 
 ;;; SEM considering binary tree inserts in Clojure.  Immutability requires path copying of
 ;;; nested vectors or maps,
@@ -127,6 +323,29 @@
                          left (conj left)
                          right (conj right))))]
     (map #(nth % 0) (tree-seq some? rvchildren vtree))))
+
+(defn lefts-rights [tree]
+  (loop [stack [tree] lefts #{} rights #{}]
+    (if (empty? stack)
+      [lefts rights]
+      (let [[val left right] (peek stack)]
+        (cond (and (nil? left) (nil? right)) (recur (pop stack) lefts rights)
+              (nil? left) (recur (conj (pop stack) right) lefts
+                                 (conj rights val))
+              (nil? right) (recur (conj (pop stack) left) (conj lefts val)
+                                  rights)
+              :else (recur (conj (pop stack) right left)
+                           (conj lefts val) (conj rights val)))))))
+
+#_
+(defn XXXXbaxter? [perm]
+  (let [tree (rvtree perm)
+        twin (rvtree (rseq perm))]
+
+    ))
+      
+
+
 
 
 ;;; ----------------------------------------------------------------------
