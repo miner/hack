@@ -99,9 +99,54 @@
                   (range 1 (- cnt 2))))))
 
 ;;; Unimplemented ideas: maybe worth considering size of partitions when deciding which way
-;;; to look first
-;;; probably faster to look middle out
+;;; to look first.
+;;; I thought it might be faster to look middle out, but it wasn't.  Maybe overhead of
+;;; middle-out isn't worth it.
 
+;;; borrowed from miner/halfbaked.clj
+(defn interleave-all
+  "Returns a lazy seq of the first item in each collection, then the second, etc.  If one 
+collection ends, continues to interleave the others.  Naturally, you should take care with
+infinite sequences."
+  ([] nil)
+  ([c] (lazy-seq c))
+
+  ([c1 c2]
+     (lazy-seq
+      (cond (not (seq c1)) c2
+            (not (seq c2)) c1
+            :else (conj (interleave-all (rest c1) (rest c2)) (first c2) (first c1)))))
+
+  ([c1 c2 & colls] 
+     (lazy-seq 
+      (let [ss (keep seq (conj colls c2 c1))]
+        (concat (map first ss) (apply interleave-all (map rest ss)))))))
+
+(defn center-out [n]
+  (let [h (quot n 2)]
+    (interleave-all (range h (- n 2)) (range (dec h) 0 -1))))
+
+;; SLOWER
+(defn bax6? [v]
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (not-any? (fn [i]
+                    (let [v1 (v i)
+                          v2 (v (inc i))]
+                      ;; check if there's room between v1 and v2
+                      (when (> (abs (- v2 v1)) 2)
+                        (if (> v2 v1)
+                          ;; looking for 3-14-2
+                          (let [after (reduce min v2 (filter #(< v1 % v2) (subvec v (+ 2 i))))]
+                            (when (< after v2)
+                              (some #(< after % v2) (subvec v 0 i))))
+                          ;; looking for 2-41-3
+                          (let [before (reduce min v1 (filter #(< v2 % v1) (subvec v 0 i)))]
+                            (when (< before v1)
+                              (some #(< before % v1) (subvec v (+ 2 i)))))))))
+                  (center-out cnt)))))
+
+    
 
 
 (defn test-bax [bax?]

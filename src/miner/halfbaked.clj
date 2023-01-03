@@ -201,7 +201,7 @@ is to use *earmuffs*, but that is not enforced."
   "Returns a lazy seq of the first item in each collection, then the second, etc.  If one 
 collection ends, continues to interleave the others.  Naturally, you should take care with
 infinite sequences."
-  ([] (lazy-seq nil))
+  ([] nil)
   ([c] (lazy-seq c))
 
   ([c1 c2]
