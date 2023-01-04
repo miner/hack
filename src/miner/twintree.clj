@@ -171,20 +171,20 @@
     (loop [t0 (int (nth pv 0)) ps (seq pv)]
       (let [i (aget ^ints par t0)]
         ;;(println "arr-twin t0 i ps" t0 i ps)
-        (cond (zero? i) true
+        (cond (empty? ps) true
               (not= t0 (first ps)) false
+              ;;(zero? i) true
               (pos? i) (let [right (aget ^ints r0 t0)]
                          (aset ^ints l1 i 0)
                          (when-not (zero? right) (aset ^ints l0 i (aget ^ints l0 t0)))
-                         (recur (int (if (zero? right) (aget ^ints l0 t0) right)) (rest ps)))
+                         (recur (int (if (zero? right) (aget ^ints l0 t0) right))
+                                (rest ps)))
               :else (let [i (- i)
                           left (aget ^ints l0 t0)]
                       (aset ^ints r1 i 0)
                       (when-not (zero? left) (aset ^ints r0 i (aget ^ints r0 t0)))
-                      (recur (int (if (zero? left) (aget ^ints r0 t0) left)) (rest
-                                                                              ps))))))))
-
-
+                      (recur (int (if (zero? left) (aget ^ints r0 t0) left))
+                             (rest ps))))))))
 
 
 ;;    [(vec l0) (vec r0) (vec l1) (vec r1)]))
