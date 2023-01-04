@@ -291,6 +291,8 @@
 
 ;;; Slow.  Probably too much nested maps.  Should try Java arrays.  Or at least, less
 ;;; nesting.  Separate colls for each prop l0,r0,l1,r1,pars
+;;; See arr-twin for java array impl. Much faster than this, but still not good compared to
+;;; my baxter?
 
 ;; Note :parent is from twin tree1, not tree0.
 (defn twin-baxter? [v]
