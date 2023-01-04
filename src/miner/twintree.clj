@@ -35,7 +35,8 @@
 ;; p[k] = l iff p[l] = k
 ;; =>  q[p[l]] = l
 
-
+(defn cperms1 [n]
+  (combo/permutations (range 1 (inc n))))
 
 ;;; Floor plans
 ;;; decomposition of rectangles into rectangles
@@ -95,6 +96,102 @@
 
 ;;; Recursive vector approach is much faster.  Uses stack but we don't expect it to get too
 ;;; deep.  (Follows similar pattern to clojure/assoc-in which is recursive.)
+
+;;; assume values are uniquely 1..N (the usual for permuations, otherwise remap them)
+
+;;; arrays of size (n+1) -- slot 0 holds root, empty=0 otherwise ref to node index
+
+  ;;; assuming [1..N] no zeros
+(defn arr-tree [values]
+  (let [mx (reduce max 0 values)
+        larr (int-array (inc mx))
+        rarr (int-array (inc mx))]
+    (assert (pos? mx))
+    (assert (pos? (first values)))
+    (aset-int larr 0 (first values))
+    (aset-int rarr 0 (first values))
+    (doseq [x (rest values)]
+      (assert (pos? x))
+      (loop [node (aget larr 0)]
+        (if (< x node)
+          (let [left (aget larr node)]
+            (if (zero? left)
+              (aset-int larr node x)
+              (recur left)))
+          (let [right (aget rarr node)]
+            (if (zero? right)
+              (aset-int rarr node x)
+              (recur right))))))
+    [larr rarr]))
+
+
+;;; See below
+(defn arr-twin-WORKS [pv]
+  (let [[l0 r0] (arr-tree pv)
+        [l1 r1] (arr-tree (rseq pv))
+        cnt (count pv)
+        par (int-array (inc cnt))]
+    (doseq [k (range 1 (inc cnt))]
+      (let [node (aget ^ints l1 k)]
+        (when-not (zero? node) (aset-int par ^int node ^int k)))
+      (let [node (aget ^ints r1 k)]
+        (when-not (zero? node) (aset-int par ^int node ^int (- k)))))
+    (loop [t0 (int (nth pv 0)) ps (seq pv)]
+      (let [i (aget ^ints par t0)]
+        ;;(println "arr-twin t0 i ps" t0 i ps)
+        (cond (zero? i) true
+              (not= t0 (first ps)) false
+              (pos? i) (let [right (aget ^ints r0 t0)]
+                         (aset-int l1 i 0)
+                         (when-not (zero? right) (aset-int l0 i (aget ^ints l0 t0)))
+                         (recur (int (if (zero? right) (aget ^ints l0 t0) right)) (rest ps)))
+              :else (let [i (- i)
+                          left (aget ^ints l0 t0)]
+                      (aset-int r1 i 0)
+                      (when-not (zero? left) (aset-int r0 i (aget ^ints r0 t0)))
+                      (recur (int (if (zero? left) (aget ^ints r0 t0) left)) (rest
+                                                                              ps))))))))
+
+;;; why is aset ^ints faster than aset-int ????  Maybe doing some other coercions silently?
+;;; I don't know.
+
+;;; WORKS but seems slow, about 3x baxter?
+;;; require [1..N] no zeros
+
+(defn arr-twin [pv]
+  (let [[l0 r0] (arr-tree pv)
+        [l1 r1] (arr-tree (rseq pv))
+        cnt (count pv)
+        par (int-array (inc cnt))]
+    (doseq [k (range 1 (inc cnt))]
+      (let [node (aget ^ints l1 k)]
+        (when-not (zero? node) (aset ^ints par ^int node ^int k)))
+      (let [node (aget ^ints r1 k)]
+        (when-not (zero? node) (aset ^ints par ^int node ^int (- k)))))
+    (loop [t0 (int (nth pv 0)) ps (seq pv)]
+      (let [i (aget ^ints par t0)]
+        ;;(println "arr-twin t0 i ps" t0 i ps)
+        (cond (zero? i) true
+              (not= t0 (first ps)) false
+              (pos? i) (let [right (aget ^ints r0 t0)]
+                         (aset ^ints l1 i 0)
+                         (when-not (zero? right) (aset ^ints l0 i (aget ^ints l0 t0)))
+                         (recur (int (if (zero? right) (aget ^ints l0 t0) right)) (rest ps)))
+              :else (let [i (- i)
+                          left (aget ^ints l0 t0)]
+                      (aset ^ints r1 i 0)
+                      (when-not (zero? left) (aset ^ints r0 i (aget ^ints r0 t0)))
+                      (recur (int (if (zero? left) (aget ^ints r0 t0) left)) (rest
+                                                                              ps))))))))
+
+
+
+
+;;    [(vec l0) (vec r0) (vec l1) (vec r1)]))
+
+
+
+
 
 
 ;;; maybe worth holding onto parent as v3 ???
@@ -174,14 +271,8 @@
                 (cond-> res
                   (some? left) (assoc-in [node lkey] (nth left 0))
                   (some? right) (assoc-in [node rkey] (nth right 0)))))))))
-    
 
-;; Note :parent is from twin tree1, not tree0.
-(defn twin-lr [v]
-   (let [tree (rvtree v)
-         twin (rvtree (rseq v))]
-     (lr-tree twin (lr-tree tree (parent-map twin)) :left1 :right1)))
- 
+
 
 ;;; FASTEST and simplest, recursive nested vectors [VAL LEFT RIGHT] or nil
 (defn rvinsert [vtree val]
@@ -194,6 +285,42 @@
 
 (defn rvtree [values]
   (reduce rvinsert nil values))
+
+
+
+
+;;; Slow.  Probably too much nested maps.  Should try Java arrays.  Or at least, less
+;;; nesting.  Separate colls for each prop l0,r0,l1,r1,pars
+
+;; Note :parent is from twin tree1, not tree0.
+(defn twin-baxter? [v]
+   (let [tree (rvtree v)
+         twin (rvtree (rseq v))
+         full-state (lr-tree twin (lr-tree tree (parent-map twin)) :left1 :right1)]
+     (loop [ps (seq v)  state full-state  t0 (first ps)]
+       (if-not (= (first ps) t0)
+         false
+         ;;; do algo as it assigns t0, and check that first ps matches result
+         (if-let [i (get-in state [t0 :parent-left])]
+           (let [tright (get-in state [t0 :right])
+                 tnext (or tright (get-in state [t0 :left]))]
+           (recur (rest ps)
+                  (-> state
+                      (assoc-in [i :left1] nil)
+                      (cond-> tright (assoc-in [i :left] (get-in state [t0 :left]))))
+                  tnext))
+           (if-let [i (get-in state [t0 :parent-right])]
+             (let [tleft (get-in state [t0 :left])
+                   tnext (or tleft (get-in state [t0 :left]))]
+               (recur (rest ps)
+                      (-> state
+                          (assoc-in [i :right1] nil)
+                          (cond-> tleft (assoc-in [i :right] (get-in state [t0 :right]))))
+                      tnext))
+             true))))))
+ 
+
+
 
 (defn rvinorder [vtree]
   (loop [res [] stack [vtree]]

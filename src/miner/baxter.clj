@@ -58,7 +58,7 @@
 ;;; problems into Clojure vectors using zero-based indexing.  Beware of bugs.
 
 (defn cperms [n]
-  (combo/permutations (range n)))
+  (combo/permutations (range 1 (inc n))))
 
 ;;;; see also my miner/permutations.clj  for range-perms, etc.
 
@@ -82,21 +82,22 @@
 (defn baxter? [v]
   (let [cnt (count v)]
     (or (< cnt 4)
-        (not-any? (fn [i]
-                    (let [v1 (v i)
-                          v2 (v (inc i))]
-                      ;; check if there's room between v1 and v2
-                      (when (> (abs (- v2 v1)) 2)
-                        (if (> v2 v1)
-                          ;; looking for 3-14-2
-                          (let [after (reduce min v2 (filter #(< v1 % v2) (subvec v (+ 2 i))))]
-                            (when (< after v2)
-                              (some #(< after % v2) (subvec v 0 i))))
-                          ;; looking for 2-41-3
-                          (let [before (reduce min v1 (filter #(< v2 % v1) (subvec v 0 i)))]
-                            (when (< before v1)
-                              (some #(< before % v1) (subvec v (+ 2 i)))))))))
-                  (range 1 (- cnt 2))))))
+        (not-any?
+         (fn [i]
+           (let [v1 (v i)
+                 v2 (v (inc i))]
+             ;; check if there's room between v1 and v2
+             (when (> (abs (- v2 v1)) 2)
+               (if (> v2 v1)
+                 ;; looking for 3-14-2
+                 (let [after (reduce min v2 (filter #(< v1 % v2) (subvec v (+ 2 i))))]
+                   (when (< after v2)
+                     (some #(< after % v2) (subvec v 0 i))))
+                 ;; looking for 2-41-3
+                 (let [before (reduce min v1 (filter #(< v2 % v1) (subvec v 0 i)))]
+                   (when (< before v1)
+                     (some #(< before % v1) (subvec v (+ 2 i)))))))))
+         (range 1 (- cnt 2))))))
 
 ;;; Unimplemented ideas: maybe worth considering size of partitions when deciding which way
 ;;; to look first.
@@ -148,6 +149,12 @@ infinite sequences."
 
     
 
+(defn basic-bax [bax?]
+  (assert (bax? [1 2 3 4]))
+  (assert (false? (bax? [3 1 4 2])))
+  (assert (false? (bax? [2 4 1 3])))
+  (assert (= (count (filter bax? (cperms 9))) 58202))
+  true)
 
 (defn test-bax [bax?]
   (assert (false? (bax? [3 1 4 2])))
@@ -157,8 +164,6 @@ infinite sequences."
   (assert (not (bax? [4 0 8 8 6 7 5 3 0 9])))
   ;; lost
   (assert (bax? [4 8 15 16 23 42]))
-  ;;; PEnnsylvania-6-5000
-  (assert (bax? [2 1 2 7 3 6 5 0 0 0]))
   (assert (true? (bax? [4 5 2 1 3 8 6 7])))
   (assert (= (count (filter bax? (cperms 4))) 22))
   true)
