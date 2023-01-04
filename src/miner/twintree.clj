@@ -57,8 +57,8 @@
 ;;; look for twintree
 ;;; https://www-cs-faculty.stanford.edu/~knuth/programs/twintree-to-baxter.w
 
-
-
+;;; Lots of good comments in the Knuth source, especially about rules for generating new
+;;; Baxter permutations from existing ones.  (Reminds me of the juggling site-swap rules.)
 
 
 ;;; generic, might be useful.  Probably wrong file.
@@ -95,6 +95,93 @@
 
 ;;; Recursive vector approach is much faster.  Uses stack but we don't expect it to get too
 ;;; deep.  (Follows similar pattern to clojure/assoc-in which is recursive.)
+
+
+;;; maybe worth holding onto parent as v3 ???
+(defn pvinsert
+  ([vtree val] (pvinsert vtree val nil))
+  ([vtree val parent]
+  (if (nil? vtree)
+    [val nil nil parent]
+    (let [[node left right] vtree]
+      (if (< val node)
+        [node (pvinsert left val node) right parent]
+        [node left (pvinsert right val node) parent])))))
+
+(defn pvtree [values]
+  (reduce pvinsert nil values))
+
+
+;;; collect parent for each node, need to keep track of left/right status
+;;; could try transients
+(defn parent-map [vtree]
+  (loop [stack [vtree] pm {}]
+    (if (empty? stack)
+      pm
+      (let [[node left right] (peek stack)]
+        (recur (cond-> (pop stack)
+                 (some? right) (conj right)
+                 (some? left) (conj left))
+               (cond-> pm
+                 (some? left) (assoc-in [(nth left 0) :parent-left] node)
+                 (some? right) (assoc-in [(nth right 0) :parent-right] node)))))))
+
+
+(defn rvpmap [vtree]
+  (loop [stack [vtree] pm {}]
+    (if (empty? stack)
+      pm
+      (let [[node left right] (peek stack)]
+        (recur (cond-> (pop stack)
+                 (some? right) (conj right)
+                 (some? left) (conj left))
+               (cond-> pm
+                 (some? left) (assoc (nth left 0) node)
+                 (some? right) (assoc (nth right 0) node)))))))
+
+
+;; not any faster with transient vector.  A bit faster with transient map.
+(defn peek! [tv]
+  (nth tv (dec (count tv)) nil))
+
+;;; WRONG IDEA
+(defn tparent-map [vtree]
+  (loop [stack (transient [vtree]) pm (transient {})]
+    (if (empty? stack)
+      (persistent! pm)
+      (let [[node left right] (peek! stack)]
+        (recur (cond-> (pop! stack)
+                 (some? right) (conj! right)
+                 (some? left) (conj! left))
+               (cond-> pm
+                 (some? left) (assoc! (nth left 0) node)
+                 (some? right) (assoc! (nth right 0) node)))))))
+
+
+
+;;; better idea - use different keys for :left :right or :left1 :right1
+(defn lr-tree
+  ([vtree] (lr-tree vtree {}))
+  ([vtree lrmap] (lr-tree vtree lrmap :left :right))
+  ([vtree lrmap lkey rkey]
+   (loop [stack [vtree] res lrmap]
+     (if (empty? stack)
+       res
+       (let [[node left right] (peek stack)]
+         (recur (cond-> (pop stack)
+                  (some? right) (conj right)
+                  (some? left) (conj left))
+                (cond-> res
+                  (some? left) (assoc-in [node lkey] (nth left 0))
+                  (some? right) (assoc-in [node rkey] (nth right 0)))))))))
+    
+
+;; Note :parent is from twin tree1, not tree0.
+(defn twin-lr [v]
+   (let [tree (rvtree v)
+         twin (rvtree (rseq v))]
+     (lr-tree twin (lr-tree tree (parent-map twin)) :left1 :right1)))
+ 
 
 ;;; FASTEST and simplest, recursive nested vectors [VAL LEFT RIGHT] or nil
 (defn rvinsert [vtree val]
@@ -234,5 +321,10 @@
         (recur (into (pop stack) (rseq (mtree head))) (conj res head))
         (recur (pop stack) res)))))
           
+
+
+
+
+
 
 

@@ -1,0 +1,57 @@
+;;; from Donald Knuth
+;;; https://www-cs-faculty.stanford.edu/~knuth/programs/twintree-to-baxter.w
+
+;;; Lots of good comments in the Knuth source, especially about rules for generating new
+;;; Baxter permutations from existing ones.  (Reminds me of the juggling site-swap rules.)
+;;; I copied just the final algorithm.  Lots more in the original file.
+
+;;; My notes: notice permutation must be [1..N] , will tolerate unused nums, but N is always
+;;; highest
+
+;;; uses arrays with MAXN=1024 (or so)
+;;; probably should remap/canonicalize perm to 1-N first, then can safely process in vectors
+;;; of N+1, leaving slot 0 for root
+
+;; l0, r0 - arr of left/right by node index in tree0 [1..N]
+;; l1, r0 - same for twin, tree1
+;; t0 root of tree0
+;; parent[k] is parent of node K in tree1 (twin)
+;; -- in a sense the successor but specially encoded for left/right
+;; lots of manipulation to delete node references and patch tree
+;; easy to remove in tree1 because we're grabbing in inverse order
+;; tree0 has a bit more logic for removal
+
+
+We start by making a table of everybody's parent in $T_1$, setting
+|parent[p]=i| if $l_1[i]=p$, but |parent[p]=-i| if $r_1[i]=p$.
+
+@<Output the Baxter permutation@>=
+for (k=1;k<=n;k++) {
+  if (l1[k]) parent[l1[k]]=k;
+  if (r1[k]) parent[r1[k]]=-k;
+}
+while (1) {
+  printf("%d ",
+         t0); /* the first element, $p$, of the remaining generalized perm */
+  i=parent[t0];
+  if (i>0) { /* $i=p+1$, the case considered above */
+    l1[i]=0; /* remove $p$ from $T_1$ */
+    if (r0[t0]==0) t0=l0[t0]; /* |p| is the largest that remains */
+    else {
+      l0[i]=l0[t0];
+      t0=r0[t0];
+    }
+  }@+else if (i==0) break; /* tree size was 1 */
+  else {
+    i=-i; /* $i=p-1$, the symmetrical case */
+    r1[i]=0; /* remove $p$ from $T_1$ */
+    if (l0[t0]==0) t0=r0[t0]; /* |p| is the smallest that remains */
+    else {
+      r0[i]=r0[t0];
+      t0=l0[t0];
+    }
+  }
+}
+printf("\n");
+
+int parent[maxn+1]; /* parents in $T_1$ */

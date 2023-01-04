@@ -174,16 +174,16 @@ infinite sequences."
 
 
 ;;; Knuth's first example input
-(def kex [ 7 1 5 3 2 8 4 6])
+(def xkex [ 7 1 5 3 2 8 4 6])
 
 ;;; Jenny is Baxter
-(def jenny [8 6 7 5 3 0 9])
+(def xjenny [8 6 7 5 3 0 9])
 
 ;;; Lost is Baxter
-(def lost [4 8 15 16 23 42])
+(def xlost [4 8 15 16 23 42])
 
 ;;; non-Baxter, also reverse
-(def kpi [3 1 4 2])
+(def xkpi [3 1 4 2])
 
 
 
