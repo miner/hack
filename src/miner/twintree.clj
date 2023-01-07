@@ -128,8 +128,8 @@
   (let [root (first values)]
     (loop [xs (rest values)
            node root
-           mleft {0 root}
-           mright {0 root}]
+           mleft {}
+           mright {}]
       (if-let [x (first xs)]
         (if (< x node)
           (if-let [left (mleft node)]
@@ -147,7 +147,38 @@
       (when (pos? mx)
         (map #(m % 0) (range 0 (inc mx)))))))
 
+;; slightly faster than ztwin and simpler
+(defn ztw2 [pv]
+  (let [[l0 r0] (ztree pv)
+        [l1 r1] (ztree (rseq pv))
+        cnt (count pv)
+        parl (zipmap (vals l1) (keys l1))
+        parr (zipmap (vals r1) (keys r1))]
+    (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
+      (if-not (= t0 (first ps))
+        false
+        (if-let [i (parl t0)]
+          (let [right (r0 t0)]
+            (recur (or right (l0 t0))
+                   (rest ps)
+                   (if right (assoc l0 i (l0 t0)) l0)
+                   r0
+                   (dissoc l1 i)
+                   r1))
+          (if-let [i (parr t0)]
+            (let [left (l0 t0)]
+              (recur (or left (r0 t0))
+                     (rest ps)
+                     l0
+                     (if left (assoc r0 i (r0 t0)) r0)
+                     l1
+                     (dissoc r1 i)))
+            (nil? (next ps))))))))
+              
+
+
 ;; works.  Clojure data structures.  2x slower than arr-twin.
+;; more or less Knuth's code structure
 (defn ztwin [pv]
   (let [[l0 r0] (ztree pv)
         [l1 r1] (ztree (rseq pv))
@@ -161,9 +192,9 @@
                          (contains? r1 k) (assoc (r1 k) (- k))))))]
     (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
       (let [i (par t0)]
-        (cond (empty? ps) true
-              (nil? i) (= t0 (first ps))
+        (cond (nil? i) (= t0 (first ps))
               (not= t0 (first ps)) false
+              ;; (empty? ps) true
               (pos? i) (let [right (r0 t0)]
                          (recur (or right (l0 t0))
                                 (rest ps)
