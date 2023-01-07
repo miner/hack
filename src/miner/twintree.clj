@@ -124,33 +124,68 @@
               (recur right))))))
     [larr rarr]))
 
+(defn ztree [values]
+  (let [root (first values)]
+    (loop [xs (rest values)
+           node root
+           mleft {0 root}
+           mright {0 root}]
+      (if-let [x (first xs)]
+        (if (< x node)
+          (if-let [left (mleft node)]
+            (recur xs left mleft mright)
+            (recur (rest xs) root (assoc mleft node x) mright))
+          (if-let [right (mright node)]
+            (recur xs right mleft mright)
+            (recur (rest xs) root mleft (assoc mright node x))))
+        [mleft mright]))))
 
-;;; See below
-(defn arr-twin-WORKS [pv]
-  (let [[l0 r0] (arr-tree pv)
-        [l1 r1] (arr-tree (rseq pv))
+;; for debugging
+(defn mpv [m]
+  (when (seq m)
+    (let [mx (reduce max 0 (vals m))]
+      (when (pos? mx)
+        (map #(m % 0) (range 0 (inc mx)))))))
+
+;; works.  Clojure data structures.  2x slower than arr-twin.
+(defn ztwin [pv]
+  (let [[l0 r0] (ztree pv)
+        [l1 r1] (ztree (rseq pv))
         cnt (count pv)
-        par (int-array (inc cnt))]
-    (doseq [k (range 1 (inc cnt))]
-      (let [node (aget ^ints l1 k)]
-        (when-not (zero? node) (aset-int par ^int node ^int k)))
-      (let [node (aget ^ints r1 k)]
-        (when-not (zero? node) (aset-int par ^int node ^int (- k)))))
-    (loop [t0 (int (nth pv 0)) ps (seq pv)]
-      (let [i (aget ^ints par t0)]
-        ;;(println "arr-twin t0 i ps" t0 i ps)
-        (cond (zero? i) true
+        par (loop [k 1 par {}]
+              (if (> k cnt)
+                par
+                (recur (inc k)
+                       (cond-> par
+                         (contains? l1 k) (assoc (l1 k) k)
+                         (contains? r1 k) (assoc (r1 k) (- k))))))]
+    (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
+      (let [i (par t0)]
+        (cond (empty? ps) true
+              (nil? i) (= t0 (first ps))
               (not= t0 (first ps)) false
-              (pos? i) (let [right (aget ^ints r0 t0)]
-                         (aset-int l1 i 0)
-                         (when-not (zero? right) (aset-int l0 i (aget ^ints l0 t0)))
-                         (recur (int (if (zero? right) (aget ^ints l0 t0) right)) (rest ps)))
+              (pos? i) (let [right (r0 t0)]
+                         (recur (or right (l0 t0))
+                                (rest ps)
+                                (if right (assoc l0 i (l0 t0)) l0)
+                                r0
+                                (dissoc l1 i)
+                                r1))
               :else (let [i (- i)
-                          left (aget ^ints l0 t0)]
-                      (aset-int r1 i 0)
-                      (when-not (zero? left) (aset-int r0 i (aget ^ints r0 t0)))
-                      (recur (int (if (zero? left) (aget ^ints r0 t0) left)) (rest
-                                                                              ps))))))))
+                          left (l0 t0)]
+                      (recur (or left (r0 t0))
+                             (rest ps)
+                             l0
+                             (if left (assoc r0 i (r0 t0)) r0)
+                             l1
+                             (dissoc r1 i))))))))
+
+
+
+
+                      
+                                
+
 
 ;;; why is aset ^ints faster than aset-int ????  Maybe doing some other coercions silently?
 ;;; I don't know.
@@ -170,7 +205,6 @@
         (when-not (zero? node) (aset ^ints par ^int node ^int (- k)))))
     (loop [t0 (int (nth pv 0)) ps (seq pv)]
       (let [i (aget ^ints par t0)]
-        ;;(println "arr-twin t0 i ps" t0 i ps)
         (cond (empty? ps) true
               (not= t0 (first ps)) false
               ;;(zero? i) true
