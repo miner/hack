@@ -1,5 +1,6 @@
 (ns miner.twintree
-  (:require [clojure.math.combinatorics :as combo]))
+  (:require [clojure.math.combinatorics :as combo]
+            [clojure.set :as set]))
 
 
 #_
@@ -124,7 +125,7 @@
               (recur right))))))
     [larr rarr]))
 
-(defn ztree [values]
+(defn ztree1 [values]
   (let [root (first values)]
     (loop [xs (rest values)
            node root
@@ -139,6 +140,22 @@
             (recur xs right mleft mright)
             (recur (rest xs) root mleft (assoc mright node x))))
         [mleft mright]))))
+
+(defn ztree [values]
+  (let [root (first values)]
+    (loop [xs (rest values)
+           node root
+           mleft (transient {})
+           mright (transient {})]
+      (if-let [x (first xs)]
+        (if (< x node)
+          (if-let [left (mleft node)]
+            (recur xs left mleft mright)
+            (recur (rest xs) root (assoc! mleft node x) mright))
+          (if-let [right (mright node)]
+            (recur xs right mleft mright)
+            (recur (rest xs) root mleft (assoc! mright node x))))
+        [(persistent! mleft) (persistent! mright)]))))
 
 ;; for debugging
 (defn mpv [m]
@@ -175,6 +192,34 @@
                      (dissoc r1 i)))
             (nil? (next ps))))))))
               
+;; faster than ztw2
+(defn ztw3 [pv]
+  (let [[l0 r0] (ztree pv)
+        [l1 r1] (ztree (rseq pv))
+        cnt (count pv)
+        parl (set/map-invert l1)
+        parr (set/map-invert r1)]
+    (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
+      (if-not (= t0 (first ps))
+        false
+        (if-let [i (parl t0)]
+          (let [right (r0 t0)]
+            (recur (or right (l0 t0))
+                   (rest ps)
+                   (if right (assoc l0 i (l0 t0)) l0)
+                   r0
+                   (dissoc l1 i)
+                   r1))
+          (if-let [i (parr t0)]
+            (let [left (l0 t0)]
+              (recur (or left (r0 t0))
+                     (rest ps)
+                     l0
+                     (if left (assoc r0 i (r0 t0)) r0)
+                     l1
+                     (dissoc r1 i)))
+            (nil? (next ps))))))))
+
 
 
 ;; works.  Clojure data structures.  2x slower than arr-twin.
