@@ -168,7 +168,6 @@
 (defn ztw2 [pv]
   (let [[l0 r0] (ztree pv)
         [l1 r1] (ztree (rseq pv))
-        cnt (count pv)
         parl (zipmap (vals l1) (keys l1))
         parr (zipmap (vals r1) (keys r1))]
     (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
@@ -196,7 +195,6 @@
 (defn ztw3 [pv]
   (let [[l0 r0] (ztree pv)
         [l1 r1] (ztree (rseq pv))
-        cnt (count pv)
         parl (set/map-invert l1)
         parr (set/map-invert r1)]
     (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
@@ -220,6 +218,33 @@
                      (dissoc r1 i)))
             (nil? (next ps))))))))
 
+
+
+(defn ztw4 [pv]
+  (let [[l0 r0] (ztree pv)
+        [l1 r1] (ztree (rseq pv))
+        parl (set/map-invert l1)
+        parr (set/map-invert r1)]
+    (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
+      (if-not (= t0 (first ps))
+        false
+        (let [left (l0 t0)
+              right (r0 t0)]
+          (if-let [i (parl t0)]
+            (recur (or right left)
+                   (rest ps)
+                   (if right (assoc l0 i left) l0)
+                   r0
+                   (dissoc l1 i)
+                   r1)
+            (if-let [i (parr t0)]
+              (recur (or left right)
+                     (rest ps)
+                     l0
+                     (if left (assoc r0 i right) r0)
+                     l1
+                     (dissoc r1 i))
+              (nil? (next ps)))))))))
 
 
 ;; works.  Clojure data structures.  2x slower than arr-twin.
