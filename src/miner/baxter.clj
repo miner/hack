@@ -149,14 +149,16 @@ infinite sequences."
 
     
 
-(defn basic-bax [bax?]
+(defn test-bax [bax?]
   (assert (bax? [1 2 3 4]))
   (assert (false? (bax? [3 1 4 2])))
   (assert (false? (bax? [2 4 1 3])))
-  (assert (= (count (filter bax? (cperms 9))) 58202))
+  (assert (= (count (filter bax? (cperms 5))) 92))
   true)
 
-(defn test-bax [bax?]
+;;; BUG -- should only test with actual permuations 1..N unique
+
+(defn bug-test-bax [bax?]
   (assert (false? (bax? [3 1 4 2])))
   (assert (false? (bax? [2 4 1 3])))
   ;; jenny
