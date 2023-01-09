@@ -147,14 +147,12 @@ infinite sequences."
                               (some #(< before % v1) (subvec v (+ 2 i)))))))))
                   (center-out cnt)))))
 
-    
 
 (defn test-bax [bax?]
   (assert (bax? [1 2 3 4]))
   (assert (false? (bax? [3 1 4 2])))
   (assert (false? (bax? [2 4 1 3])))
   (assert (= (count (filter bax? (cperms 5))) 92))
-  (assert (bax? (vec (range 1 101))))
   true)
 
 ;;; BUG -- should only test with actual permuations 1..N unique
@@ -171,9 +169,18 @@ infinite sequences."
   (assert (= (count (filter bax? (cperms 4))) 22))
   true)
 
+
+;; baxter? still wins
+;;(assert (= (count (filter bax? (cperms 9))) 58202))
+
+(def hk (vec (range 1 1001)))
+(def h3k (into (vec (range 1 1501)) (range 3000 1500 -1)))
+
+;;; maybe ztw4 beats baxter? for large inputs -- just barely
 (defn test-bax-long [bax?]
   (assert (test-bax bax?))
-  (assert (= (count (filter bax? (cperms 9))) 58202))
+  (assert (bax? hk))
+  (assert (bax? h3k))
   true)
 
 ;;; Number of Baxter permutations for size N = 0...9
