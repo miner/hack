@@ -219,7 +219,7 @@
             (nil? (next ps))))))))
 
 
-
+;;; I like this one best.  Maybe a little slower, but clearer.  Faster than arr-twin
 (defn ztw4 [pv]
   (let [[l0 r0] (ztree pv)
         [l1 r1] (ztree (rseq pv))
@@ -244,7 +244,7 @@
                      (if left (assoc r0 i right) r0)
                      l1
                      (dissoc r1 i))
-              (nil? (next ps)))))))))
+              (empty? (rest ps)))))))))
 
 
 ;; works.  Clojure data structures.  2x slower than arr-twin.

@@ -154,6 +154,7 @@ infinite sequences."
   (assert (false? (bax? [3 1 4 2])))
   (assert (false? (bax? [2 4 1 3])))
   (assert (= (count (filter bax? (cperms 5))) 92))
+  (assert (bax? (vec (range 1 101))))
   true)
 
 ;;; BUG -- should only test with actual permuations 1..N unique
