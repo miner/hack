@@ -54,8 +54,18 @@
 ;;; (literal) when matching dashes, but in this case the third and first smallest digits of
 ;;; the match must also be adjacent in the original permutation.
 
+;;; The other pattern notation is called oneline notation (reference?), in which no
+;;; adjacency is implied.  So 213 (oneline) is the same as 2-1-3 (vincular).  By the way,
+;;; all the notations for patterns are concerned with finding some subsequence that matches
+;;; the pattern, not the whole sequence at once.  You can think of it as implying wildcards
+;;; at the beginning and end of the given pattern.
+
 ;;; The literature seems to be one-based for indexing.  That can cause some translation
 ;;; problems into Clojure vectors using zero-based indexing.  Beware of bugs.
+
+;;; another source on Baxter permutations:
+;;; https://www.wikiwand.com/en/Baxter_permutation
+
 
 (defn cperms [n]
   (combo/permutations (range 1 (inc n))))
@@ -74,9 +84,9 @@
 ;;; decide < > then scan before and after appropriately for 3-14-2 and 2-41-3.
 ;;; Any single match disqualifies.
 
-;;; v is a vector permutation so you can assume elements appear only once
-;;; probably safe to assume open interval [0..n) for size N
-;;; The literature is 1-based so you have to be careful about endpoints.
+;;; v is a vector permutation of 1..N, small positive ints. By convention, zero is not
+;;; included.  An element appears only once.  The literature is 1-based so you have to be
+;;; careful about endpoints.  Clojure indexing is zero-based.
 
 ;;; much faster than baxter11  10x
 (defn baxter? [v]
