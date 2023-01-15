@@ -80,7 +80,41 @@
         (reduce * (range 1 (inc k)))))
 
 
-;;; new idea for bax -- run through i=2..n look at middle adjacent (v i) (v (inc i))
+;;; New idea: assume v of 1..N with N<64. Convert to bits and mark long per index each way.
+;;; Should be fast finding whatever on the outsides by bit manipulations.
+
+(defn mark-bits1 [v]
+  (let [forw (vec (rest (reductions bit-set 0 v)))]
+    [forw (vec (reductions bit-clear (peek forw) (pop v)))]))
+
+;; faster than mark-bits1
+(defn mark-bits [v]
+  (let [bfv (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                    [(bit-set 0 (nth v 0))]
+                    (subvec v 1))
+        brv (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                    [(peek bfv)]
+                    (pop v))]
+    [bfv brv]))
+            
+
+;;; inclusive bits i..j
+(defn inclusive-bits-btw [i j]
+  ;; (assert (< i j))
+  ;; (assert (pos? j))
+  (bit-shift-left (dec (bit-set 0 (inc (- j i)))) i))
+
+;;; exclusive i..j
+(defn bits-btw [i j]
+  ;; (assert (< i j))
+  ;; (assert (pos? j))
+  (bit-shift-left (dec (bit-set 0 (- j (inc i)))) (inc i)))
+
+
+
+
+
+;;; current approach for bax -- run through i=2..n look at middle adjacent (v i) (v (inc i))
 ;;; decide < > then scan before and after appropriately for 3-14-2 and 2-41-3.
 ;;; Any single match disqualifies.
 
