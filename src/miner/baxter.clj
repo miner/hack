@@ -83,33 +83,34 @@
 ;;; New idea: assume v of 1..N with N<64. Convert to bits and mark long per index each way.
 ;;; Should be fast finding whatever on the outsides by bit manipulations.
 
-(defn mark-bits1 [v]
-  (let [forw (vec (rest (reductions bit-set 0 v)))]
-    [forw (vec (reductions bit-clear (peek forw) (pop v)))]))
-
-;; faster than mark-bits1
-(defn mark-bits [v]
-  (let [bfv (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
-                    [(bit-set 0 (nth v 0))]
-                    (subvec v 1))
-        brv (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
-                    [(peek bfv)]
-                    (pop v))]
-    [bfv brv]))
-            
-
-;;; inclusive bits i..j
-(defn inclusive-bits-btw [i j]
-  ;; (assert (< i j))
-  ;; (assert (pos? j))
-  (bit-shift-left (dec (bit-set 0 (inc (- j i)))) i))
-
-;;; exclusive i..j
-(defn bits-btw [i j]
-  ;; (assert (< i j))
-  ;; (assert (pos? j))
-  (bit-shift-left (dec (bit-set 0 (- j (inc i)))) (inc i)))
-
+(defn bbax? [v]
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [bits-btw (fn [i j]
+                         ;; (assert (< i j))
+                         ;; (assert (pos? j))
+                         (bit-shift-left (dec (bit-set 0 (- j (inc i)))) (inc i)))
+              lowest-bit (fn [i] (when-not (zero? i) (Long/numberOfTrailingZeros i)))
+              mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                                  [(bit-set 0 (nth v 0))]
+                                  (subvec v 1))
+              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (not-any?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (when (> (abs (- v2 v1)) 2)
+                 (if (> v2 v1)
+                   ;; looking for 3-14-2
+                   (when-let [after (lowest-bit (bit-and (bits-btw v1 v2) (mask-after (+ 2 i))))]
+                     (not (zero? (bit-and (bits-btw after v2) (mask-before (dec i))))))
+                   ;; looking for 2-41-3
+                   (when-let [before (lowest-bit (bit-and (bits-btw v2 v1) (mask-before (dec i))))]
+                     (not (zero? (bit-and (bits-btw before v1) (mask-after (+ 2 i))))))))))
+           (range 1 (- cnt 2)))))))
 
 
 
