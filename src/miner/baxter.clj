@@ -105,6 +105,100 @@
                (when (> (abs (- v2 v1)) 2)
                  (if (> v2 v1)
                    ;; looking for 3-14-2
+                   (let [mask (bits-btw v1 v2)]
+                     (< 0
+                        (Long/lowestOneBit (bit-and mask (mask-after (+ 2 i))))
+                        (Long/highestOneBit (bit-and mask (mask-before (dec i))))))
+                   ;; looking for 2-41-3
+                   (let [mask (bits-btw v2 v1)]
+                     (< 0
+                        (Long/lowestOneBit (bit-and mask (mask-before (dec i))))
+                        (Long/highestOneBit (bit-and mask (mask-after (+ 2 i))))))
+                   ))))
+           (range 1 (- cnt 2)))))))
+
+
+(defn bbax2? [v]
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [bits-btw (fn [i j]
+                         ;; (assert (< i j))
+                         ;; (assert (pos? j))
+                         (bit-shift-left (dec (bit-set 0 (- j (inc i)))) (inc i)))
+              ;; lowest-bit (fn [i] (when-not (zero? i) (Long/numberOfTrailingZeros i)))
+              mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                                  [(bit-set 0 (nth v 0))]
+                                  (subvec v 1))
+              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (every?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (or (<= (abs (- v2 v1)) 2)
+                   (if (> v2 v1)
+                     ;; looking for 3-14-2
+                     (zero? (bit-and (bit-shift-left (bit-and (bits-btw v1 v2)
+                                                              (mask-after (+ 2 i))) 1)
+                                     (mask-before (dec i))))
+                     ;; looking for 2-41-3
+                     (zero? (bit-and (bit-shift-left (bit-and (bits-btw v2 v1)
+                                                              (mask-before (dec i))) 1)
+                                     (mask-after (+ 2 i))))))))
+           (range 1 (- cnt 2)))))))
+
+;;; exclusive of i bit
+(defn bits-below [i]
+  (dec (bit-set 0 i)))
+
+;;; exclusive of i bit
+(defn bits-above [i]
+  (bit-shift-left -1 (inc i)))
+
+
+;; 3-14-2
+;; 
+;; mask-before>>   1.....4   <<mask-after
+;; 2 is least maft within 1..4       bit-and btw14 (maft i+2)
+;; 3 is anything within 2..4
+;; 
+;; 1..2.....4
+;;    2 m a  f  t
+;;   m b 3 e  f
+
+;; redraw with high bits on left
+;;      4.....1
+;;   m a f   2   t t t
+;;    m b 3 e   f 
+
+
+
+
+;;; SAVE THIS VERSION
+(defn bbax1? [v]
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [bits-btw (fn [i j]
+                         ;; (assert (< i j))
+                         ;; (assert (pos? j))
+                         (bit-shift-left (dec (bit-set 0 (- j (inc i)))) (inc i)))
+              lowest-bit (fn [i] (when-not (zero? i) (Long/numberOfTrailingZeros i)))
+              mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                                  [(bit-set 0 (nth v 0))]
+                                  (subvec v 1))
+              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (not-any?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (when (> (abs (- v2 v1)) 2)
+                 (if (> v2 v1)
+                   ;; looking for 3-14-2
                    (when-let [after (lowest-bit (bit-and (bits-btw v1 v2) (mask-after (+ 2 i))))]
                      (not (zero? (bit-and (bits-btw after v2) (mask-before (dec i))))))
                    ;; looking for 2-41-3
