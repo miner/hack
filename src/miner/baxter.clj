@@ -81,16 +81,91 @@
 
 
 ;;; New idea: assume v of 1..N with N<64. Convert to bits and mark long per index each way.
+;;; Essentially a set of bits of everything before or after an index in the original vector.
 ;;; Should be fast finding whatever on the outsides by bit manipulations.
 
+;;; Pair at i [v1 v2] establish range.
+;;; if (> v2 v1), looking for 3-14-2 scenario.
+;;; low is lowest bit above v1 in the mask-after (matching 2)
+;;; high is higest bit below v2 in the mask-before (matching 3)
+;;; found iff (low not zero) and highest-bit of high > lowest-bit of low
+;;; if (< v2 v1), looking for 2-41-3 so invert logic for finding high and low but same idea.
+
 (defn bbax? [v]
+  ;; (assert (< (count v) 62))
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                                  [(bit-set 0 (nth v 0))]
+                                  (subvec v 1))
+              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (not-any?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (when (> (abs (- v2 v1)) 2)
+                 (if (> v2 v1)
+                   ;; looking for 3-14-2
+                   (let [low (bit-and (bit-shift-left -1 v1) (mask-after (+ 2 i)))]
+                     (when-not (zero? low)
+                       (> (Long/highestOneBit (bit-and (dec (bit-set 0 v2))
+                                                       (mask-before (dec i))))
+                          (Long/lowestOneBit low))))
+                   ;; looking for 2-41-3
+                   (let [low (bit-and (bit-shift-left -1 v2) (mask-before (dec i)))]
+                     (when-not (zero? low)
+                       (> (Long/highestOneBit (bit-and (dec (bit-set 0 v1))
+                                                       (mask-after (+ 2 i))))
+                          (Long/lowestOneBit low))))))))
+           (range 1 (- cnt 2)))))))
+
+
+
+;;; exclusive of i bit
+(defn bits-below [i]
+  (dec (bit-set 0 i)))
+
+;;; exclusive of i bit
+(defn bits-above [i]
+  (bit-shift-left -1 (inc i)))
+
+(defn bits-btw [i j]
+  ;; (assert (< i j))
+  ;; (assert (pos? j))
+  (bit-shift-left (dec (bit-set 0 (- j (inc i)))) (inc i)))
+
+(defn bits-btw2 [i j]
+  ;; (assert (< i j))
+  ;; (assert (pos? j))
+  (bit-shift-left (dec (bit-shift-left 1 (- j (inc i)))) (inc i)))
+             
+
+;; 3-14-2
+;; 
+;; mask-before>>   1.....4   <<mask-after
+;; 2 is least maft within 1..4       bit-and btw14 (maft i+2)
+;;       or lowest bit in maft above v1
+;; 3 is anything within 2..4
+;;       or highest bit in mbef below v4
+;; 
+;; [high bit left]
+;;      4.....1
+;;   m a f   2   t t t
+;;    m b 3 e   f 
+
+
+
+(defn bbax2? [v]
+  ;; (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [bits-btw (fn [i j]
                          ;; (assert (< i j))
                          ;; (assert (pos? j))
                          (bit-shift-left (dec (bit-set 0 (- j (inc i)))) (inc i)))
-              lowest-bit (fn [i] (when-not (zero? i) (Long/numberOfTrailingZeros i)))
               mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
                                   [(bit-set 0 (nth v 0))]
                                   (subvec v 1))
@@ -105,76 +180,18 @@
                (when (> (abs (- v2 v1)) 2)
                  (if (> v2 v1)
                    ;; looking for 3-14-2
-                   (let [mask (bits-btw v1 v2)]
-                     (< 0
-                        (Long/lowestOneBit (bit-and mask (mask-after (+ 2 i))))
-                        (Long/highestOneBit (bit-and mask (mask-before (dec i))))))
+                   (let [mask (bits-btw v1 v2)
+                         low  (bit-and mask (mask-after (+ 2 i)))]
+                     (when-not (zero? low)
+                       (> (Long/highestOneBit (bit-and mask (mask-before (dec i))))
+                          (Long/lowestOneBit low))))
                    ;; looking for 2-41-3
-                   (let [mask (bits-btw v2 v1)]
-                     (< 0
-                        (Long/lowestOneBit (bit-and mask (mask-before (dec i))))
-                        (Long/highestOneBit (bit-and mask (mask-after (+ 2 i))))))
-                   ))))
+                   (let [mask (bits-btw v2 v1)
+                         low (bit-and mask (mask-before (dec i)))]
+                     (when-not (zero? low)
+                       (> (Long/highestOneBit (bit-and mask (mask-after (+ 2 i))))
+                          (Long/lowestOneBit low))))))))
            (range 1 (- cnt 2)))))))
-
-
-(defn bbax2? [v]
-  (let [cnt (count v)]
-    (or (< cnt 4)
-        (let [bits-btw (fn [i j]
-                         ;; (assert (< i j))
-                         ;; (assert (pos? j))
-                         (bit-shift-left (dec (bit-set 0 (- j (inc i)))) (inc i)))
-              ;; lowest-bit (fn [i] (when-not (zero? i) (Long/numberOfTrailingZeros i)))
-              mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
-                                  [(bit-set 0 (nth v 0))]
-                                  (subvec v 1))
-              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
-                                 [(peek mask-before)]
-                                 (pop v))]
-          (every?
-           (fn [i]
-             (let [v1 (v i)
-                   v2 (v (inc i))]
-               ;; check if there's room between v1 and v2
-               (or (<= (abs (- v2 v1)) 2)
-                   (if (> v2 v1)
-                     ;; looking for 3-14-2
-                     (zero? (bit-and (bit-shift-left (bit-and (bits-btw v1 v2)
-                                                              (mask-after (+ 2 i))) 1)
-                                     (mask-before (dec i))))
-                     ;; looking for 2-41-3
-                     (zero? (bit-and (bit-shift-left (bit-and (bits-btw v2 v1)
-                                                              (mask-before (dec i))) 1)
-                                     (mask-after (+ 2 i))))))))
-           (range 1 (- cnt 2)))))))
-
-;;; exclusive of i bit
-(defn bits-below [i]
-  (dec (bit-set 0 i)))
-
-;;; exclusive of i bit
-(defn bits-above [i]
-  (bit-shift-left -1 (inc i)))
-
-
-;; 3-14-2
-;; 
-;; mask-before>>   1.....4   <<mask-after
-;; 2 is least maft within 1..4       bit-and btw14 (maft i+2)
-;; 3 is anything within 2..4
-;; 
-;; 1..2.....4
-;;    2 m a  f  t
-;;   m b 3 e  f
-
-;; redraw with high bits on left
-;;      4.....1
-;;   m a f   2   t t t
-;;    m b 3 e   f 
-
-
-
 
 ;;; SAVE THIS VERSION
 (defn bbax1? [v]
