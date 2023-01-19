@@ -122,7 +122,42 @@
                           (Long/lowestOneBit low))))))))
            (range 1 (- cnt 2)))))))
 
+;;; Should be faster but I'm not measuring it???
+(defn bbax73? [v]
+  ;; (assert (< (count v) 62))
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                                  [(bit-set 0 (nth v 0))]
+                                  (subvec v 1))
+              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (not-any?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (when (> (abs (- v2 v1)) 2)
+                 (if (> v2 v1)
+                   ;; looking for 3-14-2
+                   (let [low (bit-and (bit-shift-left -1 v1) (mask-after (+ 2 i)))]
+                     (when-not (zero? low)
+                       (> (bit-and (dec (bit-set 0 v2)) (mask-before (dec i)))
+                          (Long/lowestOneBit low))))
+                   ;; looking for 2-41-3
+                   (let [low (bit-and (bit-shift-left -1 v2) (mask-before (dec i)))]
+                     (when-not (zero? low)
+                       (> (bit-and (dec (bit-set 0 v1)) (mask-after (+ 2 i)))
+                          (Long/lowestOneBit low))))))))
+           (range 1 (- cnt 2)))))))
 
+
+
+
+;; bit hack assuming 2s complement representation
+(defn low-one-bit [i]
+  (bit-and i (- i)))
 
 ;;; exclusive of i bit
 (defn bits-below [i]
