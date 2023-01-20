@@ -91,7 +91,99 @@
 ;;; found iff (low not zero) and highest-bit of high > lowest-bit of low
 ;;; if (< v2 v1), looking for 2-41-3 so invert logic for finding high and low but same idea.
 
+
+;;; Should be faster but I'm not measuring it???
 (defn bbax? [v]
+  ;; (assert (< (count v) 62))
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                                  [(bit-set 0 (nth v 0))]
+                                  (subvec v 1))
+              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (not-any?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (when (> (abs (- v2 v1)) 2)
+                 (if (> v2 v1)
+                   ;; looking for 3-14-2
+                   (let [low (bit-and (bit-shift-left -1 v1) (mask-after (+ 2 i)))]
+                     (when-not (zero? low)
+                       (> (bit-and (dec (bit-set 0 v2)) (mask-before (dec i)))
+                          (bit-and low (- low)))))
+                   ;; looking for 2-41-3
+                   (let [low (bit-and (bit-shift-left -1 v2) (mask-before (dec i)))]
+                     (when-not (zero? low)
+                       (> (bit-and (dec (bit-set 0 v1)) (mask-after (+ 2 i)))
+                          (bit-and low (- low)))))))))
+           (range 1 (- cnt 2)))))))
+
+;;; note (bit-and x (- x)) ==> lowest one bit of x, same as (Long/lowestOneBit x)
+
+
+;;; not faster, not simpler
+(defn bbax8? [v]
+  ;; (assert (< (count v) 62))
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                                  [(bit-set 0 (nth v 0))]
+                                  (subvec v 1))
+              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (not-any?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (when (> (abs (- v2 v1)) 2)
+                 (let [gt (> v2 v1)
+                       a (if gt v1 v2)
+                       b (if gt v2 v1)
+                       mask-2 (if gt (mask-after (+ 2 i)) (mask-before (dec i)))
+                       mask-3 (if gt (mask-before (dec i)) (mask-after (+ 2 i)))
+                       low (bit-and (bit-shift-left -1 a) mask-2)]
+                   (when-not (zero? low)
+                     (> (bit-and (dec (bit-set 0 b)) mask-3) (Long/lowestOneBit low)))))))
+           (range 1 (- cnt 2)))))))
+
+(defn bbax82? [v]
+  ;; (assert (< (count v) 62))
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
+                                  [(bit-set 0 (nth v 0))]
+                                  (subvec v 1))
+              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (not-any?
+           (fn [i]
+             (let [vi (v i)
+                   vi2 (v (inc i))
+                   diff (- vi2 vi)]
+               ;; check if there's room between v1 and v2
+               (when (> (abs diff) 2)
+                 (let [a (if (pos? diff) vi vi2)
+                       b (if (pos? diff) vi2 vi)
+                       mask2 (if (pos? diff) (mask-after (+ 2 i)) (mask-before (dec i)))
+                       mask3 (if (pos? diff) (mask-before (dec i)) (mask-after (+ 2 i)))
+                       low (bit-and (bit-shift-left -1 a) mask2)]
+                   (when-not (zero? low)
+                     ;; High-bit is "3", low bit is "2"
+                     (> (bit-and (dec (bit-set 0 b)) mask3) (bit-and low (- low))))))))
+           (range 1 (- cnt 2)))))))
+
+
+
+
+
+(defn bbax3? [v]
   ;; (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
@@ -119,36 +211,6 @@
                      (when-not (zero? low)
                        (> (Long/highestOneBit (bit-and (dec (bit-set 0 v1))
                                                        (mask-after (+ 2 i))))
-                          (Long/lowestOneBit low))))))))
-           (range 1 (- cnt 2)))))))
-
-;;; Should be faster but I'm not measuring it???
-(defn bbax73? [v]
-  ;; (assert (< (count v) 62))
-  (let [cnt (count v)]
-    (or (< cnt 4)
-        (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
-                                  [(bit-set 0 (nth v 0))]
-                                  (subvec v 1))
-              mask-after (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
-                                 [(peek mask-before)]
-                                 (pop v))]
-          (not-any?
-           (fn [i]
-             (let [v1 (v i)
-                   v2 (v (inc i))]
-               ;; check if there's room between v1 and v2
-               (when (> (abs (- v2 v1)) 2)
-                 (if (> v2 v1)
-                   ;; looking for 3-14-2
-                   (let [low (bit-and (bit-shift-left -1 v1) (mask-after (+ 2 i)))]
-                     (when-not (zero? low)
-                       (> (bit-and (dec (bit-set 0 v2)) (mask-before (dec i)))
-                          (Long/lowestOneBit low))))
-                   ;; looking for 2-41-3
-                   (let [low (bit-and (bit-shift-left -1 v2) (mask-before (dec i)))]
-                     (when-not (zero? low)
-                       (> (bit-and (dec (bit-set 0 v1)) (mask-after (+ 2 i)))
                           (Long/lowestOneBit low))))))))
            (range 1 (- cnt 2)))))))
 
