@@ -1,5 +1,6 @@
 (ns miner.baxter
-  (:require [clojure.math.combinatorics :as combo]))
+  (:require [clojure.math.combinatorics :as combo]
+            [clojure.data.int-map :as im]))
 
 ;; Knuth Christmas Tree lecture 2023
 ;; about correspondence between twintrees, Baxter permuations and floor plans
@@ -67,6 +68,43 @@
 ;;; https://www.wikiwand.com/en/Baxter_permutation
 
 
+;;; SEM New Idea:  try using im/dense-int-set instead of bits.  More like Clojure sets.
+
+
+
+(defn imbax? [v]
+  ;; (assert (< (count v) 62))
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [beforev (reduce (fn [bv i] (conj bv (conj (peek bv) i)))
+                                  [(conj (dense-int-set) (nth v 0))]
+                                  (subvec v 1))
+              afterv (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
+                                 [(peek mask-before)]
+                                 (pop v))]
+          (not-any?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (when (> (abs (- v2 v1)) 2)
+                 (if (> v2 v1)
+                   ;; looking for 3-14-2
+                   (let [low (bit-and (bit-shift-left -1 v1) (mask-after (+ 2 i)))]
+                     (when-not (zero? low)
+                       (> (bit-and (dec (bit-set 0 v2)) (mask-before (dec i)))
+                          (bit-and low (- low)))))
+                   ;; looking for 2-41-3
+                   (let [low (bit-and (bit-shift-left -1 v2) (mask-before (dec i)))]
+                     (when-not (zero? low)
+                       (> (bit-and (dec (bit-set 0 v1)) (mask-after (+ 2 i)))
+                          (bit-and low (- low)))))))))
+           (range 1 (- cnt 2)))))))
+
+
+
+
+
 (defn cperms [n]
   (combo/permutations (range 1 (inc n))))
 
@@ -123,6 +161,7 @@
            (range 1 (- cnt 2)))))))
 
 ;;; note (bit-and x (- x)) ==> lowest one bit of x, same as (Long/lowestOneBit x)
+
 
 
 ;;; not faster, not simpler

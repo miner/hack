@@ -1,6 +1,11 @@
 (ns miner.twintree
   (:require [clojure.math.combinatorics :as combo]
+            [clojure.data.int-map :as im]
             [clojure.set :as set]))
+
+
+;;; SEM another new idea:  try uing integer sets from int-map project
+;;; [org.clojure/data.int-map "1.2.0"]
 
 
 #_
@@ -157,6 +162,90 @@
             (recur (rest xs) root mleft (assoc! mright node x))))
         [(persistent! mleft) (persistent! mright)]))))
 
+;;; Faster with im/int-map
+(defn imtree [values]
+  (let [root (first values)]
+    (loop [xs (rest values)
+           node root
+           mleft (transient (im/int-map))
+           mright (transient (im/int-map))]
+      (if-let [x (first xs)]
+        (if (< x node)
+          (if-let [left (mleft node)]
+            (recur xs left mleft mright)
+            (recur (rest xs) root (assoc! mleft node x) mright))
+          (if-let [right (mright node)]
+            (recur xs right mleft mright)
+            (recur (rest xs) root mleft (assoc! mright node x))))
+        [(persistent! mleft) (persistent! mright)]))))
+
+;;; transients don't seem to help much with the int-maps
+
+
+(defn im-map-invert
+  "Returns an int-map with the vals mapped to the keys."
+  [m]
+  (persistent!
+   (reduce-kv (fn [m k v] (assoc! m v k))
+              (transient (im/int-map))
+              m)))
+
+(defn imtw4 [pv]
+  (let [[l0 r0] (imtree pv)
+        [l1 r1] (imtree (rseq pv))
+        parl (im-map-invert l1)
+        parr (im-map-invert r1)]
+    (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
+      (if-not (= t0 (first ps))
+        false
+        (let [left (l0 t0)
+              right (r0 t0)]
+          (if-let [i (parl t0)]
+            (recur (or right left)
+                   (rest ps)
+                   (if right (assoc l0 i left) l0)
+                   r0
+                   (dissoc l1 i)
+                   r1)
+            (if-let [i (parr t0)]
+              (recur (or left right)
+                     (rest ps)
+                     l0
+                     (if left (assoc r0 i right) r0)
+                     l1
+                     (dissoc r1 i))
+              (empty? (rest ps)))))))))
+
+
+(defn imtw41 [pv]
+  (let [[l0 r0] (imtree pv)
+        [l1 r1] (imtree (rseq pv))
+        parl (im-map-invert l1)
+        parr (im-map-invert r1)]
+    (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
+      (and (= t0 (first ps))
+           (let [left (l0 t0)
+                 right (r0 t0)]
+             (if-let [i (parl t0)]
+               (recur (or right left)
+                      (rest ps)
+                      (if right (assoc l0 i left) l0)
+                      r0
+                      (dissoc l1 i)
+                      r1)
+               (if-let [i (parr t0)]
+                 (recur (or left right)
+                        (rest ps)
+                        l0
+                        (if left (assoc r0 i right) r0)
+                        l1
+                        (dissoc r1 i))
+                 (empty? (rest ps)))))))))
+
+
+
+
+
 ;; for debugging
 (defn mpv [m]
   (when (seq m)
@@ -219,35 +308,36 @@
             (nil? (next ps))))))))
 
 
-;;; I like this one best.  Maybe a little slower, but clearer.  Faster than arr-twin
+;;; I like this one best.  Maybe a little slower, but clearer.  Faster than arr-twin for
+;;; smallish input.
 (defn ztw4 [pv]
   (let [[l0 r0] (ztree pv)
         [l1 r1] (ztree (rseq pv))
         parl (set/map-invert l1)
         parr (set/map-invert r1)]
     (loop [t0 (first pv) ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
-      (if-not (= t0 (first ps))
-        false
-        (let [left (l0 t0)
-              right (r0 t0)]
-          (if-let [i (parl t0)]
-            (recur (or right left)
-                   (rest ps)
-                   (if right (assoc l0 i left) l0)
-                   r0
-                   (dissoc l1 i)
-                   r1)
-            (if-let [i (parr t0)]
-              (recur (or left right)
-                     (rest ps)
-                     l0
-                     (if left (assoc r0 i right) r0)
-                     l1
-                     (dissoc r1 i))
-              (empty? (rest ps)))))))))
+      (and (= t0 (first ps))
+           (let [left (l0 t0)
+                 right (r0 t0)]
+             (if-let [i (parl t0)]
+               (recur (or right left)
+                      (rest ps)
+                      (if right (assoc l0 i left) l0)
+                      r0
+                      (dissoc l1 i)
+                      r1)
+               (if-let [i (parr t0)]
+                 (recur (or left right)
+                        (rest ps)
+                        l0
+                        (if left (assoc r0 i right) r0)
+                        l1
+                        (dissoc r1 i))
+                 (empty? (rest ps)))))))))
 
 
-;; works.  Clojure data structures.  2x slower than arr-twin.
+;; works.  Clojure data structures.  Similar timing to arr-twin for smallish input.  Much
+;; slower for text-bax-long.
 ;; more or less Knuth's code structure
 (defn ztwin [pv]
   (let [[l0 r0] (ztree pv)
@@ -293,6 +383,8 @@
 
 ;;; WORKS but seems slow, about 3x baxter?
 ;;; require [1..N] no zeros
+
+;;; much faster for large input
 
 (defn arr-twin [pv]
   (let [[l0 r0] (arr-tree pv)
