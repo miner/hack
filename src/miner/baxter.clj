@@ -73,15 +73,16 @@
 
 
 (defn imbax? [v]
-  ;; (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [beforev (reduce (fn [bv i] (conj bv (conj (peek bv) i)))
-                                  [(conj (dense-int-set) (nth v 0))]
+                                  [(conj (im/dense-int-set) (nth v 0))]
                                   (subvec v 1))
-              afterv (reduce (fn [bv i] (conj bv (bit-clear (peek bv) i)))
-                                 [(peek mask-before)]
-                                 (pop v))]
+              afterv (vec (reduce (fn [bv i] (conj bv (conj (peek bv) i)))
+                                  (list (conj (im/dense-int-set) (peek v)))
+                                  (rseq (pop v))))]
+          ;; (println "beforev" beforev)
+          ;; (println "afterv" afterv)
           (not-any?
            (fn [i]
              (let [v1 (v i)
@@ -90,18 +91,49 @@
                (when (> (abs (- v2 v1)) 2)
                  (if (> v2 v1)
                    ;; looking for 3-14-2
-                   (let [low (bit-and (bit-shift-left -1 v1) (mask-after (+ 2 i)))]
-                     (when-not (zero? low)
-                       (> (bit-and (dec (bit-set 0 v2)) (mask-before (dec i)))
-                          (bit-and low (- low)))))
+                   (let [low (first (im/range (afterv (+ 2 i)) (inc v1) (dec v2)))]
+                     (when low
+                       (first (im/range (beforev (dec i)) (inc low) (dec v2)))))
+
                    ;; looking for 2-41-3
-                   (let [low (bit-and (bit-shift-left -1 v2) (mask-before (dec i)))]
-                     (when-not (zero? low)
-                       (> (bit-and (dec (bit-set 0 v1)) (mask-after (+ 2 i)))
-                          (bit-and low (- low)))))))))
+                   (let [low (first (im/range (beforev (dec i)) (inc v2) (dec v1)))]
+                     (when low
+                       (first (im/range (afterv (+ 2 i)) (inc low) (dec v1))))) ))))
+
            (range 1 (- cnt 2)))))))
 
+;; slower but clearer?
+(defn imbax2? [v]
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (let [beforev (reduce (fn [bv i] (conj bv (conj (peek bv) i)))
+                                  [(conj (im/dense-int-set) (nth v 0))]
+                                  (subvec v 1))
+              afterv (reduce (fn [bv i] (conj bv (disj (peek bv) i)))
+                             [(peek beforev)]
+                             (pop v))]
+          ;; (println "beforev" beforev)
+          ;; (println "afterv" afterv)
+          (not-any?
+           (fn [i]
+             (let [v1 (v i)
+                   v2 (v (inc i))]
+               ;; check if there's room between v1 and v2
+               (when (> (abs (- v2 v1)) 2)
+                 (if (> v2 v1)
+                   ;; looking for 3-14-2
+                   (let [low (first (im/range (afterv (+ 2 i)) (inc v1) (dec v2)))]
+                     (when low
+                       (first (im/range (beforev (dec i)) (inc low) (dec v2)))))
 
+                   ;; looking for 2-41-3
+                   (let [low (first (im/range (beforev (dec i)) (inc v2) (dec v1)))]
+                     (when low
+                       (first (im/range (afterv (+ 2 i)) (inc low) (dec v1))))) ))))
+
+           (range 1 (- cnt 2)))))))
+
+#_ (require '[clojure.data.int-map :as im])
 
 
 
