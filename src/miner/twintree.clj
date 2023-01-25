@@ -243,6 +243,34 @@
                  (empty? (rest ps)))))))))
 
 
+;;;; Better in that there's one less arg passed to loop t0=first ps
+(defn imtw5 [pv]
+  (let [[l0 r0] (imtree pv)
+        [l1 r1] (imtree (rseq pv))
+        parl (im-map-invert l1)
+        parr (im-map-invert r1)]
+    (loop [ps (seq pv) l0 l0 r0 r0 l1 l1 r1 r1]
+      (let [t0 (first ps)
+            left (l0 t0)
+            right (r0 t0)]
+        (if-let [i (parl t0)]
+          (when (= (second ps) (or right left))
+            (recur (rest ps)
+                   (if right (assoc l0 i left) l0)
+                   r0
+                   (dissoc l1 i)
+                   r1))
+          (if-let [i (parr t0)]
+            (when (= (second ps) (or left right))
+              (recur (rest ps)
+                     l0
+                     (if left (assoc r0 i right) r0)
+                     l1
+                     (dissoc r1 i)))
+            (empty? (rest ps))))))))
+
+
+
 
 
 

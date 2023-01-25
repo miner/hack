@@ -474,22 +474,22 @@ infinite sequences."
 
 (defn test-bax [bax?]
   (assert (bax? [1 2 3 4]))
-  (assert (false? (bax? [3 1 4 2])))
-  (assert (false? (bax? [2 4 1 3])))
+  (assert (not (bax? [3 1 4 2])))
+  (assert (not (bax? [2 4 1 3])))
   (assert (= (count (filter bax? (cperms 5))) 92))
   true)
 
 ;;; BUG -- should only test with actual permuations 1..N unique
 
 (defn bug-test-bax [bax?]
-  (assert (false? (bax? [3 1 4 2])))
-  (assert (false? (bax? [2 4 1 3])))
+  (assert (not (bax? [3 1 4 2])))
+  (assert (not (bax? [2 4 1 3])))
   ;; jenny
   (assert (bax? [8 6 7 5 3 0 9]))
   (assert (not (bax? [4 0 8 8 6 7 5 3 0 9])))
   ;; lost
   (assert (bax? [4 8 15 16 23 42]))
-  (assert (true? (bax? [4 5 2 1 3 8 6 7])))
+  (assert (bax? [4 5 2 1 3 8 6 7]))
   (assert (= (count (filter bax? (cperms 4))) 22))
   true)
 
