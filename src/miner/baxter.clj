@@ -76,8 +76,8 @@
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [beforev (reduce (fn [bv i] (conj bv (conj (peek bv) i)))
-                                  [(conj (im/dense-int-set) (nth v 0))]
-                                  (subvec v 1))
+                              [(conj (im/dense-int-set) (nth v 0))]
+                              (subvec v 1))
               afterv (vec (reduce (fn [bv i] (conj bv (conj (peek bv) i)))
                                   (list (conj (im/dense-int-set) (peek v)))
                                   (rseq (pop v))))]
