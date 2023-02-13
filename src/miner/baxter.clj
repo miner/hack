@@ -2,6 +2,8 @@
   (:require [clojure.math.combinatorics :as combo]
             [clojure.data.int-map :as im]))
 
+;; see also twintree.clj for Knuth's Baxter test.
+
 ;; Knuth Christmas Tree lecture 2023
 ;; about correspondence between twintrees, Baxter permuations and floor plans
 ;;
@@ -71,7 +73,7 @@
 ;;; SEM New Idea:  try using im/dense-int-set instead of bits.  More like Clojure sets.
 
 
-
+;; not faster than bbax?, about 2x
 (defn imbax? [v]
   (let [cnt (count v)]
     (or (< cnt 4)
@@ -102,7 +104,7 @@
 
            (range 1 (- cnt 2)))))))
 
-;; slower but clearer?
+;; maybe clearer?
 (defn imbax2? [v]
   (let [cnt (count v)]
     (or (< cnt 4)
@@ -162,7 +164,8 @@
 ;;; if (< v2 v1), looking for 2-41-3 so invert logic for finding high and low but same idea.
 
 
-;;; Should be faster but I'm not measuring it???
+;;; Should be faster but I'm not measuring it???  about same as baxter? for long test,
+;;; slower for test-bax.
 (defn bbax? [v]
   ;; (assert (< (count v) 62))
   (let [cnt (count v)]
@@ -510,15 +513,75 @@ infinite sequences."
 ;;; Number of Baxter permutations for size N = 0...9
 ;;; 0, 1, 2, 6, 22, 92, 422, 2074, 10754, 58202
 
+;;; This is OEIS sequence A001181.
+;;; https://oeis.org/A001181
+
+
+;;; There's a formula for the count of Baxter permutations of size N.
+;;; For any positive integer
+
+;;; "N choose K" or binomial coefficient
+;;; C(n, k)= n!/[k!(n-k)!]
+
+;;; Beware overflow for larger values of N > 20.  That's fine for our needs now.  You can
+;;; switch to *' and friends for auto-promotion to bigints.
+(defn fact [n]
+  (reduce * 1 (range 2 (inc n))))
+
+(defn nck [n k]
+  (/ (fact n) (* (fact k) (fact (- n k)))))
+
+(defn count-baxter [n]
+  (let [n1 (inc n)]
+    (reduce + 0 (map (fn [k]
+                       (/ (* (nck n1 (dec k)) (nck n1 k) (nck n1 (inc k)))
+                          (* n1 (nck n1 2))))
+                     (range 1 n1)))))
+
+;; slightly faster with local memoize but not much faster.  Better to external memoize
+(defn count-baxter2 [n]
+  (let [n1 (inc n)
+        fact (memoize (fn [n] (reduce * 1 (range 2 (inc n)))))
+         nck (memoize (fn [n k] (/ (fact n) (* (fact k) (fact (- n k))))))]
+    (reduce + 0 (map (fn [k]
+                       (/ (* (nck n1 (dec k)) (nck n1 k) (nck n1 (inc k)))
+                          (* n1 (nck n1 2))))
+                     (range 1 n1)))))
+
+(defn count-baxter3 [n]
+  (let [n1 (inc n)
+        fact (memoize fact)
+         nck (memoize nck)]
+    (reduce + 0 (map (fn [k]
+                       (/ (* (nck n1 (dec k)) (nck n1 k) (nck n1 (inc k)))
+                          (* n1 (nck n1 2))))
+                     (range 1 n1)))))
+
+(def mfact (memoize fact))
+
+(defn nckm [n k]
+  (/ (mfact n) (* (mfact k) (mfact (- n k)))))
+
+(def mnck (memoize nckm))
+
+;; faster with all memoized, but not sure if it's worth it
+(defn count-baxter4 [n]
+  (let [n1 (inc n)]
+    (reduce + 0 (map (fn [k]
+                       (/ (* (mnck n1 (dec k)) (mnck n1 k) (mnck n1 (inc k)))
+                          (* n1 (mnck n1 2))))
+                     (range 1 n1)))))
+
+
 
 
 ;;; Knuth's first example input
-(def xkex [ 7 1 5 3 2 8 4 6])
+(def xkex [7 1 5 3 2 8 4 6])
 
-;;; Jenny is Baxter
+;;; Jenny is Baxter  (but not sequential)
 (def xjenny [8 6 7 5 3 0 9])
 
-;;; Lost is Baxter
+;;; Lost is Baxter (but not sequential)
 (def xlost [4 8 15 16 23 42])
 
 ;;; non-Baxter, also reverse

@@ -243,6 +243,8 @@
                  (empty? (rest ps)))))))))
 
 
+;;; faster than baxter? for test-bax-long, but slower for short test
+
 ;;;; Better in that there's one less arg passed to loop t0=first ps
 (defn imtw5 [pv]
   (let [[l0 r0] (imtree pv)
@@ -337,7 +339,7 @@
 
 
 ;;; I like this one best.  Maybe a little slower, but clearer.  Faster than arr-twin for
-;;; smallish input.
+;;; smallish input.  But see imtw5 for a faster one
 (defn ztw4 [pv]
   (let [[l0 r0] (ztree pv)
         [l1 r1] (ztree (rseq pv))
