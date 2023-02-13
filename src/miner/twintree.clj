@@ -271,6 +271,35 @@
                      (dissoc r1 i)))
             (empty? (rest ps))))))))
 
+;; Knuth's algorithm always returns a Baxter permutation -- not necessarily the orginal
+;; sequence.  (Most of my code is checking that the original matches the generated.)
+
+;; Given a permutation returns the same thing if it's Baxter or generates a new one
+
+(defn gen-bax [pv]
+  (let [[l0 r0] (imtree pv)
+        [l1 r1] (imtree (rseq pv))
+        parl (im-map-invert l1)
+        parr (im-map-invert r1)]
+    (loop [res [(first pv)] l0 l0 r0 r0 l1 l1 r1 r1]
+      (let [t0 (peek res)
+            left (l0 t0)
+            right (r0 t0)]
+        (if-let [i (parl t0)]
+            (recur (conj res  (or right left))
+                   (if right (assoc l0 i left) l0)
+                   r0
+                   (dissoc l1 i)
+                   r1)
+          (if-let [i (parr t0)]
+              (recur (conj res (or left right))
+                     l0
+                     (if left (assoc r0 i right) r0)
+                     l1
+                     (dissoc r1 i))
+              res))))))
+
+
 
 
 
