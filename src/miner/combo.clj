@@ -59,7 +59,7 @@
 
 (defn combo-indices-FAST [cnt choose]
   ;; {:pre [(pos-int? choose) (<= choose cnt)]}
-  (loop [i 1 res (map vector (range cnt))]
+  (loop [i 1 res (map vector (range (- (inc cnt) choose)))]
     (if (< i choose)
       (recur (inc i) (mapcat (fn [prev] (map #(conj prev %) (range (inc (peek prev)) cnt))) res))
       res)))
