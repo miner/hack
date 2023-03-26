@@ -6,7 +6,7 @@
                  [com.velisco/wilkins "0.2.1"]
                  [com.velisco/strgen "0.2.4"]
                  [org.clojure/math.combinatorics "0.2.0"]
-                 [org.clojure/data.int-map "1.2.0"]
+                 [org.clojure/data.int-map "1.2.1"]
                  [org.clojure/data.avl "0.1.0"]
                  [org.clojure/core.rrb-vector "0.1.2"]
                  [org.clojure/core.async "1.6.673"]
