@@ -46,6 +46,10 @@
            str0? (mapcat #(flatr3 (str prefix s0) %) (subvec nest 1))
            :else (mapcat #(flatr3 prefix %) nest)))))
 
+
+
+
+
 ;; slower and kind of strange merge
 (defn flatr4
   ([nest] (into {} (flatr4 "" nest {})))
@@ -84,3 +88,29 @@
                :else (recur (into (rest nests) (first nests)) result)))))))
 
 
+
+
+(require '[clojure.string :as str])
+
+;;; from article -- compact but slower than mine
+(defn flatten-routes-iter
+  ([x] (flatten-routes-iter {} [] x))
+  ([routes path [fst & rst :as returns]]
+   (cond (empty? returns) routes                                               ;1
+         (keyword? fst)   (recur (assoc routes (str/join path) fst) path rst)  ;2
+         (string? fst)    (recur routes (conj path fst) rst)                   ;3
+         (fn? fst)        (recur routes (fst path) rst)                        ;4
+         :else            (let [pop-marker (when (string? (first fst)) [pop])] ;5
+                            (recur routes path (concat fst pop-marker rst))))))
+
+;; fastest!
+(defn flatten-routes-recursive [[path-part & [sec :as rst] :as all]]
+  (cond (keyword? sec) ; form 1
+        {path-part sec}
+
+        (string? path-part) ; form 2
+        (update-keys (reduce merge (map flatten-routes-recursive rst))
+                     (partial str path-part))
+
+        :else ; form 3
+        (reduce merge (map flatten-routes-recursive all))))
