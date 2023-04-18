@@ -1,6 +1,6 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.37.1"]
+  :dependencies [[djblue/portal "0.38.2"]
                  [dom-top "1.0.8"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
@@ -37,7 +37,7 @@
                  [clj-commons/fs "1.6.310"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
-  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.12.0-alpha1"]
+  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.12.0-alpha2"]
                                    ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
