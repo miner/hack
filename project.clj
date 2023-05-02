@@ -1,6 +1,6 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.38.2"]
+  :dependencies [[djblue/portal "0.40.0"]
                  [dom-top "1.0.8"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
@@ -27,7 +27,7 @@
                  [backtick "0.3.4"]
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "1.1.0"]
-                 [com.clojure-goes-fast/clj-memory-meter "0.2.2"]
+                 [com.clojure-goes-fast/clj-memory-meter "0.2.3"]
                  [com.clojure-goes-fast/clj-java-decompiler "0.3.4"]
                  [metrics-clojure "2.10.0"]
                  [net.cgrand/xforms "0.19.4"]
