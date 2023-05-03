@@ -60,8 +60,17 @@
           (recur (into res ks) m))))))
 
 
-;;; Fastest
+;;; Fastest and my favorite
 (defn sem-topo [graph]
+  (loop [tks [] g graph]
+    (if (seq g)
+      (when-let [ks (reduce-kv (fn [ks k v] (if (seq v) ks (conj ks k))) nil g)]
+        (recur (into tks ks)
+               (update-vals (reduce dissoc g ks) #(reduce disj % ks))))
+      tks)))
+
+;; similar to fastest
+(defn sem-topo1 [graph]
   (loop [tks [] g graph]
     (if (empty? g)
       tks
@@ -71,8 +80,22 @@
 
 
 
+(defn sem-topo2 [graph]
+  (loop [tks [] g graph]
+    (if (seq g)
+      (when-let [ks (reduce-kv (fn [ks k v] (if (seq v) ks (conj ks k))) nil g)]
+        (recur (into tks ks)
+               (persistent!
+                (reduce-kv (fn [m k v] (assoc! m k (reduce disj v ks)))
+                           (reduce dissoc! (transient g) ks)))))
+      tks)))
+
+
+
+
+
 ;;; Slower to build up intermediate ks as a set
-(defn sem-topo4 [graph]
+(defn sem-topo2 [graph]
   (loop [tks [] g graph]
     (if (empty? g)
       tks
