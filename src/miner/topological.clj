@@ -8,10 +8,24 @@
 ;;; its vertices such that for every directed edge uv from vertex u to vertex v, u comes
 ;;; before v in the ordering
 
-;;; Most of these solutions are based on Kahn's algorithm.  There is another way of doing it
-;;; using depth first search.  (Not implemented here.)  My version is sem-topo which is
-;;; significantly faster due to slightly rearranged code.
+;;; Most of these solutions are based on Kahn's algorithm.    My version is sem-topo which is
+;;; significantly faster due to slightly rearranged code.  There is another way of doing it
+;;; using depth first search, also implemented below, which is much faster on large graphs.
 
+;;; Note that there are often multiple acceptable topological sorts so to be careful, you
+;;; have to check the answers rather than just comparing to one "correct" result.  All the
+;;; implementations below seem to agree with the ordering for my tests so I'm cheating on
+;;; the check.
+
+(defn topological? [graph topo-sorted]
+  (boolean
+   (reduce (fn [seen x]
+             (if (and (not (seen x))
+                      (every? seen (get graph x)))
+               (conj seen x)
+               (reduced false)))
+           #{}
+           topo-sorted)))
 
 ;;; from Rosetta Code
 (defn topological-sort [graph]
@@ -44,8 +58,17 @@
 
 ;;; => nil (failure)
 
+;;; big example
+(def bbb (reduce (fn [m i] (assoc m i (into #{100} (range i)))) {100 #{}} (range 100)))
 
 (defn test-topo [topological-sort]
+  (assert (= (topological-sort ggg) '(:d :e :c :b :a)))
+  (assert (nil? (topological-sort circ)))
+  (assert (= (topological-sort bbb) (conj (range 100) 100)))
+  true)
+
+;;; just small examples
+(defn test-topo-quick [topological-sort]
   (assert (= (topological-sort ggg) '(:d :e :c :b :a)))
   (assert (nil? (topological-sort circ)))
   true)
@@ -133,6 +156,7 @@
 ;; special key ::tks has the vector of nodes in topo order.
 ;;; refactored df-visit as closure over graph, still recursive.
 
+;;; slower for small examples, much faster for bigger
 (defn df-topo [graph]
   (let [df-visit (fn df-visit [m n]
                    (when m
@@ -143,3 +167,19 @@
                                (assoc n true)
                                (update ::tks conj n)))))]
     (::tks (reduce df-visit {::tks []} (keys graph)))))
+
+
+
+;; not faster but maybe clearer?
+(defn df-topo2 [graph]
+  (letfn [(df-visit [m n]
+            (when m
+              (case (get m n)
+                true m
+                false nil
+                (some-> (reduce df-visit (assoc m n false) (get graph n))
+                        (assoc n true)
+                        (update ::tks conj n)))))]
+    (::tks (reduce df-visit {::tks []} (keys graph)))))
+
+
