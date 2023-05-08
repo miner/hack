@@ -61,10 +61,14 @@
 ;;; big example
 (def bbb (reduce (fn [m i] (assoc m i (into #{100} (range i)))) {100 #{}} (range 100)))
 
+;;; big and bad
+(def xxx (assoc bbb 100 #{50}))
+
 (defn test-topo [topological-sort]
   (assert (= (topological-sort ggg) '(:d :e :c :b :a)))
   (assert (nil? (topological-sort circ)))
   (assert (= (topological-sort bbb) (conj (range 100) 100)))
+  (assert (nil? (topological-sort xxx)))
   true)
 
 ;;; just small examples
@@ -169,17 +173,5 @@
     (::tks (reduce df-visit {::tks []} (keys graph)))))
 
 
-
-;; not faster but maybe clearer?
-(defn df-topo2 [graph]
-  (letfn [(df-visit [m n]
-            (when m
-              (case (get m n)
-                true m
-                false nil
-                (some-> (reduce df-visit (assoc m n false) (get graph n))
-                        (assoc n true)
-                        (update ::tks conj n)))))]
-    (::tks (reduce df-visit {::tks []} (keys graph)))))
-
+;;; doesn't seem to be worth it to used (reduced nil) to break out of reduce of bad example
 
