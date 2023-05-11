@@ -31,3 +31,7 @@
 (defn pasc []
   (iterate #(mapv +' (conj (seq %) 0) (conj % 0)) [1]))
 
+
+;;; from wiki, calc nth row directly
+(defn pascal-row [n]
+  (reductions (fn [p k] (quot (* p (- (inc n) k)) k)) 1 (range 1 (inc n))))
