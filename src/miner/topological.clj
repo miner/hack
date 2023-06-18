@@ -59,10 +59,10 @@
 ;;; => nil (failure)
 
 ;;; big example
-(def bbb (reduce (fn [m i] (assoc m i (into #{100} (range i)))) {100 #{}} (range 100)))
+(defonce bbb (reduce (fn [m i] (assoc m i (into #{100} (range i)))) {100 #{}} (range 100)))
 
 ;;; big and bad
-(def xxx (assoc bbb 100 #{50}))
+(defonce xxx (assoc bbb 100 #{50}))
 
 (defn test-topo [topological-sort]
   (assert (= (topological-sort ggg) '(:d :e :c :b :a)))
@@ -171,6 +171,38 @@
                                (assoc n true)
                                (update ::tks conj n)))))]
     (::tks (reduce df-visit {::tks []} (keys graph)))))
+
+
+
+;;; not worth it.  More complicated but not faster.
+(defn df-topo5 [graph]
+  (let [df-visit (fn df-visit [m n]
+                   (when m
+                     (case (get m n)
+                       true m
+                       false (reduced nil)
+                       (when-let [mm (reduce df-visit (assoc m n false) (get graph n))]
+                         (-> mm
+                             (assoc n true)
+                             (update ::tks conj n))))))]
+    (::tks (reduce df-visit {::tks []} (keys graph)))))
+
+
+
+;;; safer, but not really necessary
+
+(defonce tks (gensym))
+
+(defn df-topo3 [graph]
+  (let [df-visit (fn df-visit [m n]
+                   (when m
+                     (case (get m n)
+                       true m
+                       false nil
+                       (some-> (reduce df-visit (assoc m n false) (get graph n))
+                               (assoc n true)
+                               (update tks conj n)))))]
+    (get (reduce df-visit {tks []} (keys graph)) tks)))
 
 
 ;;; doesn't seem to be worth it to used (reduced nil) to break out of reduce of bad example
