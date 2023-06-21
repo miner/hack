@@ -27,7 +27,42 @@
            #{}
            topo-sorted)))
 
-;;; from Rosetta Code
+
+
+(defn all-nodes [g]
+  (reduce into (set (keys g)) (vals g)))
+
+(defn missing-keys [g]
+  (reduce disj (all-nodes g) (keys g)))
+
+#_
+(defn complete-keys1 [g]
+  (reduce #(assoc % %2 #{}) g (missing-keys g)))
+
+;; Returns a new graph augmenting g with additional keys as necessary to cover all the nodes
+;; mentioned in (vals g).  Added keys map to the empty set.
+(defn complete-keys [g]
+  (reduce (fn [g v] (reduce (fn [g k] (if (get g k) g (assoc g k #{}))) g v))
+          g
+          (vals g)))
+
+;;; inverts sense of dependency graph
+(defn invert-dep [g]
+  (reduce-kv (fn [g k v] (reduce (fn [g x] (assoc g x (conj (get g x #{}) k))) g v))
+             {}
+             g))
+;;; convert from adjacency map, essentially reversing sense of links
+(defn convert-adj [adj]
+  (complete-keys (invert-dep adj)))
+
+
+
+
+
+
+
+;;; derived from Rosetta Code
+;;; https://rosettacode.org/wiki/Topological_sort#Clojure
 (defn topological-sort [graph]
   (when (seq graph)
     (when-let [depless (seq (keep (fn [[k v]]
@@ -97,6 +132,8 @@
             m (update-vals (reduce dissoc g ks) (fn [v] (reduce disj v ks)))]
         (when (seq ks)
           (recur (into res ks) m))))))
+
+
 
 
 ;;; almost Fastest and my favorite
@@ -211,3 +248,48 @@
 #_ (def tks (keyword (gensym)))
 
 
+;;; Christophe Grand on mailing list Nov 16, 2009
+;;; result doesn't agree with mine???  I think this is wrong!
+(defn cg-topological-sort [x]
+  (mapcat
+   #(for [[k v] % :when (empty? v)] k)
+   (take-while seq
+               (iterate #(into {} (for [[k v] % :when (seq v)] [k (mapcat % v)])) x))))
+
+
+
+;;; also on mailing list, from John Harrop
+;;; slightly hacked by SEM
+;;; results agree with me, so that's good!  Not so fast.
+(defn jh-order-nodes [deps]
+  (let [find-a-node (fn [deps already-have-nodes]
+                      (some (fn [[k v]] (if (empty? (remove already-have-nodes v)) k)) deps))]
+    (loop [deps deps already-have-nodes #{} output []]
+      (if (empty? deps)
+        output
+        (when-let [item (find-a-node deps already-have-nodes)]
+          (recur
+           (dissoc deps item)
+           (conj already-have-nodes item)
+           (conj output item)))))))
+
+
+;;;; See also Stack Overflow
+;;; https://stackoverflow.com/questions/22796705/ordering-of-results-based-upon-dependencies
+
+;;; slightly hacked by SEM to agree with my result style (mapcat)
+;;; does NOT detect cycles! so fails my tests
+;;; slow anyway
+(defn tsort [m] 
+  (let [depth (fn depth [x] 
+                (if (empty? (m x)) 
+                  0 
+                  (->> x m (map depth) (apply max) inc)))]
+    (mapcat val (sort-by key (group-by depth (keys m))))))
+
+
+;;; good suggestion to use Loom
+;;; https://github.com/aysylu/loom
+
+;;; looks like a good article but uses other libs so I didn't get into it
+;;; https://dnaeon.github.io/graphs-and-clojure/
