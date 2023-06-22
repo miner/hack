@@ -93,6 +93,12 @@
 
 ;;; => nil (failure)
 
+(def hhh (complete-keys {:g #{:b :c :a} :f #{:d :e}}))
+
+;;; => [:d :e :a :b :c :f :g] with many variants
+;;; canonical [:a :b :c :d :e :f :g]
+
+
 ;;; big example
 (defonce bbb (reduce (fn [m i] (assoc m i (into #{100} (range i)))) {100 #{}} (range 100)))
 
@@ -144,6 +150,20 @@
       (when-let [ks (reduce-kv (fn [ks k v] (if (seq v) ks (conj ks k))) nil g)]
         (recur (into tks ks)
                (update-vals (reduce dissoc g ks) #(reduce disj % ks)))))))
+
+
+;;; The `sort-fn` can be used to standardize multiple valid orderings.  Use sort-fn = sort
+;;; if you want a canonical result.  The default is `identity` which does no sorting.
+
+(defn ss-topo
+  ([graph] (ss-topo identity graph))
+  ([sort-fn graph]
+   (loop [tks [] g graph]
+     (if (empty? g)
+       tks
+       (when-let [ks (reduce-kv (fn [ks k v] (if (seq v) ks (conj ks k))) nil g)]
+         (recur (into tks (sort-fn ks))
+                (update-vals (reduce dissoc g ks) #(reduce disj % ks))))))))
 
 
 
@@ -210,20 +230,20 @@
     (::tks (reduce df-visit {::tks []} (keys graph)))))
 
 
-
-;;; not worth it.  More complicated but not faster.
-(defn df-topo5 [graph]
+;; slightly faster, but not as pretty, not worth it
+(defn df-topo51 [graph]
   (let [df-visit (fn df-visit [m n]
-                   (when m
+                   (if-not m
+                     (reduced nil)
                      (case (get m n)
                        true m
                        false (reduced nil)
-                       (when-let [mm (reduce df-visit (assoc m n false) (get graph n))]
+                       (if-let [mm (reduce df-visit (assoc m n false) (get graph n))]
                          (-> mm
                              (assoc n true)
-                             (update ::tks conj n))))))]
+                             (update ::tks conj n))
+                         (reduced nil)))))]
     (::tks (reduce df-visit {::tks []} (keys graph)))))
-
 
 
 ;;; safer, but not really necessary
