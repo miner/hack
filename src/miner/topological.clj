@@ -35,25 +35,22 @@
 (defn missing-keys [g]
   (reduce disj (all-nodes g) (keys g)))
 
-#_
-(defn complete-keys1 [g]
-  (reduce #(assoc % %2 #{}) g (missing-keys g)))
-
 ;; Returns a new graph augmenting g with additional keys as necessary to cover all the nodes
-;; mentioned in (vals g).  Added keys map to the empty set.
+;; mentioned in (vals g).  The added keys map to the empty set.
 (defn complete-keys [g]
   (reduce (fn [g v] (reduce (fn [g k] (if (get g k) g (assoc g k #{}))) g v))
           g
           (vals g)))
 
-;;; inverts sense of dependency graph
-(defn invert-dep [g]
+;;; inverts sense of graph link direction
+(defn invert-link-sense [g]
   (reduce-kv (fn [g k v] (reduce (fn [g x] (assoc g x (conj (get g x #{}) k))) g v))
              {}
              g))
+
 ;;; convert from adjacency map, essentially reversing sense of links
 (defn convert-adj [adj]
-  (complete-keys (invert-dep adj)))
+  (complete-keys (invert-link-sense adj)))
 
 
 
