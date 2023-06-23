@@ -15,19 +15,23 @@
 ;;; Note that there are often multiple acceptable topological sorts so to be careful, you
 ;;; have to check the answers rather than just comparing to one "correct" result.  All the
 ;;; implementations below seem to agree with the ordering for my tests so I'm cheating on
-;;; the check.
+;;; the check.  I added a variant called `ss-topo` that accepts a sort-fn to standardize
+;;; ordering of nodes (default is `identity` so no specific order, pass `sort` for standard
+;;; Clojure ordering of "ties").  I have not figured out how to sort ties with the
+;;; depth-first solution.
 
 (defn topological? [graph topo-sorted]
-  (boolean
-   (reduce (fn [seen x]
-             (if (and (not (seen x))
-                      (every? seen (get graph x)))
-               (conj seen x)
-               (reduced false)))
-           #{}
-           topo-sorted)))
+  (let [kset (reduce (fn [seen x]
+                       (if (and (not (seen x))
+                                (every? seen (get graph x)))
+                         (conj seen x)
+                         (reduced #{})))
+                     #{}
+                     topo-sorted)]
+    (every? kset (keys graph))))
 
-
+;;; My original version was buggy as it passed degenerate cases that didn't cover all the
+;;; keys.  Or topo-sorted seqs that had strange keys.
 
 (defn all-nodes [g]
   (reduce into (set (keys g)) (vals g)))
