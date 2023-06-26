@@ -30,14 +30,49 @@
                      topo-sorted)]
     (every? kset (keys graph))))
 
+;;; not faster
+(defn topo3? [graph topo-sorted]
+  (when (distinct? topo-sorted)
+    (let [kset (reduce (fn [seen x]
+                         (if (every? seen (get graph x))
+                           (conj seen x)
+                           (reduced #{})))
+                       #{}
+                       topo-sorted)]
+      (every? kset (keys graph)))))
+
+;; not faster
+(defn topo4? [graph topo-sorted]
+  (transduce (comp)
+             (fn ([seen x] (if (every? seen (graph x))
+                             (conj seen x)
+                             (reduced #{})))
+               ([seen] (and (every? seen (keys graph))
+                            (= (count seen) (count graph)))))
+             #{}
+             topo-sorted))
+
+(defn topo5? [graph topo-sorted]
+  (transduce (map #(find graph %))
+             (fn ([seen [k vs]]
+                  (if (and (not (seen k)) (every? seen vs))
+                    (conj seen k)
+                    (reduced #{})))
+               ([seen] (every? seen (keys graph))))
+             #{}
+             topo-sorted))
+
 ;;; My original version was buggy as it passed degenerate cases that didn't cover all the
 ;;; keys.  Or topo-sorted seqs that had strange keys.
+
+
+
 
 (defn all-nodes [g]
   (reduce into (set (keys g)) (vals g)))
 
 (defn missing-keys [g]
-  (reduce disj (all-nodes g) (keys g)))
+  (into #{} (comp cat (remove g)) (vals g)))
 
 ;; Returns a new graph augmenting g with additional keys as necessary to cover all the nodes
 ;; mentioned in (vals g).  The added keys map to the empty set.
@@ -130,18 +165,6 @@
                      (apply dissoc graph ks)))))))
 
 
-;; SAVE
-(defn sem-topological-sort [graph]
-  (loop [res [] g graph]
-    (if (empty? g)
-      res
-      (let [ks (reduce-kv (fn [res k v] (if (seq v) res (conj res k))) [] g)
-            m (update-vals (reduce dissoc g ks) (fn [v] (reduce disj v ks)))]
-        (when (seq ks)
-          (recur (into res ks) m))))))
-
-
-
 
 ;;; almost Fastest and my favorite
 (defn sem-topo [graph]
@@ -187,17 +210,6 @@
 
 
 
-
-
-;;; Slower to build up intermediate ks as a set
-(defn sem-topo3 [graph]
-  (loop [tks [] g graph]
-    (if (empty? g)
-      tks
-      (let [ks (reduce-kv (fn [ks k v] (if (seq v) ks (conj ks k))) #{} g)]
-        (when (seq ks)
-          (recur (into tks ks)
-                 (update-vals (reduce dissoc g ks) #(clojure.set/difference % ks))))))))
 
 
 ;; m is "marked" map, perm true, temp false, unmarked if not present
@@ -314,3 +326,29 @@
 
 ;;; looks like a good article but uses other libs so I didn't get into it
 ;;; https://dnaeon.github.io/graphs-and-clojure/
+
+
+;;;; Extra junk
+
+
+;;; Slower to build up intermediate ks as a set
+(defn sem-topo3 [graph]
+  (loop [tks [] g graph]
+    (if (empty? g)
+      tks
+      (let [ks (reduce-kv (fn [ks k v] (if (seq v) ks (conj ks k))) #{} g)]
+        (when (seq ks)
+          (recur (into tks ks)
+                 (update-vals (reduce dissoc g ks) #(clojure.set/difference % ks))))))))
+
+
+;; slower versions
+#_
+(defn missing-keys1 [g]
+  (reduce disj (all-nodes g) (keys g)))
+
+#_
+(defn missing-keys2 [g]
+  (reduce disj (into #{} cat (vals g)) (keys g)))
+
+
