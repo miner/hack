@@ -30,49 +30,6 @@
                      topo-sorted)]
     (every? kset (keys graph))))
 
-;;; not faster
-(defn topo3? [graph topo-sorted]
-  (when (distinct? topo-sorted)
-    (let [kset (reduce (fn [seen x]
-                         (if (every? seen (get graph x))
-                           (conj seen x)
-                           (reduced #{})))
-                       #{}
-                       topo-sorted)]
-      (every? kset (keys graph)))))
-
-;; not faster
-(defn topo4? [graph topo-sorted]
-  (transduce (comp)
-             (fn ([seen x] (if (every? seen (graph x))
-                             (conj seen x)
-                             (reduced #{})))
-               ([seen] (and (every? seen (keys graph))
-                            (= (count seen) (count graph)))))
-             #{}
-             topo-sorted))
-
-(defn topo5? [graph topo-sorted]
-  (transduce (map #(find graph %))
-             (fn ([seen [k vs]]
-                  (if (and (not (seen k)) (every? seen vs))
-                    (conj seen k)
-                    (reduced #{})))
-               ([seen] (every? seen (keys graph))))
-             #{}
-             topo-sorted))
-
-;;; My original version was buggy as it passed degenerate cases that didn't cover all the
-;;; keys.  Or topo-sorted seqs that had strange keys.
-
-
-
-
-(defn all-nodes [g]
-  (reduce into (set (keys g)) (vals g)))
-
-(defn missing-keys [g]
-  (into #{} (comp cat (remove g)) (vals g)))
 
 ;; Returns a new graph augmenting g with additional keys as necessary to cover all the nodes
 ;; mentioned in (vals g).  The added keys map to the empty set.
@@ -80,19 +37,6 @@
   (reduce (fn [g v] (reduce (fn [g k] (if (get g k) g (assoc g k #{}))) g v))
           g
           (vals g)))
-
-;;; inverts sense of graph link direction
-(defn invert-link-sense [g]
-  (reduce-kv (fn [g k v] (reduce (fn [g x] (assoc g x (conj (get g x #{}) k))) g v))
-             {}
-             g))
-
-;;; convert from adjacency map, essentially reversing sense of links
-(defn convert-adj [adj]
-  (complete-keys (invert-link-sense adj)))
-
-
-
 
 
 
@@ -212,23 +156,8 @@
 
 
 
-;; m is "marked" map, perm true, temp false, unmarked if not present
-;; special key ::tks has the vector of nodes in topo order
-
-(defn df-visit1 [g m n]
-  (cond (nil? m) nil
-        (true? (get m n)) m
-        (false? (get m n)) nil
-        :else (let [m2 (assoc m n false)
-                    m3 (reduce (fn [m n] (df-visit1 g m n)) m2 (get g n))]
-                (when m3
-                  (-> m3
-                      (assoc n true)
-                      (update ::tks conj n))))))
-
 ;; m is "marked" map, perm true, temp false, unmarked if not present/nil.
 ;; special key ::tks has the vector of nodes in topo order.
-;;; refactored df-visit as closure over graph, still recursive.
 
 ;;; slower for small examples, much faster for bigger
 (defn df-topo [graph]
@@ -351,4 +280,59 @@
 (defn missing-keys2 [g]
   (reduce disj (into #{} cat (vals g)) (keys g)))
 
+
+
+
+;;; not faster
+(defn topo3? [graph topo-sorted]
+  (when (distinct? topo-sorted)
+    (let [kset (reduce (fn [seen x]
+                         (if (every? seen (get graph x))
+                           (conj seen x)
+                           (reduced #{})))
+                       #{}
+                       topo-sorted)]
+      (every? kset (keys graph)))))
+
+;; not faster
+(defn topo4? [graph topo-sorted]
+  (transduce identity
+             (fn ([seen x] (if (every? seen (graph x))
+                             (conj seen x)
+                             (reduced #{})))
+               ([seen] (and (every? seen (keys graph))
+                            (= (count seen) (count graph)))))
+             #{}
+             topo-sorted))
+
+(defn topo5? [graph topo-sorted]
+  (transduce (map #(find graph %))
+             (fn ([seen [k vs]]
+                  (if (and (not (seen k)) (every? seen vs))
+                    (conj seen k)
+                    (reduced #{})))
+               ([seen] (every? seen (keys graph))))
+             #{}
+             topo-sorted))
+
+;;; My original version was buggy as it passed degenerate cases that didn't cover all the
+;;; keys.  Or topo-sorted seqs that had strange keys.
+
+
+(defn all-nodes [g]
+  (reduce into (set (keys g)) (vals g)))
+
+(defn missing-keys [g]
+  (into #{} (comp cat (remove g)) (vals g)))
+
+
+;;; inverts sense of graph link direction
+(defn invert-link-sense [g]
+  (reduce-kv (fn [g k v] (reduce (fn [g x] (assoc g x (conj (get g x #{}) k))) g v))
+             {}
+             g))
+
+;;; convert from adjacency map, essentially reversing sense of links
+(defn convert-adj [adj]
+  (complete-keys (invert-link-sense adj)))
 
