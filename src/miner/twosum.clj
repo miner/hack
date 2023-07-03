@@ -93,6 +93,12 @@
             [v v2]
             (recur (rest vs))))))))
 
+
+
+
+;;; need to figure out bounds.  Also allow target to be negative and nums to be negative.
+;;; Might have to got in reverse to be safe.
+
 (defn twosum6 [nums target]
   (let [vset (into (im/dense-int-set) nums)
         vmin (first vset)
@@ -108,7 +114,7 @@
             (recur (rest vs))))))))
 
 
-
+;;; for timing -- seems like sorted-set is slow.  dense-int-set is much faster
 (defn ss3 [nums target]
   (count (into (sorted-set) nums))
   (twosum nums target))
