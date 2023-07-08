@@ -31,16 +31,39 @@
   (assert (nil? (twosum [1 2 5] 4)))
   (assert (= (sort (twosum [1 2 3 5] 4)) '(1 3)))
   (assert (= (sort (twosum [1 2 3 5] 5)) '(2 3)))
+  (assert (nil? (twosum (range 0 100 2) 99)))
   (assert (= (sort (twosum (cons 1 (range 0 100 2)) 51)) '(1 50)))
   (assert (= (sort (twosum (concat (range 0 101 2) '(1 3 8)) 103)) '(3 100)))
   true)
 
+;;; FIXME -- more Clojurish to take target first and nums second arg
 
-;;; new fastest!
+
+
 ;;; assume non-neg nums and target
 ;;; assume no duplicates in nums -- also means v can't match itself
 
+;;; speed depends a lot of examples.  If nums is big and going to fail, it's worth getting
+;;; them sorted (for "free" with int-set) so you only have to test half of them.  If things
+;;; are smaller and going to match, sorting isn't worth the trouble as you'll likely get
+;;; lucky during search.
+
+;;; new fastest!
 (defn twosum [nums target]
+  (transduce identity
+             (fn ([vset n]
+                  (if-let [v (vset (- target n))]
+                    (reduced (if (> v n) [n v] [v n]))
+                    (conj vset n)))
+               ([res] (when (vector? res) res)))
+             (im/dense-int-set)
+             nums))
+
+
+
+
+
+(defn twosumx [nums target]
   (let [vset (into (im/dense-int-set) nums)
         half (quot (inc target) 2)]
     (transduce (take-while #(< % half))
@@ -60,6 +83,36 @@
                   (reduced [v v2]))))
             nil
             vset)))
+
+(defn ts1 [nums target]
+  (let [res (reduce (fn [vset n]
+                      (if-let [v (vset (- target n))]
+                        (reduced [n v])
+                        (conj vset n)))
+                    #{}
+                    nums)]
+    (when (vector? res) res)))
+
+;; fastest
+(defn ts2 [nums target]
+  (let [res (reduce (fn [vset n]
+                      (if-let [v (vset (- target n))]
+                        (reduced (if (> v n) [n v] [v n]))
+                        (conj vset n)))
+                    (im/dense-int-set)
+                    nums)]
+    (when (vector? res) res)))
+                    
+
+(defn ts3 [nums target]
+  (let [res (reduce (fn [vset n]
+                      (if-let [v (vset (- target n))]
+                        (reduced (if (> v n) [n v] [v n]))
+                        (conj vset n)))
+                    (im/int-set)
+                    nums)]
+    (when (vector? res) res)))
+
 
 
 
