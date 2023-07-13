@@ -185,3 +185,5 @@
 (defn tflat [xs]
   (into [] (mapcat (fn [x] (if (sequential? x) (tflat x) (list x)))) xs))
 
+(defn stflat [xs]
+  (sequence (mapcat (fn [x] (if (sequential? x) (tflat x) (list x)))) xs))
