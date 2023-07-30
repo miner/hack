@@ -10,6 +10,12 @@
 ;;; Based on example code from:
 ;;; https://www.freecodecamp.org/news/quickselect-algorithm-explained-with-examples/
 
+(defn naive-select [coll k]
+  (first (drop k (sort coll))))
+
+;;; much faster than any of the more clever attempts!
+(defn fast-select [coll k]
+  (nth (sort coll) k))
 
 (defn quick-select-orig [coll k]
   (let [v (vec coll)
