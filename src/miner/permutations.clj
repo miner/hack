@@ -3,8 +3,68 @@
             [clojure.string :as str]))
 
 
+;;; Huge paper on math of permutations and generation.  Most of it is beyond my
+;;; comprehension but it looks useful.
+;;;
+;;; Combinatorial generation via permutation languages.
+;;; by  Hartung, et.al.
+;;; https://www.researchgate.net/publication/333815377_Combinatorial_generation_via_permutation_languages_I_Fundamentals
+
+
 ;; SEM: NB, use math.combinatorics not this!
 ;; I was experimenting with writing my own permutations.
+
+;;; Correction:  look at this page on "Permuations Pattern"
+;;; https://en.wikipedia.org/wiki/Permutation_pattern
+
+;;; THIS NEEDS A REWRITE to distinguish between a permuation and a permutation pattern.  I'm
+;;; too tight on a permutation and too lose on pattern, where should be "permutation pattern".
+;;; This terminology is used with combinatorial mathementics and computer science
+;;; (especially starting with Knuth).
+
+;;; I might make some of my own definitions of terms.  It probably makes sense to use the
+;;; "one-line notation" and "dash notation".
+
+;;; In Clojure, a permutation of size N is some unique ordering of the ints in (range N).
+;;; It's zero-based, whereas most of the mathematical literature is 1-based for sequences
+;;; and patterns.  [You need to find a reference for this.]
+
+;;; For most integer patterns, we typically only care about the relative positioning of the
+;;; elements.  For example, we might care that the highest value occurs before the lowest in
+;;; the pattern sequence, regardless of the exact values.  For these kind of questions, we
+;;; can reduce the problem to consideration of the indicies of the values in sorted order.
+
+
+
+
+;;; This took me a while to understand in the Wikipedia permutation pattern discussion.
+;;; Also, the math literature generally is 1-based for the lowest index, whereas Clojure is
+;;; naturally zero-based.  My code here is zero-based.
+
+;;; "Over-excited" is my term for a pattern that has elements greater than or equal to the
+;;; count of the number of distinct elements in the pattern.  The math literature seems to
+;;; implicitly disallow these expressions as patterns.  Probaly need to find a more formal
+;;; definition to confirm this statement.
+
+;;; remap over-excited pattern into base indices (zero-based).
+(defn canonical-pattern [pat]
+  (let [pat-map (zipmap (sort (distinct pat)) (range))]
+    (mapv pat-map pat)))
+
+;;; For example,
+;;; (canonical-pattern [41 2 4 1 4 6])
+;;; => [4 1 2 0 2 3]
+;;; because value 1 is the lowest int (zero-nth), and 41 is the highest ("4-nth" or fifth).
+
+
+
+;;; remap a (random) into vector into a Clojure permuation.  Note duplicates are dropped.
+(defn vector->permutation [v]
+  (let [dist (distinct v)
+        sorted (sort dist)
+        order-map (zipmap sorted (range))]
+    (mapv order-map dist)))
+
 
 ;; http://stackoverflow.com/questions/2087693/how-can-i-get-all-possible-permutations-of-a-list-with-common-lisp
 
@@ -256,20 +316,20 @@
 
 ;; not so fast
 (defn rheaps-SAVE
-  ([n] (rheaps n (vec (range n)) () ))
+  ([n] (rheaps-SAVE n (vec (range n)) () ))
   ([n a res]
    (if (= n 1)
      (conj res a)
      (let [n1 (dec n)]
        (loop [i 0 a a res res]
          (if (< i n1)
-           (let [res1 (rheaps n1 a res)
+           (let [res1 (rheaps-SAVE n1 a res)
                  a (first res1)
                  a1 (if (even? n)
                       (assoc a i (a n1) n1 (a i))
                       (assoc a 0 (a n1) n1 (a 0)))]
              (recur (inc i) a1 res1))
-           (rheaps n1 a res)))))))
+           (rheaps-SAVE n1 a res)))))))
 
 (defn rheaps
   ([n] (rheaps n (vec (range n)) () ))

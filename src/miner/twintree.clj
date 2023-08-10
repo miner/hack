@@ -274,6 +274,14 @@
 ;; Knuth's algorithm always returns a Baxter permutation -- not necessarily the orginal
 ;; sequence.  (Most of my code is checking that the original matches the generated.)
 
+;; TODO Suggestion:  make a quick-check style generator of Baxter sequences.  Given an pv seed,
+;; Knuth will produce a Baxter sequence.  Also, see Knuth's code for some ways to make a new
+;; Baxter sequence out of a smaller one.   Not necessarily a practical exercise but another
+;; interesting way to use generators.  See also your talk "Generating Generators".
+;;
+;; BTW, can Herbert specify a Baxter?  Can Clojure/spec?  Maybe that's a better question.
+
+
 ;; Given a permutation returns the same thing if it's Baxter or generates a new one
 
 (defn gen-bax [pv]
