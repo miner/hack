@@ -1,0 +1,163 @@
+SEM 06/13/11  16:14 by miner -- notes on my current strategy
+
+
+Game
+players 0..3   (partners even and odd)
+for tricks, encode leader as element 4
+deck - vector of suffled cards,  access with peek and update with pop
+card - vector of [rank, suit]
+hands [players] - each item is vector cards
+trick [players + leader] - cards, plus int leader
+tricks [n] of card[players]
+bids [players]
+trick-score [players]
+total-score [0..1]  (2 and 3 share with their partners)
+dealer - player
+trump - suit
+bidder - player
+dealer - player
+
+strategy - vector [players] - function that decides next play (a card,
+                                                                 or a bid)
+
+last-action
+
+all funcs operate on game and give updated game
+
+
+
+
+09/12/12  10:23 by miner -- CSS cards for UI
+ https://github.com/zachwaugh/Helveticards 
+
+10/17/12  15:05 by miner -- another variation on the cards
+ https://github.com/donpark/scalable-css-playing-cards
+
+12/30/12  17:17 by miner -- Public domain playing card images (not sure if they're better than CSS)
+ http://www.fundraw.com/clipart/categories/Everyday_Objects/Games_-_Playing_Cards/00000039
+
+
+09/09/15  12:11 by miner -- online cards:  https://deck-of-cards.js.org
+
+maybe should use megaref for game state?  Probably not necessary!
+https://github.com/cgrand/megaref
+
+----------------------------------------------------------------------
+
+My Rules of Pedro
+
+I learned what Wikipedia calls "California Pedro" which is apparently a variation of Italian
+Pedro.  My Dad said is was a Portuguese card game.  He was taught by another teacher, Joe
+Villa.
+
+Joe Villa, video interview
+https://www.youtube.com/watch?v=7585e9jtxNk
+
+----------------------------------------------------------------------
+
+Rules -- my version is known as "California Pedro", which comes from the Italian variant,
+although I learned it as a Portuguese game.  Wikipedia says it's aka "Cinch", derived from
+"All Fours" or "Auction Pitch".
+
+----------------------------------------------------------------------
+
+
+Miner House Rules for "California" Pedro
+
+regular pack of 52 cards
+2x2 partners
+trick-taking game
+
+point cards (in trump suit)
+  Ace, Ten, Two -- 1 point
+  Jack -- 3 points
+  Five and off-Five -- 5 points, known as the "Pedro" and "off-Pedro"
+
+Other cards do not score, but ranks matter for winning tricks.
+
+Cards are ranked from Ace high, down to 2 low in the usual order.
+
+The off-Pedro is the other 5 of the same color as the declared trump suit.  Its rank is just
+below the trump suit 5.  The off-Pedro is considered a trump card.
+
+The 2 of trump automatically wins itself so whoever plays it, keeps it (worth 1 point).
+Other cards are taken by the highest trump card played in the trick.
+
+First dealer is decide by cutting.
+
+Dealer deals nine cards to each player, three at a time.
+
+One round of bidding, left of dealer bids first.  Mininum 6.  You may bid higher or pass.
+If no one bids, the dealer must bid 6.  Max bid is 16 but if you succeed, you actually get
+32 points as a bonus.
+
+Highest bidder declares the trump suit.  All players must discard their non-trump cards.
+Remember, the off-Pedro counts as trump.
+
+Dealer gives other players extra cards as needed to total six.
+
+The dealer may select from all remaining cards to get to his six.  He must keep all trump cards
+even if he ends up with more than six cards.
+
+If insufficient cards remain, the discard pile is recycled.
+
+The first trick is led by the bidder.  He must lead with a trump card.
+
+If a trump card is played first in a trick, everyone else must play a trump card if they
+have one.  If you don't have a trump card, then you can play anything.
+
+Follow suit or trump.  You can always play a trump card.  Otherwise, you should follow the
+suit of the first card of the trick.  If you don't have that suit, you can play any card.
+
+If the dealer has extra trump, he plays an extra non-point trump card at the end of a trick
+until he gets back to normal.
+
+The trick is won by the highest trump played.  If no trumps, then the highest card of the
+lead suit wins.
+
+The winner of a trick, leads the next trick.  He can lead with any card.
+
+At the end of the round, add up your scoring cards.  If the bidder makes his bid, his team
+scores those points.  If they fail to keep their contract, they lose points equal to the
+bid.  The non-bidder keeps his points.
+
+Play to 91.  You must be the bidder to win.  If both teams get to 91 or higher,
+the bidder is the winner.  If the non-bidder gets to 91, play continues.
+
+Dealership rotates clockwise.
+
+
+
+STRATEGY
+
+Bidders typically have an ace or several high cards.  Hopefully, the partner will have a
+pedro.  It's relatively easy to get 6 points if you start with an Ace.  Ace and Jack should
+get 9.  Of course, more trump cards are better.
+
+Try to play your Pedro when your partner has already played an Ace (or the highest remaining
+trump card).
+
+If you have the high cards, try to keep the lead and play them in order.  Sometimes you can
+force your opponents to give up their Pedros.
+
+If you have a higher card than the leader, play it to allow your partner to play a Pedro.
+
+If the lead is non-trump and you're the third player, beware of allowing the last player to
+win a trick with just his Pedro.  If you haven't seen both Pedros, you should play a 6 of
+trumps or better to be safe.
+
+
+
+
+
+
+EXTRA RULES
+
+Partners are not allowed to collude.  Cards should be kept secret until played.
+
+Discards are face up.  If someone accidentally discards trump, any player may claim it
+before the dealer asks to complete hands.  For beginners, we simply tell them to take back
+their trump cards rather than letting other players grab them.
+
+Sometimes we allow "Shoot the Moon".  The bidder must win all 16 points, in which case they
+win the game immediately, otherwise they lose.
