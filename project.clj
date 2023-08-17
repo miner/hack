@@ -13,7 +13,6 @@
                  [org.clojure/core.async "1.6.681"]
                  [org.clojure/tools.macro "0.1.5"]
                  [org.clojure/data.priority-map "1.1.0"]
-                 [com.datomic/datomic-free "0.9.5697"  :exclusions [joda-time]]
                  [instaparse "1.4.12"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "1.0.1"]
