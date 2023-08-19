@@ -73,13 +73,13 @@ trick-taking game
 point cards (in trump suit)
   Ace, Ten, Two -- 1 point
   Jack -- 3 points
-  Five and off-Five -- 5 points, known as the "Pedro" and "off-Pedro"
+  Pedro (Five) and off-Pedro (other Five) -- 5 points
 
 Other cards do not score, but ranks matter for winning tricks.
 
 Cards are ranked from Ace high, down to 2 low in the usual order.
 
-The off-Pedro is the other 5 of the same color as the declared trump suit.  Its rank is just
+The off-Pedro is the 5 of the same color as the declared trump suit.  Its rank is just
 below the trump suit 5.  The off-Pedro is considered a trump card.
 
 The 2 of trump automatically wins itself so whoever plays it, keeps it (worth 1 point).
@@ -89,9 +89,9 @@ First dealer is decide by cutting.
 
 Dealer deals nine cards to each player, three at a time.
 
-One round of bidding, left of dealer bids first.  Mininum 6.  You may bid higher or pass.
-If no one bids, the dealer must bid 6.  Max bid is 16 but if you succeed, you actually get
-32 points as a bonus.
+Bidding starts with player to the left of the dealer and proceeds once around the table.
+You may bid higher than current bid or pass.  Mininum 6.  If no one bids, the dealer must
+bid 6.  Max bid is 16 but if you succeed, you actually get 32 points as a bonus.
 
 Highest bidder declares the trump suit.  All players must discard their non-trump cards.
 Remember, the off-Pedro counts as trump.
@@ -108,10 +108,11 @@ The first trick is led by the bidder.  He must lead with a trump card.
 If a trump card is played first in a trick, everyone else must play a trump card if they
 have one.  If you don't have a trump card, then you can play anything.
 
-Follow suit or trump.  You can always play a trump card.  Otherwise, you should follow the
-suit of the first card of the trick.  If you don't have that suit, you can play any card.
+In general, follow suit or trump.  You can always play a trump card.  Otherwise, you should
+follow the suit of the first card of the trick.  If you don't have that suit, you can play
+any card.
 
-If the dealer has extra trump, he plays an extra non-point trump card at the end of a trick
+If a player has extra trump, he plays an extra non-point trump card at the end of a trick
 until he gets back to normal.
 
 The trick is won by the highest trump played.  If no trumps, then the highest card of the
@@ -119,7 +120,7 @@ lead suit wins.
 
 The winner of a trick, leads the next trick.  He can lead with any card.
 
-At the end of the round, add up your scoring cards.  If the bidder makes his bid, his team
+At the end of the round, add up your team's scoring cards.  If the bidder makes his bid, his team
 scores those points.  If they fail to keep their contract, they lose points equal to the
 bid.  The non-bidder keeps his points.
 
