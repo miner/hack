@@ -3,7 +3,7 @@
   :dependencies [[djblue/portal "0.45.1"]
                  [dom-top "1.0.8"]
                  [com.datomic/local "1.0.267"]
-                 [com.datomic/client-api "1.0.67"]
+                 ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
                  [com.velisco/strgen "0.2.4"]
