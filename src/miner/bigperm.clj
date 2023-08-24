@@ -137,6 +137,10 @@
 
 ;;; Maybe my calc was wrong?  Maybe logic is wrong?
 
+;;;; FIXME: Try it with explicit carrying
+
+
+
 (defn qval [[a b c d e f]]
   (+ (* a 1100) (* b 110) (* c 11)
      (* d 1110) (* e 111)
@@ -144,5 +148,11 @@
 
 ;;; ABC 431   DE 52   F 6
 
+
+(defn combine-digits [[a b c d e z]]
+  [(+ (* 100 a) (* 10 b) c)
+   (+ (* 10 d) e)
+   z])
+
 (defn qsol []
-  (apply max-key qval (c/permutations (range 1 7))))
+  (combine-digits (apply max-key qval (c/permutations (range 1 7)))))
