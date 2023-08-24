@@ -64,16 +64,17 @@ https://en.wikipedia.org/wiki/Pedro_(card_game)
 ----------------------------------------------------------------------
 
 
-Miner House Rules for "California" Pedro
+"California" Pedro
+Miner House Rules
 
 regular pack of 52 cards
 2x2 partners
 trick-taking game
 
 point cards (in trump suit)
-  Ace, Ten, Two -- 1 point
+  Ace, Ten, Two -- 1 point each
   Jack -- 3 points
-  Pedro (Five) and off-Pedro (other Five) -- 5 points
+  Pedro (Five) and off-Pedro (other Five) -- 5 points each
 
 Other cards do not score, but ranks matter for winning tricks.
 
@@ -85,7 +86,7 @@ below the trump suit 5.  The off-Pedro is considered a trump card.
 The 2 of trump automatically wins itself so whoever plays it, keeps it (worth 1 point).
 Other cards are taken by the highest trump card played in the trick.
 
-First dealer is decide by cutting.
+First dealer is decided by cutting.
 
 Dealer deals nine cards to each player, three at a time.
 
@@ -108,9 +109,8 @@ The first trick is led by the bidder.  He must lead with a trump card.
 If a trump card is played first in a trick, everyone else must play a trump card if they
 have one.  If you don't have a trump card, then you can play anything.
 
-In general, follow suit or trump.  You can always play a trump card.  Otherwise, you should
-follow the suit of the first card of the trick.  If you don't have that suit, you can play
-any card.
+You can always play a trump card.  Otherwise, you should follow the suit of the first card
+of the trick.  If you don't have that suit, you can play any card.
 
 If a player has extra trump, he plays an extra non-point trump card at the end of a trick
 until he gets back to normal.
@@ -118,7 +118,7 @@ until he gets back to normal.
 The trick is won by the highest trump played.  If no trumps, then the highest card of the
 lead suit wins.
 
-The winner of a trick, leads the next trick.  He can lead with any card.
+The winner of a trick leads the next trick.  He can lead with any card.
 
 At the end of the round, add up your team's scoring cards.  If the bidder makes his bid, his team
 scores those points.  If they fail to keep their contract, they lose points equal to the
@@ -133,9 +133,12 @@ Dealership rotates clockwise.
 
 STRATEGY
 
-Bidders typically have an ace or several high cards.  Hopefully, the partner will have a
-pedro.  It's relatively easy to get 6 points if you start with an Ace.  Ace and Jack should
-get 9.  Of course, more trump cards are better.
+Bidders typically have an Ace or several high cards.  Hopefully, the partner will have a
+Pedro.  It's relatively easy to get 6 points if you start with an Ace and a few trump cards.
+With an Ace and a Jack, you might bid 9 points.  Of course, more trump cards are better.
+
+You will want to keep track of who played which trump cards in previous tricks.  It's a good
+indicator of what they have left.
 
 Try to play your Pedro when your partner has already played an Ace (or the highest remaining
 trump card).
@@ -145,9 +148,9 @@ force your opponents to give up their Pedros.
 
 If you have a higher card than the leader, play it to allow your partner to play a Pedro.
 
-If the lead is non-trump and you're the third player, beware of allowing the last player to
-win a trick with just his Pedro.  If you haven't seen both Pedros, you should play a 6 of
-trumps or better to be safe.
+If you're the last player and everyone has played off-trump, you can win your Pedro with
+itself.  The third player should try to prevent this by playing a trump instead of staying
+off-trump.
 
 
 
