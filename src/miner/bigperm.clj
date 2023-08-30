@@ -116,6 +116,26 @@
               (into (pop y))
               (into (pop z)))))))
 
+;;; UNFINISHED  mult with carry
+#_
+(defn exmultc
+  ([] [])
+  ([v] (expow v))
+  ([v w]
+   (vec (for [x (expow v)
+              y (expow w)]
+          (-> [(* (peek x) (peek y))]
+              (into (pop x))
+              (into (pop y))))))
+  ([v w u]
+   (vec (for [x (expow v)
+              y (expow w)
+              z (expow u)]
+          (-> [(* (peek x) (peek y) (peek z))]
+              (into (pop x))
+              (into (pop y))
+              (into (pop z)))))))
+
 (defn revalue [xv]
   (reduce (fn [m [k & vs]] (reduce (fn [r v] (assoc r v (+ (get r v 0) k))) m vs))
           {}
