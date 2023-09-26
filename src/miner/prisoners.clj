@@ -1,4 +1,6 @@
-(ns miner.prisoners)
+(ns miner.prisoners
+ (:require [clojure.data.int-map :as im]))
+
 
 ;;; https://youtu.be/iSNsgj1OCLA?si=aXKFukYqDsDXZIPh
 
@@ -11,10 +13,12 @@
 ;;; If all 100 succeed, they all go free.  Otherwise, they all are executed.
 ;;; Before the prisoners start, they may agree on a strategy.
 
+;;; Searching at random should give about 50% per prisoner, which results in much less than
+;;; 1% total success.  (0.5^100 = 7.88e-31)
+
 ;;; Surprising solution:  best policy is to open box with of your own number, then follow
 ;;; the number you find until you get yours or fail (50 boxes).  With this strategy,
-;;; prisoners can all succeed about 30%.  Much better than random (50% per prisoner), which
-;;; results in much less than 1% total success.
+;;; prisoners can all succeed about 30%.  
 
 ;;; See video for full explanation.  The trick comes down to considering the random sequence
 ;;; of 100 boxes as a series of loops.  If the longest loop is less then 50 boxes in length,
@@ -39,7 +43,30 @@
         (recur (conj lp x))))))
 
 
+(defn all-loops-good [v]
+  (let [cnt (count v)]
+    (loop [start 0 found #{} lps []]
+      (if (= start cnt)
+        lps
+        (let [lp (find-loop v start)
+              found (into found lp)]
+          (recur (long (loop [i (inc start)] (if (found i) (recur (inc i)) i)))
+                 found
+                 (conj lps lp)))))))
+
+;;; much faster with dense-int-set
 (defn all-loops [v]
+  (let [cnt (count v)]
+    (loop [start 0 found (im/dense-int-set) lps []]
+      (if (= start cnt)
+        lps
+        (let [lp (find-loop v start)
+              found (into found lp)]
+          (recur (long (loop [i (inc start)] (if (found i) (recur (inc i)) i)))
+                 found
+                 (conj lps lp)))))))
+
+(defn all-loops000 [v]
   (loop [start 0 found #{} lps []]
     (if (= start (count v))
       lps
@@ -47,6 +74,116 @@
         (recur (inc start) found lps)
         (let [lp (find-loop v start)]
           (recur (inc start) (into found lp) (conj lps lp)))))))
+
+
+(defn all-loops4 [v]
+  (loop [start 0 found #{} lps []]
+    (if (= start (count v))
+      lps
+      (if (found start)
+        (recur (inc start) found lps)
+        (let [lp (find-loop v start)]
+          (recur (inc start) (into found lp) (conj lps lp)))))))
+
+
+
+;;;; not better
+(defn all-loops2 [v]
+  (let [cnt (count v)
+        next-start (fn [used? start]
+                     (first (drop-while used? (range (inc start) (inc cnt)))))]
+  (loop [start 0 found #{} lps []]
+    (if (= start cnt)
+      lps
+      (let [lp (find-loop v start)
+            found (into found lp)]
+        (recur (long (next-start found start)) found (conj lps lp)))))))
+
+(defn all-loops21 [v]
+  (let [cnt (count v)
+        next-start (fn [used? start]
+                     (first (into nil (comp (drop-while used?) (take 1))
+                                      (range (inc start) (inc cnt)))))]
+  (loop [start 0 found #{} lps []]
+    (if (= start cnt)
+      lps
+      (let [lp (find-loop v start)
+            found (into found lp)]
+        (recur (long (next-start found start)) found (conj lps lp)))))))
+
+(defn all-loops22 [v]
+  (let [cnt (count v)
+        next-start (fn [used? start]
+                     (loop [i start]
+                       (if (used? i) (recur (inc i)) i)))]
+  (loop [start 0 found #{} lps []]
+    (if (= start cnt)
+      lps
+      (let [lp (find-loop v start)
+            found (into found lp)]
+        (recur (long (next-start found start)) found (conj lps lp)))))))
+
+;;; fastest
+(defn all-loops23 [v]
+  (let [cnt (count v)]
+    (loop [start 0 found #{} lps []]
+      (if (= start cnt)
+        lps
+        (let [lp (find-loop v start)
+              found2 (into found lp)]
+          (recur (long (loop [i (inc start)] (if (found2 i) (recur (inc i)) i)))
+                 found2
+                 (conj lps lp)))))))
+
+;;; not any faster than 23
+(defn all-loops24 [v]
+  (let [cnt (count v)]
+    (loop [start 0 found (transient #{}) lps []]
+      (if (= start cnt)
+        lps
+        (let [lp (find-loop v start)
+              found2 (reduce conj! found lp)]
+          (recur (long (loop [i (inc start)] (if (found2 i) (recur (inc i)) i)))
+                 found2
+                 (conj lps lp)))))))
+
+
+
+
+
+;;; much slower
+(defn all-loops3 [v]
+  (loop [start 0 avail (set (range (count v))) lps []]
+    (let [lp (find-loop v start)
+          avail2 (reduce disj avail lp)
+          start2 (first avail2)]
+      (if start2
+        (recur (long start2) (disj avail2 start2) (conj lps lp))
+        (conj lps lp)))))
+
+;;; pretty good but second best time
+(defn all-loops33 [v]
+  (loop [start 0 avail (im/dense-int-set (range (count v))) lps []]
+    (let [lp (find-loop v start)
+          avail2 (reduce disj avail lp)
+          start2 (first avail2)]
+      (if start2
+        (recur (long start2) (disj avail2 start2) (conj lps lp))
+        (conj lps lp)))))
+
+;;; transients help but no way to select first without persistent!  still slower than orig
+(defn all-loops31 [v]
+  (loop [start 0 avail (reduce conj! (transient #{}) (range (count v))) lps []]
+    (let [lp (find-loop v start)
+          avail2 (persistent! (reduce disj! avail lp))
+          start2 (first avail2)]
+      (if start2
+        (recur (long start2) (disj! (transient avail2) start2) (conj lps lp))
+        (conj lps lp)))))
+
+
+
+
 
 (defn safe100? [v]
   (<= (reduce max (map count (all-loops v))) 50))
