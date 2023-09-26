@@ -66,6 +66,26 @@
                  found
                  (conj lps lp)))))))
 
+(defn scan [v while? start]
+  (loop [i start]
+    (if (while? (nth v i false))
+      (recur (inc i))
+      i)))
+
+;; somewhat slower
+(defn scan-all-loops [v]
+  (let [cnt (count v)]
+    (loop [start 0 found (im/dense-int-set) lps []]
+      (if (= start cnt)
+        lps
+        (let [lp (find-loop v start)
+              found (into found lp)]
+          (recur (long (scan v found (inc start)))
+                 found
+                 (conj lps lp)))))))
+
+
+
 (defn all-loops000 [v]
   (loop [start 0 found #{} lps []]
     (if (= start (count v))
