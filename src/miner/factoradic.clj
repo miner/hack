@@ -19,16 +19,13 @@
 (defn chdig [c]
   (- (long c) (long \0)))
 
-(defn facpow [p]
-  (reduce * (range 1 (inc p))))
-
-(defn facpows [len]
-  (reductions * (range 1 (inc len))))
-
 ;;; fac can be string of integer, but doesn't check for valid representation
 (defn fac->dec [fac]
-  (let [strfac (str fac)]
-    (reduce + (map * (into nil (map chdig strfac)) (facpows (count strfac))))))
+  (let [dv (mapv chdig (str fac))
+        offset (inc (count dv))]
+    (reduce-kv (fn [r i d] (+ d (* r (- offset i)))) 0 dv)))
+
+
 
 (defn high-pow [dc]
   (first (drop-while #(< % dc) (reductions * (iterate inc 1)))))
@@ -92,4 +89,19 @@
   (assert (= (fac->dec (dec->fac 100000)) 100000))
   (assert (= (dec->fac 1000001) "266251221"))
   true)
+
+
+
+
+(defn facpow [p]
+  (reduce * (range 1 (inc p))))
+
+(defn facpows [len]
+  (reductions * (range 1 (inc len))))
+
+;;; slower
+(defn fac->dec0 [fac]
+  (let [strfac (str fac)]
+    (reduce + (map * (into nil (map chdig strfac)) (facpows (count strfac))))))
+
 
