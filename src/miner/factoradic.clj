@@ -26,38 +26,12 @@
     (reduce-kv (fn [r i d] (+ d (* r (- offset i)))) 0 dv)))
 
 
-
-(defn high-pow [dc]
-  (first (drop-while #(< % dc) (reductions * (iterate inc 1)))))
-
-;;; zero-based place from the right
-(defn high-place0 [dc]
-  (ffirst (drop-while (fn [[i p]] (< p dc))
-                      (map-indexed vector (reductions * (iterate inc 1))))))
-
-;;; slower
-(defn high-place2 [dc]
-  (first (sequence (comp (map-indexed list)
-                         (drop-while (fn [[i p]] (< p dc)))
-                         (take 1)
-                         (map first))
-                   (reductions * (iterate inc 1)))))
-
-;;; much faster
-(defn high-place [dc]
-  (loop [i 1 v 1]
-    (let [p (* v i)]
-      (if (> p dc)
-        (dec i)
-        (recur (inc i) p)))))
-
 (defn fplaces [dc]
   (loop [i 1 fs '(1)]
     (let [p (peek fs)]
       (if (> p dc)
         (pop fs)
         (recur (inc i) (conj fs (* p (inc i))))))))
-
 
 ;;; Doesn't check for negatives.
 
@@ -104,4 +78,30 @@
   (let [strfac (str fac)]
     (reduce + (map * (into nil (map chdig strfac)) (facpows (count strfac))))))
 
+
+
+
+(defn high-pow [dc]
+  (first (drop-while #(< % dc) (reductions * (iterate inc 1)))))
+
+;;; zero-based place from the right
+(defn high-place0 [dc]
+  (ffirst (drop-while (fn [[i p]] (< p dc))
+                      (map-indexed vector (reductions * (iterate inc 1))))))
+
+;;; slower
+(defn high-place2 [dc]
+  (first (sequence (comp (map-indexed list)
+                         (drop-while (fn [[i p]] (< p dc)))
+                         (take 1)
+                         (map first))
+                   (reductions * (iterate inc 1)))))
+
+;;; much faster
+(defn high-place [dc]
+  (loop [i 1 v 1]
+    (let [p (* v i)]
+      (if (> p dc)
+        (dec i)
+        (recur (inc i) p)))))
 
