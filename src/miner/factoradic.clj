@@ -13,7 +13,8 @@
 
 ;;; Note: the rightmost digit can be 0 or 1 only.  Many integer representations are not
 ;;; valid Factoradic numbers as digits have to be limited for the base power of that digit
-;;; position.
+;;; position.  In theory, you really would need extra digits (hex, etc.) for higher powers
+;;; of Factoradics but XCMD just disallows those numbers to avoid the issue.
 
 
 (defn chdig [c]
