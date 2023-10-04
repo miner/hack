@@ -33,7 +33,9 @@
         (pop fs)
         (recur (inc i) (conj fs (* p (inc i))))))))
 
-;;; Doesn't check for negatives.
+;;; Doesn't check for negatives.   Buggy with calculated "digits" beyond 0-9.  That is,
+;;; doesn't convert to hexadecimal or whatever for large digits.  XCMD says those
+;;; factoradics are illegal.  :-)
 
 ;;; returns a string to avoid confusion with actual numbers
 (defn dec->fac [dc]
