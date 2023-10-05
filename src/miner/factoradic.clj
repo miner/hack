@@ -17,12 +17,9 @@
 ;;; of Factoradics but XKCD just disallows those numbers to avoid the issue.
 
 
-(defn chdig [c]
-  (- (long c) (long \0)))
-
 ;;; fac can be string of integer, but doesn't check for valid representation
 (defn fac->dec [fac]
-  (let [dv (mapv chdig (str fac))
+  (let [dv (mapv #(- (long %) (long \0)) (str fac))
         offset (inc (count dv))]
     (reduce-kv (fn [r i d] (+ d (* r (- offset i)))) 0 dv)))
 
@@ -60,6 +57,10 @@
 
 
 ;;; other stuff
+
+
+(defn chdig [c]
+  (- (long c) (long \0)))
 
 (defn facpow [p]
   (reduce * (range 1 (inc p))))
