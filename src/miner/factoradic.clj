@@ -14,7 +14,7 @@
 ;;; Note: the rightmost digit can be 0 or 1 only.  Many integer representations are not
 ;;; valid Factoradic numbers as digits have to be limited for the base power of that digit
 ;;; position.  In theory, you really would need extra digits (hex, etc.) for higher powers
-;;; of Factoradics but XCMD just disallows those numbers to avoid the issue.
+;;; of Factoradics but XKCD just disallows those numbers to avoid the issue.
 
 
 (defn chdig [c]
@@ -35,7 +35,7 @@
         (recur (inc i) (conj fs (* p (inc i))))))))
 
 ;;; Doesn't check for negatives.   Buggy with calculated "digits" beyond 0-9.  That is,
-;;; doesn't convert to hexadecimal or whatever for large digits.  XCMD says those
+;;; doesn't convert to hexadecimal or whatever for large digits.  XKCD says those
 ;;; factoradics are illegal.  :-)
 
 ;;; returns a string to avoid confusion with actual numbers
