@@ -28,19 +28,19 @@
 
 
 ;;; returns a long representing the factoradic.  Might be better to make it a string to
-;;; avoid confusion with an actual long.  Not sure?  The (loop is a clumsey way to build up
-;;; the factorial "base" divisors.
+;;; avoid confusion with an actual long.  Not sure?  The loop is a clumsy way to build up
+;;; the factorial "base" divisors.  Somewhat faster to pass redundant params in loop than to
+;;; (peek fs).
 (defn dec->fac [dc]
   (first
    (reduce (fn [[fac r] p] [(+ (* fac 10) (quot r p)) (rem r p)])
            [0 dc]
-           (loop [i 1 fs '(1)]
-             (let [p (peek fs)
-                   p2 (* p (inc i))]
+           (loop [i 2 p 1 fs '(1)]
+             (let [p2 (* p i)]
                (if (> p2 dc)
                  fs
-                 (recur (inc i) (conj fs p2))))))))
-           
+                 (recur (inc i) p2 (conj fs p2))))))))
+
 
 
 (defn df-test []
