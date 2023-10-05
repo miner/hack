@@ -27,48 +27,39 @@
     (reduce-kv (fn [r i d] (+ d (* r (- offset i)))) 0 dv)))
 
 
-(defn fplaces [dc]
-  (loop [i 1 fs '(1)]
-    (let [p (peek fs)]
-      (if (> p dc)
-        (pop fs)
-        (recur (inc i) (conj fs (* p (inc i))))))))
-
-;;; Doesn't check for negatives.   Buggy with calculated "digits" beyond 0-9.  That is,
-;;; doesn't convert to hexadecimal or whatever for large digits.  XKCD says those
-;;; factoradics are illegal.  :-)
-
-;;; returns a string to avoid confusion with actual numbers
+;;; returns a long representing the factoradic.  Might be better to make it a string to
+;;; avoid confusion with an actual long.  Not sure?  The (loop is a clumsey way to build up
+;;; the factorial "base" divisors.
 (defn dec->fac [dc]
-  (if (zero? dc)
-    "0"
-    (->>
-     ;; res is [places... remainder]
-     (reduce (fn [res p]
-               (let [r (peek res)]
-                 (conj (pop res) (quot r p) (rem r p))))
-             [dc]
-             (fplaces dc))
-     pop
-     (apply str))))
+  (first
+   (reduce (fn [[fac r] p] [(+ (* fac 10) (quot r p)) (rem r p)])
+           [0 dc]
+           (loop [i 1 fs '(1)]
+             (let [p (peek fs)
+                   p2 (* p (inc i))]
+               (if (> p2 dc)
+                 fs
+                 (recur (inc i) (conj fs p2))))))))
+           
+
 
 (defn df-test []
-  (assert (= (dec->fac 0) "0"))
-  (assert (= (dec->fac 1) "1"))
-  (assert (= (dec->fac 2) "10"))
-  (assert (= (dec->fac 6) "100"))
+  (assert (= (dec->fac 0) 0))
+  (assert (= (dec->fac 1) 1))
+  (assert (= (dec->fac 2) 10))
+  (assert (= (dec->fac 6) 100))
   (assert (= (fac->dec 101) 7))
   (assert (= (fac->dec 321) 23))
   (assert (= (fac->dec 654320) 5038))
-  (assert (= "101" (dec->fac 7)))
-  (assert (= "321" (dec->fac 23)))
-  (assert (= "654320" (dec->fac 5038)))
+  (assert (= 101 (dec->fac 7)))
+  (assert (= 321 (dec->fac 23)))
+  (assert (= 654320 (dec->fac 5038)))
   (assert (= (fac->dec (dec->fac 100000)) 100000))
-  (assert (= (dec->fac 1000001) "266251221"))
+  (assert (= (dec->fac 1000001) 266251221))
   true)
 
 
-
+;;; other stuff
 
 (defn facpow [p]
   (reduce * (range 1 (inc p))))
@@ -100,11 +91,74 @@
                          (map first))
                    (reductions * (iterate inc 1)))))
 
-;;; much faster
+;;; much faster but not needed anymore
 (defn high-place [dc]
   (loop [i 1 v 1]
     (let [p (* v i)]
       (if (> p dc)
         (dec i)
         (recur (inc i) p)))))
+
+
+
+
+
+;;; old version, later improved and integrated into dec->fac
+(defn fplaces [dc]
+  (loop [i 1 fs '(1)]
+    (let [p (peek fs)]
+      (if (> p dc)
+        (pop fs)
+        (recur (inc i) (conj fs (* p (inc i))))))))
+
+
+;;; variation on dec->fac.  Returns long fac, not string.  Improvement
+(defn dtof [dc]
+  (first
+   (reduce (fn [[fac r] p] [(+ (* fac 10) (quot r p)) (rem r p)])
+           [0 dc]
+           (fplaces dc))))
+
+
+
+
+(defn dtofp [dc]
+  (first
+   (reduce (fn [[fac r] p] [(+ (* fac 10) (quot r p)) (rem r p)])
+           [0 dc]
+           (loop [i 1 fs '(1)]
+             (let [p (peek fs)
+                   p2 (* p (inc i))]
+               (if (> p2 dc)
+                 fs
+                 (recur (inc i) (conj fs p2))))))))
+           
+
+
+
+(defn fpls [dc]
+  (loop [i 1 fs '(1)]
+    (let [p (peek fs)
+          p2 (* p (inc i))]
+      (if (> p2 dc)
+        fs
+        (recur (inc i) (conj fs p2))))))
+
+;;; Doesn't check for negatives.   Buggy with calculated "digits" beyond 0-9.  That is,
+;;; doesn't convert to hexadecimal or whatever for large digits.  XKCD says those
+;;; factoradics are illegal.  :-)
+
+;;; returns a string to avoid confusion with actual numbers
+(defn dec->fac00 [dc]
+  (if (zero? dc)
+    "0"
+    (->>
+     ;; res is [places... remainder]
+     (reduce (fn [res p]
+               (let [r (peek res)]
+                 (conj (pop res) (quot r p) (rem r p))))
+             [dc]
+             (fplaces dc))
+     pop
+     (apply str))))
 
