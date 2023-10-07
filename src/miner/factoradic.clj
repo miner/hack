@@ -91,7 +91,26 @@
        (every? true? (map-indexed (fn [i d] (<= (chdig d) (inc i)))
                                   (reverse (str fac))))))
 
+(defn valid-fac4? [fac]
+  (and (not (neg? fac))
+       (<= fac max-factoradic)
+       (transduce (comp (map chdig)
+                       (map-indexed #(<= %2 (inc %))))
+                 (fn ([_ x] (if x true (reduced false)))
+                   ([x] x))
+                 true
+                 (reverse (str fac)))))
 
+(defn valid-fac5? [fac]
+  (and (not (neg? fac))
+       (<= fac max-factoradic)
+       (transduce (comp (map chdig)
+                        (map-indexed #(<= %2 (inc %)))
+                        (drop-while true?)
+                        (take 1))
+                  (completing conj empty?)
+                  nil
+                  (reverse (str fac)))))
 
 (defn facpow [p]
   (reduce * (range 1 (inc p))))
