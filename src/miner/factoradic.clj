@@ -3,6 +3,9 @@
 ;;; Variable base number system.  Joke by XKCD.  But it actually works.
 ;;; https://xkcd.com/2835/
 
+;;; Discussion:  https://explainxkcd.com/wiki/index.php/2835:_Factorial_Numbers
+
+
 ;;; Each power is a factorial of the previous places (from right)
 ;;; Decimal 7 == Fac 101
 ;;; Decimal 23 == Fac 321
@@ -16,6 +19,9 @@
 ;;; position.  In theory, you really would need extra digits (hex, etc.) for higher powers
 ;;; of Factoradics but XKCD just disallows those numbers to avoid the issue.
 
+(def max-factoradic 987654321)
+
+(defn max-fac-digit [place] (inc place))
 
 ;;; fac can be string of integer, but doesn't check for valid representation
 (defn fac->dec [fac]
@@ -25,9 +31,10 @@
 
 
 ;;; returns a long representing the factoradic.  Might be better to make it a string to
-;;; avoid confusion with an actual long.  Not sure?  The loop is a clumsy way to build up
-;;; the factorial "base" divisors.  Somewhat faster to pass redundant params in loop than to
-;;; (peek fs).
+;;; avoid confusion with an actual long.  Not sure?  The loop is a fast (but not pretty) way
+;;; to build up the factorial "base" divisors.  Somewhat faster to pass redundant params in
+;;; loop than to (peek fs).
+
 (defn dec->fac [dc]
   (first
    (reduce (fn [[fac r] p] [(+ (* fac 10) (quot r p)) (rem r p)])
@@ -56,11 +63,35 @@
   true)
 
 
+
 ;;; other stuff
 
 
 (defn chdig [c]
   (- (long c) (long \0)))
+
+(defn valid-fac? [fac]
+  (and (not (neg? fac))
+       (<= fac max-factoradic)
+       (reduce-kv (fn [_ i d] (if (> d (inc i)) (reduced false) true))
+                  true
+                  (mapv chdig (reverse (str fac))))))
+
+;;; slower but cleaner
+(defn valid-fac2? [fac]
+  (and (not (neg? fac))
+       (<= fac max-factoradic)
+       (every? true? (map-indexed (fn [i d] (<= d (inc i)))
+                                  (map chdig (reverse (str fac)))))))
+
+
+(defn valid-fac3? [fac]
+  (and (not (neg? fac))
+       (<= fac max-factoradic)
+       (every? true? (map-indexed (fn [i d] (<= (chdig d) (inc i)))
+                                  (reverse (str fac))))))
+
+
 
 (defn facpow [p]
   (reduce * (range 1 (inc p))))
@@ -73,6 +104,13 @@
   (let [strfac (str fac)]
     (reduce + (map * (into nil (map chdig strfac)) (facpows (count strfac))))))
 
+;;; shorter but slower
+(defn fd2 [fac]
+  (reduce + (map * (map chdig (reverse (str fac))) (reductions * (rest (range))))))
+
+(defn fd3 [fac]
+  (reduce + (map * (map chdig (seq (.reverse (StringBuilder. (str fac)))))
+                 (reductions * (rest (range))))))
 
 
 
