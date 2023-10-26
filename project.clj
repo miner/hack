@@ -1,7 +1,7 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.45.1"]
-                 [dom-top "1.0.8"]
+  :dependencies [[djblue/portal "0.48.0"]
+                 [dom-top "1.0.9"]
                  [com.datomic/local "1.0.267"]
                  ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
@@ -25,7 +25,7 @@
                  ;; [org.clojure/core.match "0.2.2"]
                  [org.clojure/core.match "1.0.1"]
                  [org.clojure/tools.macro "0.1.5"]
-                 [backtick "0.3.4"]
+                 [backtick "0.3.5"]
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "1.1.0"]
                  [com.clojure-goes-fast/clj-memory-meter "0.3.0"]
@@ -35,11 +35,11 @@
                  [digest "1.4.10"]
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
-                 [org.clojars.quoll/tiara "0.2.1"]
+                 [org.clojars.quoll/tiara "0.3.3"]
                  [clj-commons/fs "1.6.310"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
-  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.12.0-alpha4"]
+  :profiles {:dev  {:dependencies [[org.clojure/clojure "1.12.0-alpha5"]
                                    ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
