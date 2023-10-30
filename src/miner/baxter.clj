@@ -406,7 +406,7 @@
 ;;; careful about endpoints.  Clojure indexing is zero-based.
 
 ;;; much faster than baxter11  10x
-(defn baxter? [v]
+(defn was-baxter? [v]
   (let [cnt (count v)]
     (or (< cnt 4)
         (not-any?
@@ -425,6 +425,41 @@
                    (when (< before v1)
                      (some #(< before % v1) (subvec v (+ 2 i)))))))))
          (range 1 (- cnt 2))))))
+
+
+
+;;; The new champion!  Transducers for the win.
+
+(defn baxter? [v]
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (not-any?
+         (fn [i]
+           ;; i is the index of the second element B in pattern A-BC-D.
+           ;; BC are adjacent, A and D can be anywhere before or after.
+           (let [b (v i)
+                 c (v (inc i))]
+             ;; check if there's room between B and C
+             (when (> (abs (- c b)) 2)
+               (if (> c b)
+                 ;; looking for 3-14-2
+                 (transduce (filter #(< b % c))
+                            (fn ([x y] (min x y))
+                              ([d] (when (< d c)
+                                     (some (fn [a] (< d a c)) (subvec v 0 i)))))
+                            c
+                            (subvec v (+ 2 i)))
+                 ;; looking for 2-41-3
+                 (transduce (filter #(< c % b))
+                            (fn ([x y] (min x y))
+                              ([a] (when (< a b)
+                                     (some (fn [d] (< a d b)) (subvec v (+ 2 i))))))
+                            b 
+                            (subvec v 0 i))))))
+         (range 1 (- cnt 2))))))
+
+
+
 
 ;;; Unimplemented ideas: maybe worth considering size of partitions when deciding which way
 ;;; to look first.

@@ -59,6 +59,16 @@
            (= (if (instance? clojure.lang.IRecord x) (into {} x) x)
               (if (instance? clojure.lang.IRecord y) (into {} y) y)))))
 
+;;; Faster than 'some'.  However, probably not worth non-standard implementation.
+(defn rsome [pred coll]
+  "Like 'some' but somewhat faster."
+  (reduce (fn [r x]
+            (if-let [res (pred x)]
+              (reduced res)
+              r))
+          nil
+          coll))
+
 (defn reduce-nth [rf init coll]
   (let [initial (transient (vec init))
         cnt (count initial)

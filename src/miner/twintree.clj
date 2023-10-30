@@ -96,7 +96,7 @@
 
 ;;; assuming all int vals, and no duplicates (although that should be OK for now)
 
-;;; SEM: note that the order of insertion is not necessarily the same the inorder traversal.
+;;; SEM: note that the order of insertion is not necessarily the same as the inorder traversal.
 
 ;;; After testing, the vector approach is faster.  And simpler.
 

@@ -55,3 +55,14 @@ while (1) {
 printf("\n");
 
 int parent[maxn+1]; /* parents in $T_1$ */
+
+
+----------------------------------------------------------------------
+some useful comments:
+
+https://www.johncanessa.com/2023/01/02/stanford-lecture-don-knuth-twintrees-baxter-permutations-and-floorplans-2022/
+
+
+Twin trees are defined as binary trees in which node k has a right child in exactly one of
+the trees for 1 <= k < n. and node k has a left child in exactly one of the trees for 1 < k
+<= n.
