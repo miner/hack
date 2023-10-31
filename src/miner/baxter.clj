@@ -644,7 +644,8 @@ infinite sequences."
 ;;; However, my final baxter? is much faster anyway.  Consider this fairly literal and
 ;;; workable.
 
-(defn baxter11? [v]
+;;; Keep this as the simplest definition.  Good for testing and base timing.
+(defn baxter-canonical? [v]
   (not-any? (fn [[i j k]]
               (let [a (v i) b (v j) c (v (inc j)) d (v k)]
                 ;;  3 1 4 2  or  2 4 1 3
