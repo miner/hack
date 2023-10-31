@@ -441,24 +441,24 @@
                  c (v (inc i))]
              ;; check if there's room between B and C
              (when (> (abs (- c b)) 2)
-               (if (> c b)
-                 ;; looking for 3-14-2
-                 (transduce (filter #(< b % c))
-                            (fn ([x y] (min x y))
-                              ([d] (when (< d c)
-                                     (some (fn [a] (< d a c)) (subvec v 0 i)))))
-                            c
-                            (subvec v (+ 2 i)))
-                 ;; looking for 2-41-3
-                 (transduce (filter #(< c % b))
-                            (fn ([x y] (min x y))
-                              ([a] (when (< a b)
-                                     (some (fn [d] (< a d b)) (subvec v (+ 2 i))))))
-                            b 
-                            (subvec v 0 i))))))
+               (let [before (subvec v 0 i)
+                     after (subvec v (+ 2 i))]
+                 (if (> c b)
+                   ;; looking for 3-14-2
+                   (transduce (filter #(< b % c))
+                              (fn ([x y] (min x y))
+                                ([d] (when (< d c)
+                                       (some (fn [a] (< d a c)) before))))
+                              c
+                              after)
+                   ;; looking for 2-41-3
+                   (transduce (filter #(< c % b))
+                              (fn ([x y] (min x y))
+                                ([a] (when (< a b)
+                                       (some (fn [d] (< a d b)) after))))
+                              b 
+                              before))))))
          (range 1 (- cnt 2))))))
-
-
 
 
 ;;; Unimplemented ideas: maybe worth considering size of partitions when deciding which way
