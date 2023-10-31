@@ -445,20 +445,17 @@
                      after (subvec v (+ 2 i))]
                  (if (> c b)
                    ;; looking for 3-14-2
-                   (transduce (filter #(< b % c))
-                              (fn ([x y] (min x y))
-                                ([d] (when (< d c)
-                                       (some (fn [a] (< d a c)) before))))
-                              c
-                              after)
+                   (let [d (transduce (filter #(< b % c)) min c after)]
+                     (when (< d c)
+                       (some (fn [a] (< d a c)) before)))
                    ;; looking for 2-41-3
-                   (transduce (filter #(< c % b))
-                              (fn ([x y] (min x y))
-                                ([a] (when (< a b)
-                                       (some (fn [d] (< a d b)) after))))
-                              b 
-                              before))))))
+                   (let [a (transduce (filter #(< c % b)) min b before)]
+                     (when (< a b)
+                       (some (fn [d] (< a d b)) after))))))))
          (range 1 (- cnt 2))))))
+
+
+
 
 
 ;;; Unimplemented ideas: maybe worth considering size of partitions when deciding which way
