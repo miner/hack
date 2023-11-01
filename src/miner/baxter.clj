@@ -1,5 +1,5 @@
 (ns miner.baxter
-  (:require [clojure.math.combinatorics :as combo]
+  (:require [clojure.math.combinatorics :as mc]
             [clojure.data.int-map :as im]))
 
 ;; see also twintree.clj for Knuth's Baxter test.
@@ -70,8 +70,90 @@
 ;;; https://www.wikiwand.com/en/Baxter_permutation
 
 
-;;; SEM New Idea:  try using im/dense-int-set instead of bits.  More like Clojure sets.
+;;; The baxter permutation avoids subelement patterns of 3-14-2 and 2-41-3.  We consider all
+;;; the combinations of three indicies (given in the natural ascending order).  The middle
+;;; must be extendible to two elements (adjacent), which means the second can't be right next to
+;;; the third.  After that, we just need to check for the two excluded < orderings implied
+;;; by the patterns.  (But it turns out to be faster to just walk the middles and search the
+;;; ends as done if my final baxter?)
 
+;;; This could be a bit faster if you check adjacent (v j) and j+1 for enough space.
+;;; However, my final baxter? is much faster anyway.  Consider this fairly literal and
+;;; workable.
+
+;;; Keep this as the simplest definition.  Good for testing and base timing.
+(defn baxter-brute? [v]
+  (not-any? (fn [[i j k]]
+              (let [a (v i) b (v j) c (v (inc j)) d (v k)]
+                ;;  3 1 4 2  or  2 4 1 3
+                (or (< b d a c) (< c a d b))))
+            (mc/combinations (range (count v)) 3)))
+
+
+
+;;; v is a vector permutation of 1..N, small positive ints. By convention, zero is not
+;;; included.  An element appears only once.  The literature is 1-based so you have to be
+;;; careful about endpoints.  Clojure indexing is zero-based.
+
+;;; current approach for bax -- run through i=2..n look at middle adjacent (v i) (v (inc i))
+;;; decide < > then scan before and after appropriately for 3-14-2 and 2-41-3.
+;;; Any single match disqualifies.
+
+;;; The new champion!  Transducers for the win.
+
+(defn baxter? [v]
+  (let [cnt (count v)]
+    (or (< cnt 4)
+        (not-any?
+         (fn [i]
+           ;; i is the index of the second element B in pattern A-BC-D.
+           ;; BC are adjacent, A and D can be anywhere before or after.
+           (let [b (v i)
+                 c (v (inc i))]
+             ;; check if there's room between B and C
+             (when (> (abs (- c b)) 2)
+               (let [before (subvec v 0 i)
+                     after (subvec v (+ 2 i))]
+                 (if (> c b)
+                   ;; looking for 3-14-2
+                   (let [d (transduce (filter #(< b % c)) min c after)]
+                     (when (< d c)
+                       (some (fn [a] (< d a c)) before)))
+                   ;; looking for 2-41-3
+                   (let [a (transduce (filter #(< c % b)) min b before)]
+                     (when (< a b)
+                       (some (fn [d] (< a d b)) after))))))))
+         (range 1 (- cnt 2))))))
+
+
+
+(defn cperms [n]
+  (mc/permutations (range 1 (inc n))))
+
+(def hk (vec (range 1 1001)))
+(def h3k (into (vec (range 1 1501)) (range 3000 1500 -1)))
+
+(defn test-bax [bax?]
+  (assert (bax? [1 2 3 4]))
+  (assert (not (bax? [3 1 4 2])))
+  (assert (not (bax? [2 4 1 3])))
+  (assert (= (count (filter bax? (cperms 8))) 10754))
+  true)
+
+(defn test-bax-long [bax?]
+  (test-bax bax?)
+  (assert (bax? hk))
+  (assert (not (bax? (into hk [1003 1001 1004 1002]))))
+  (assert (bax? h3k))
+  true)
+
+
+
+
+;;; ----------------------------------------------------------------------
+;;; Save for history of other ideas
+
+;;; SEM New Idea:  try using im/dense-int-set instead of bits.  More like Clojure sets.
 
 ;; not faster than bbax?, about 2x
 (defn imbax? [v]
@@ -138,19 +220,17 @@
 #_ (require '[clojure.data.int-map :as im])
 
 
-
-(defn cperms [n]
-  (combo/permutations (range 1 (inc n))))
-
 ;;;; see also my miner/permutations.clj  for range-perms, etc.
 
-;;; combo/count-combinations is better in general.
+;;; mc/count-combinations is better in general.
 ;;; will overflow for large inputs but I don't care
 ;;; n items, taking k each
 (defn count-combos [n k]
   (quot (reduce * 1 (range (inc (- n k)) (inc n)))
         (reduce * (range 1 (inc k)))))
 
+
+;;; NOTE: All the bbax variants will fail for any values above 62.
 
 ;;; New idea: assume v of 1..N with N<64. Convert to bits and mark long per index each way.
 ;;; Essentially a set of bits of everything before or after an index in the original vector.
@@ -167,7 +247,7 @@
 ;;; Should be faster but I'm not measuring it???  about same as baxter? for long test,
 ;;; slower for test-bax.
 (defn bbax? [v]
-  ;; (assert (< (count v) 62))
+  (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
@@ -201,7 +281,7 @@
 
 ;;; not faster, not simpler
 (defn bbax8? [v]
-  ;; (assert (< (count v) 62))
+  (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
@@ -227,7 +307,7 @@
            (range 1 (- cnt 2)))))))
 
 (defn bbax82? [v]
-  ;; (assert (< (count v) 62))
+  (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
@@ -258,7 +338,7 @@
 
 
 (defn bbax3? [v]
-  ;; (assert (< (count v) 62))
+  (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [mask-before (reduce (fn [bv i] (conj bv (bit-set (peek bv) i)))
@@ -330,7 +410,7 @@
 
 
 (defn bbax2? [v]
-  ;; (assert (< (count v) 62))
+  (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [bits-btw (fn [i j]
@@ -366,6 +446,7 @@
 
 ;;; SAVE THIS VERSION
 (defn bbax1? [v]
+  (assert (< (count v) 62))
   (let [cnt (count v)]
     (or (< cnt 4)
         (let [bits-btw (fn [i j]
@@ -397,13 +478,7 @@
 
 
 
-;;; current approach for bax -- run through i=2..n look at middle adjacent (v i) (v (inc i))
-;;; decide < > then scan before and after appropriately for 3-14-2 and 2-41-3.
-;;; Any single match disqualifies.
 
-;;; v is a vector permutation of 1..N, small positive ints. By convention, zero is not
-;;; included.  An element appears only once.  The literature is 1-based so you have to be
-;;; careful about endpoints.  Clojure indexing is zero-based.
 
 ;;; much faster than baxter11  10x
 (defn was-baxter? [v]
@@ -425,35 +500,6 @@
                    (when (< before v1)
                      (some #(< before % v1) (subvec v (+ 2 i)))))))))
          (range 1 (- cnt 2))))))
-
-
-
-;;; The new champion!  Transducers for the win.
-
-(defn baxter? [v]
-  (let [cnt (count v)]
-    (or (< cnt 4)
-        (not-any?
-         (fn [i]
-           ;; i is the index of the second element B in pattern A-BC-D.
-           ;; BC are adjacent, A and D can be anywhere before or after.
-           (let [b (v i)
-                 c (v (inc i))]
-             ;; check if there's room between B and C
-             (when (> (abs (- c b)) 2)
-               (let [before (subvec v 0 i)
-                     after (subvec v (+ 2 i))]
-                 (if (> c b)
-                   ;; looking for 3-14-2
-                   (let [d (transduce (filter #(< b % c)) min c after)]
-                     (when (< d c)
-                       (some (fn [a] (< d a c)) before)))
-                   ;; looking for 2-41-3
-                   (let [a (transduce (filter #(< c % b)) min b before)]
-                     (when (< a b)
-                       (some (fn [d] (< a d b)) after))))))))
-         (range 1 (- cnt 2))))))
-
 
 
 
@@ -507,14 +553,7 @@ infinite sequences."
                   (center-out cnt)))))
 
 
-(defn test-bax [bax?]
-  (assert (bax? [1 2 3 4]))
-  (assert (not (bax? [3 1 4 2])))
-  (assert (not (bax? [2 4 1 3])))
-  (assert (= (count (filter bax? (cperms 5))) 92))
-  true)
-
-;;; BUG -- should only test with actual permuations 1..N unique
+;;; should only test with actual permuations 1..N unique
 
 (defn bug-test-bax [bax?]
   (assert (not (bax? [3 1 4 2])))
@@ -532,15 +571,6 @@ infinite sequences."
 ;; baxter? still wins
 ;;(assert (= (count (filter bax? (cperms 9))) 58202))
 
-(def hk (vec (range 1 1001)))
-(def h3k (into (vec (range 1 1501)) (range 3000 1500 -1)))
-
-;;; maybe ztw4 beats baxter? for large inputs -- just barely
-(defn test-bax-long [bax?]
-  (assert (test-bax bax?))
-  (assert (bax? hk))
-  (assert (bax? h3k))
-  true)
 
 ;;; Number of Baxter permutations for size N = 0...9
 ;;; 0, 1, 2, 6, 22, 92, 422, 2074, 10754, 58202
@@ -630,28 +660,10 @@ infinite sequences."
 ;;; Losers
 
 
-;;; The baxter permutation avoids subelement patterns of 3-14-2 and 2-41-3.  We consider all
-;;; the combinations of three indicies (given in the natural ascending order).  The middle
-;;; must be extendible to two elements (adjacent), which means the second can't be right next to
-;;; the third.  After that, we just need to check for the two excluded < orderings implied
-;;; by the patterns.  (But it turns out to be faster to just walk the middles and search the
-;;; ends as done if my final baxter?)
-
-;;; This could be a bit faster if you check adjacent (v j) and j+1 for enough space.
-;;; However, my final baxter? is much faster anyway.  Consider this fairly literal and
-;;; workable.
-
-;;; Keep this as the simplest definition.  Good for testing and base timing.
-(defn baxter-canonical? [v]
-  (not-any? (fn [[i j k]]
-              (let [a (v i) b (v j) c (v (inc j)) d (v k)]
-                ;;  3 1 4 2  or  2 4 1 3
-                (or (< b d a c) (< c a d b))))
-            (combo/combinations (range (count v)) 3)))
 
 
-;;; like (combo/combinations (range n) k) but a bit faster. Eager, not lazy.  Not really
-;;; good enough to replace combo/combinations but I tried.
+;;; like (mc/combinations (range n) k) but a bit faster. Eager, not lazy.  Not really
+;;; good enough to replace mc/combinations but I tried.
 (defn index-combinations [n k]
   (let [seed (vec (range k))]
     (loop [v seed dmx n res [seed]]
@@ -680,12 +692,12 @@ infinite sequences."
 
 ;;; This turns out not to be so useful as Baxter testing requires a bit of expansion
 ;;;
-;;; this is taking ordered subelements, not the same as combo/selections
+;;; this is taking ordered subelements, not the same as mc/selections
 (defn subelements [elements n]
   "Returns a sequence of vectors of size N, yielding all the ways to take N items from ELEMENTS in
 the same relative order as the given ELEMENTS sequence."
   (let [vel (vec elements)]
-    (map #(mapv vel %) (combo/combinations (range (count vel)) n))))
+    (map #(mapv vel %) (mc/combinations (range (count vel)) n))))
 
 
 ;;; not really needed anymore
@@ -718,7 +730,7 @@ the same relative order as the given ELEMENTS sequence."
                       rmp (zipmap (sort r) (range 1 5))
                       redp (mapv rmp r)]
                   (or (= redp [3 1 4 2]) (= redp [2 4 1 3])))))
-            (combo/combinations (range (count v)) 3)))
+            (mc/combinations (range (count v)) 3)))
 
 
 
@@ -734,7 +746,7 @@ the same relative order as the given ELEMENTS sequence."
                                 r))))]
     (nil? (into nil (comp (keep #(baxter-excluded %))
                           (take 1))
-                (combo/combinations (range (count v)) 3))))) 
+                (mc/combinations (range (count v)) 3))))) 
 
 (defn exp-triple [[i j k]]
   (when (not= (inc j) k)
@@ -748,7 +760,7 @@ the same relative order as the given ELEMENTS sequence."
                           (map perm-reduction)
                           (filter #(or (= [3 1 4 2] %) (= [2 4 1 3] %)))
                           (take 1))
-                    (combo/combinations (range (count pvec)) 3))))
+                    (mc/combinations (range (count pvec)) 3))))
 
 ;;; halt-when doesn't work right with sequence and still didn't work for me in a transduce
 
@@ -767,7 +779,7 @@ the same relative order as the given ELEMENTS sequence."
 ;;; returns sequence of subelements that fail the baxter avoidance
 ;;; useful for debugging
 (defn baxter-fail [pvec]
-  (seq (keep #(baxter-excluded pvec %) (combo/combinations (range (count pvec)) 3))))
+  (seq (keep #(baxter-excluded pvec %) (mc/combinations (range (count pvec)) 3))))
 
 
 
@@ -781,5 +793,5 @@ the same relative order as the given ELEMENTS sequence."
         r))))
 
 (defn bax5? [pvec]
-  (not-any? #(baxter-excluded pvec %) (combo/combinations (range (count pvec)) 3)))
+  (not-any? #(baxter-excluded pvec %) (mc/combinations (range (count pvec)) 3)))
 
