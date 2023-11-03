@@ -45,18 +45,15 @@
   (let [p (perm-pattern pat)
         cnt (count p)
         ;; _ (assert (and (< cnt 10) (every? #(<= 1 % 9) p))
-        ;;     (str "pattern-fn restricted to [1..9], not " pat))
+        ;;     (str "pattern-fn expects 1..9+, failed: " pat))
         pm (zipmap (map dec p) (range))]
     (fn [xv]
       (and (>= (count xv) cnt)
-           (some (fn [q]
-                   (transduce (map #(nth q (get pm %)))
-                              (fn ([r x] (if (< r x) x (reduced -1)))
-                                ([r] (pos? r)))
-                              -1
-                              (range cnt)))
+           (some (fn [q] (transduce (map #(nth q (get pm %)))
+                                    (fn ([r x] (if (< r x) x (reduced -1))) ([r] (pos? r)))
+                                    -1
+                                    (range cnt)))
                  (mc/combinations xv cnt))))))
-
 
 (defn canonical-perm [v]
   (let [remap (zipmap (sort v) (range 1 (inc (count v))))]
