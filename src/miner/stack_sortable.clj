@@ -1,5 +1,6 @@
 (ns miner.stack-sortable
-  (:require [clojure.math.combinatorics :as mc]))
+  (:require [clojure.math.combinatorics :as mc]
+            [clojure.string :as str]))
 
 ;;; https://en.wikipedia.org/wiki/Stack-sortable_permutation
 
@@ -32,7 +33,7 @@
 
 
 ;;; converts 231 or "231" to [2 3 1]
-(defn perm-pattern [pat]
+(defn one-line-pattern [pat]
   (if (vector? pat)
     pat
     (mapv #(- (long %) (long \0)) (str pat))))
@@ -40,13 +41,14 @@
 
 
 ;;; This version handles case of pat possibly being within larger pattern (not exact size match)
-
-(defn pattern-fn [pat]
-  (let [p (perm-pattern pat)
+;;; only handle "one-line" notation, not vincular
+(defn one-line-pattern-fn [pat]
+  (let [p (one-line-pattern pat)
         cnt (count p)
         ;; _ (assert (and (< cnt 10) (every? #(<= 1 % 9) p))
         ;;     (str "pattern-fn expects 1..9+, failed: " pat))
         pm (zipmap (map dec p) (range))]
+    (println "pattern-fn " pm)
     (fn [xv]
       (and (>= (count xv) cnt)
            (some (fn [q] (transduce (map #(nth q (get pm %)))
@@ -54,6 +56,32 @@
                                     -1
                                     (range cnt)))
                  (mc/combinations xv cnt))))))
+
+
+;;; returns vector of adjacency vectors [[2 3] [1 4]]
+(defn vincular-pattern [pat]
+  (if (vector? pat)
+    pat
+    (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split (str pat) #"-"))))
+
+;;; FIXME, BUGGY, NOT IMPLEMENTED
+;;; need to generate subcolls in proper size according to adjacency vectors
+;;; then remap them in proper order
+#_
+(defn vincular-pattern-fn [pat]
+  (let [p (vincular-pattern pat)
+        adjcnt (count p)
+        pm (zipmap (map dec p) (range))]
+    (println "pattern-fn " pm)
+    (fn [xv]
+      (and (>= (count xv) cnt)
+           (some (fn [q] (transduce (map #(nth q (get pm %)))
+                                    (fn ([r x] (if (< r x) x (reduced -1))) ([r] (pos? r)))
+                                    -1
+                                    (range cnt)))
+                 (mc/combinations xv cnt))))))
+
+
 
 (defn canonical-perm [v]
   (let [remap (zipmap (sort v) (range 1 (inc (count v))))]
@@ -65,3 +93,7 @@
   (some #(= (canonical-perm %) [2 3 1]) (mc/combinations v 3)))
 
 
+(defn cbax? [v]
+  (let [p3142? (pattern-fn "3-14-2")
+        p2413? (pattern-fn "2-41-3")]
+    (not (or (p3142? v) (p2413? v)))))
