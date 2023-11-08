@@ -91,19 +91,19 @@
   (let [pv [[4 3] [2] [1 6 5]]
         cntv (mapv count pv)
         spacev (vec (reductions - (reduce + 0 cntv) (pop cntv)))
-        v (vec (range 100 111))
+        v (vec (range 10 21))
         len (count v)
         xmax (- (inc len) (spacev 0))
         ymax (- (inc len) (spacev 1))
         zmax (- (inc len) (spacev 2))]
-    (println "pv" pv ", v" v ", max xyz" xmax ymax zmax)
+    ;; (println "pv" pv ", v" v ", max xyz" xmax ymax zmax)
     (for [x (range 0 xmax)
           y (range (+ x (count (first pv))) ymax)
           z (range (+ y (count (second pv))) zmax)]
-      (let [_ (println "xyz" x y z)]
+      ;; (let [_ (println "xyz" x y z)]
       (concat (subvec v x (+ x (count (pv 0))))
               (subvec v y (+ y (count (pv 1))))
-              (subvec v z (+ z (count (pv 2)))))))))
+              (subvec v z (+ z (count (pv 2))))))))
 
 
 
