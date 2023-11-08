@@ -64,6 +64,8 @@
     pat
     (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split (str pat) #"-"))))
 
+(declare vincular-pattern-fn)
+
 ;;; FIXME, BUGGY, NOT IMPLEMENTED
 ;;; need to generate subcolls in proper size according to adjacency vectors
 ;;; then remap them in proper order
@@ -81,6 +83,29 @@
                                     (range cnt)))
                  (mc/combinations xv cnt))))))
 
+;;; working example
+;; [[4 3] [2] [1 5]]
+;; cnt 2   1   2   =   5
+
+(defn sample []
+  (let [pv [[4 3] [2] [1 6 5]]
+        cntv (mapv count pv)
+        spacev (vec (reductions - (reduce + 0 cntv) (pop cntv)))
+        v (vec (range 100 111))
+        len (count v)
+        xmax (- (inc len) (spacev 0))
+        ymax (- (inc len) (spacev 1))
+        zmax (- (inc len) (spacev 2))]
+    (println "pv" pv ", v" v ", max xyz" xmax ymax zmax)
+    (for [x (range 0 xmax)
+          y (range (+ x (count (first pv))) ymax)
+          z (range (+ y (count (second pv))) zmax)]
+      (let [_ (println "xyz" x y z)]
+      (concat (subvec v x (+ x (count (pv 0))))
+              (subvec v y (+ y (count (pv 1))))
+              (subvec v z (+ z (count (pv 2)))))))))
+
+
 
 
 (defn canonical-perm [v]
@@ -94,6 +119,6 @@
 
 
 (defn cbax? [v]
-  (let [p3142? (pattern-fn "3-14-2")
-        p2413? (pattern-fn "2-41-3")]
+  (let [p3142? (vincular-pattern-fn "3-14-2")
+        p2413? (vincular-pattern-fn "2-41-3")]
     (not (or (p3142? v) (p2413? v)))))
