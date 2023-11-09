@@ -58,6 +58,23 @@
                  (mc/combinations xv cnt))))))
 
 
+
+
+(defn subv? [pat i]
+  (let [cnt (count pat)
+        pm (zipmap (map dec pat) (range))]
+    (println "subv " pm)
+    (fn [xv]
+      (and (>= (count xv) cnt)
+           (some (fn [q] (transduce (map #(nth q (get pm %)))
+                                    (fn ([r x] (if (< r x) x (reduced -1))) ([r] (pos? r)))
+                                    -1
+                                    (range cnt)))
+                 (mc/combinations xv cnt))))))
+
+
+
+
 ;;; returns vector of adjacency vectors [[2 3] [1 4]]
 (defn vincular-pattern [pat]
   (if (vector? pat)
@@ -87,26 +104,53 @@
 ;; [[4 3] [2] [1 5]]
 ;; cnt 2   1   2   =   5
 
-(defn sample []
+;;; experimenting for vincular generation
+(defn sample1 []
   (let [pv [[4 3] [2] [1 6 5]]
         cntv (mapv count pv)
         spacev (vec (reductions - (reduce + 0 cntv) (pop cntv)))
         v (vec (range 10 21))
         len (count v)
-        xmax (- (inc len) (spacev 0))
-        ymax (- (inc len) (spacev 1))
-        zmax (- (inc len) (spacev 2))]
+        maxv (mapv #(- (inc len) %) spacev)]
     ;; (println "pv" pv ", v" v ", max xyz" xmax ymax zmax)
-    (for [x (range 0 xmax)
-          y (range (+ x (count (first pv))) ymax)
-          z (range (+ y (count (second pv))) zmax)]
+    (for [x (range 0 (maxv 0))
+          y (range (+ x (count (first pv))) (maxv 1))
+          z (range (+ y (count (second pv))) (maxv 2))]
       ;; (let [_ (println "xyz" x y z)]
-      (concat (subvec v x (+ x (count (pv 0))))
-              (subvec v y (+ y (count (pv 1))))
-              (subvec v z (+ z (count (pv 2))))))))
+      (concat (subvec v x (+ x (cntv 0)))
+              (subvec v y (+ y (cntv 1)))
+              (subvec v z (+ z (cntv 2)))))))
+
+;;; would like to have a runtime `for` that reduces over a collection of nested endpoints or
+;;; intervals.
 
 
+;;; Think about sliding windows
+;;; iterate through "space in front"
+;;; try widest first
+;;; probably need "state" map with chosen indices
+;;; test fn can decode from pv and indicies
 
+
+(defn sample []
+  (let [pv [[4 3] [2] [1 6 5]]
+        v (vec (range 10 21))
+        cntv (mapv count pv)
+        init (reduce (fn [r pp]
+                       (let [cnt (count r)]
+                         (into r (range cnt (+ cnt (count pp))))))
+                     []
+                     pv)]
+    init))
+
+    
+        
+
+
+#_ (require '[clojure.math.combinatorics :as mc])
+            
+
+            
 
 (defn canonical-perm [v]
   (let [remap (zipmap (sort v) (range 1 (inc (count v))))]
