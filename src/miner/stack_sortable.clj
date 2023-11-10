@@ -58,19 +58,24 @@
                  (mc/combinations xv cnt))))))
 
 
-
-
-(defn subv? [pat i]
+(defn subv2? [pat i v]
   (let [cnt (count pat)
-        pm (zipmap (map dec pat) (range))]
+        pm (zipmap (range) pat)]
     (println "subv " pm)
-    (fn [xv]
-      (and (>= (count xv) cnt)
-           (some (fn [q] (transduce (map #(nth q (get pm %)))
-                                    (fn ([r x] (if (< r x) x (reduced -1))) ([r] (pos? r)))
-                                    -1
-                                    (range cnt)))
-                 (mc/combinations xv cnt))))))
+    (mapv v (map #(+ % i) (sort-by pm (range cnt))))))
+
+;;; reord for adjpat, return adj test fn which checks partial order for that block or
+;;; returns good block or nil.
+(defn subv-fn [adjpat]
+  (let [cnt (count adjpat)
+        reord (mapv peek (sort (map-indexed (fn [i p] (vector p i)) adjpat)))]
+    (assert (pos? cnt) "Empty adjpat")
+    (fn [v i]
+      (transduce (map #(nth v (+ i %)))
+                 (fn ([r x] (if (< r x) x (reduced nil)))
+                   ([r] (when r (subvec v i (+ i cnt)))))
+                 -1
+                 reord))))
 
 
 
