@@ -88,10 +88,10 @@
 (defn apat-fn [adjpat]
   (let [cnt (count adjpat)
         sortas (sort adjpat)
-        reord (map vector
-                   (map first (sort-by peek (map-indexed vector adjpat)))
-                   (into [0] (map - (rest sortas) sortas)))]
-    (println "apat-fn" reord)
+        reord (mapv vector
+                    (map first (sort-by peek (map-indexed vector adjpat)))
+                    (into [0] (map - (rest sortas) sortas)))]
+    ;;(println "apat-fn" reord)
     (assert (pos? cnt) "Empty adjpat")
     (if (= cnt 1)
       (fn ([] adjpat) ([v i] i))
@@ -99,11 +99,11 @@
         ([] adjpat)
         ([v i]
          (when (reduce (fn [r [j w]]
-                   (let [x (nth v (+ i j))]
-                     (println "af" r x w)
-                     (if (<= (+ r w) x) x (reduced nil))))
-                    -1
-                    reord)
+                         (let [x (nth v (+ i j))]
+                           ;;(println "af" r x w)
+                           (if (<= (+ r w) x) x (reduced nil))))
+                       -1
+                       reord)
            i))))))
 
 
