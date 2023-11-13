@@ -64,20 +64,150 @@
     (println "subv " pm)
     (mapv v (map #(+ % i) (sort-by pm (range cnt))))))
 
-;;; reord for adjpat, return adj test fn which checks partial order for that block or
-;;; returns good block or nil.
-(defn subv-fn [adjpat]
+;;; reord for adjpat, return adj test fn which checks partial order for that block
+;;; returns good index or nil.
+(defn adjpat-fn [adjpat]
   (let [cnt (count adjpat)
         reord (mapv peek (sort (map-indexed (fn [i p] (vector p i)) adjpat)))]
     (assert (pos? cnt) "Empty adjpat")
     (fn [v i]
       (transduce (map #(nth v (+ i %)))
                  (fn ([r x] (if (< r x) x (reduced nil)))
-                   ([r] (when r (subvec v i (+ i cnt)))))
+                   ([r] (when r i)))
                  -1
                  reord))))
 
 
+
+;; but you actually need to leave enough room between them, not just <
+;; 6 1 3
+;; 2 0 1
+
+;;; better idea to check the gaps
+;;;  reord [[index width] ...]
+(defn apat-fn [adjpat]
+  (let [cnt (count adjpat)
+        sortas (sort adjpat)
+        reord (map vector
+                   (map first (sort-by peek (map-indexed vector adjpat)))
+                   (into [0] (map - (rest sortas) sortas)))]
+    (println "apat-fn" reord)
+    (assert (pos? cnt) "Empty adjpat")
+    (if (= cnt 1)
+      (fn ([] adjpat) ([v i] i))
+      (fn
+        ([] adjpat)
+        ([v i]
+         (when (reduce (fn [r [j w]]
+                   (let [x (nth v (+ i j))]
+                     (println "af" r x w)
+                     (if (<= (+ r w) x) x (reduced nil))))
+                    -1
+                    reord)
+           i))))))
+
+
+;; simpler reord [[index width] ...]
+(defn apat4-fn [adjpat]
+  (let [cnt (count adjpat)
+        sortas (sort adjpat)
+        reord (map vector
+                   (map first (sort-by peek (map-indexed vector adjpat)))
+                   (into [0] (map - (rest sortas) sortas)))]
+    (println "apat-fn" reord)
+    (assert (pos? cnt) "Empty adjpat")
+    (if (= cnt 1)
+      (fn ([] adjpat) ([v i] i))
+      (fn
+        ([] adjpat)
+        ([v i]
+         (transduce (map (fn [[j w]] [(nth v (+ i j)) w]))
+                    (fn ([r [x w]]
+                         (println "af" r x w)
+                         (if (<= (+ r w) x) x (reduced nil)))
+                      ([r] (when r i)))
+                    -1
+                    reord))))))
+
+
+
+;;; better reord 
+(defn apat3-fn [adjpat]
+  (let [cnt (count adjpat)
+        reord (pop (reduce (fn [r ia]
+                             (let [a (peek ia)]
+                               (if-let [a1 (peek r)]
+                                 (conj (pop r) (conj (pop ia) (- a a1)) a)
+                                 (conj r (conj (pop ia) 0) a))))
+                      []
+                      (sort-by peek (map-indexed vector adjpat))))]
+    (println "apat-fn" reord)
+    (assert (pos? cnt) "Empty adjpat")
+    (if (= cnt 1)
+      (fn ([] adjpat) ([v i] i))
+      (fn
+        ([] adjpat)
+        ([v i]
+         (transduce (map (fn [[j w]] [(nth v (+ i j)) w]))
+                    (fn ([r [x w]]
+                         (println "af" r x w)
+                         (if (<= (+ r w) x) x (reduced nil)))
+                      ([r] (when r i)))
+                    -1
+                    reord))))))
+
+
+
+
+
+
+(defn apat2-fn [adjpat]
+  (let [cnt (count adjpat)
+        reord (reduce (fn [r ia]
+                        (if-let [a1 (nth (peek r) 1 nil)]
+                          (conj r (conj ia (- (nth ia 1) a1)))
+                          (conj r (conj ia 0))))
+                      []
+                      (sort-by peek (map-indexed vector adjpat)))]
+    (println "apat-fn" reord)
+    (assert (pos? cnt) "Empty adjpat")
+    (if (= cnt 1)
+      (fn ([] adjpat)
+        ([v i] i))
+      (fn
+        ([] adjpat)
+        ([v i]
+         (transduce (map (fn [[j _ w]] [(nth v (+ i j)) w]))
+                    (fn ([r [x w]]
+                         (println "af" r x w)
+                         (if (<= (+ r w) x) x (reduced nil)))
+                      ([r] (when r i)))
+                    -1
+                    reord))))))
+
+
+
+(defn apat1-fn [adjpat]
+  (let [cnt (count adjpat)
+        reord (mapv #(vector (nth % 0) (nth % 2))
+                    (reduce (fn [r ia]
+                              (if-let [a1 (nth (peek r) 1 nil)]
+                                (conj r (conj ia (- (nth ia 1) a1)))
+                                (conj r (conj ia 0))))
+                      []
+                      (sort-by peek (map-indexed vector adjpat))))]
+    (println "apat-fn" reord)
+    (assert (pos? cnt) "Empty adjpat")
+    (fn
+      ([] adjpat)
+      ([v i]
+      (transduce (map (fn [[j w]] [(nth v (+ i j)) w]))
+                 (fn ([r [x w]]
+                      (println "af" r x w)
+                      (if (<= (+ r w) x) x (reduced nil)))
+                   ([r] (when r i)))
+                 -1
+                 reord)))))
 
 
 ;;; returns vector of adjacency vectors [[2 3] [1 4]]
