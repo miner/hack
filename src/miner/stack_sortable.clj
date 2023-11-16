@@ -4,16 +4,40 @@
 
 ;;; https://en.wikipedia.org/wiki/Stack-sortable_permutation
 
+;;; intro paper with good explanation
+;;; "Generalized Permutation Patterns — A Short Survey"
+;;; by Einar Steingr ́imsson
+;;; https://www.semanticscholar.org/reader/7fa8ad2c205738047c0d9a877a480e1f73f04d52
+
+;;; Math schemes for enumerating vincular patterns.  Not so simple as what I'm trying.  
+;;; https://faculty.valpo.edu/lpudwell/papers/dashedschemes.pdf
+
 
 ;;; Good paper that has proper definitions and probably lots more stuff to understand,
 ;;; especially with cyclic permutations which I have not even considered.
 ;;;
 ;;; https://arxiv.org/pdf/2107.12353.pdf
 
+;;; Paper extending to barred patterns
+;;; https://arxiv.org/pdf/1301.6096.pdf
+
+;;; Deeper theorems about kinds of permutations patterns and constructions.
+;;; https://www.semanticscholar.org/reader/7c36bc81f544ffb3100ab03c3e97757ad1c0c6c4
+
 
 
 ;;; Note: this works for many collections, but not if coll contains the pattern 231
-(defn naive-stack-sort [coll]
+(defn bogus-stack-sort [coll]
+  (loop [stack [] xs (seq coll) res []]
+    (if (empty? xs)
+      (into res (rseq stack))
+      (let [p (peek stack)]
+        (if (and p (> (first xs) p))
+          (recur (pop stack) xs (conj res p))
+          (recur (conj stack (first xs)) (rest xs) res))))))
+
+
+(defn orig-bogus-stack-sort [coll]
   (loop [stack [] xs (seq coll) res []]
     (if (empty? xs)
       (into res (rseq stack))
@@ -24,6 +48,11 @@
           (if (> x p)
             (recur (pop stack) xs (conj res p))
             (recur (conj stack x) (rest xs) res)))))))
+
+
+
+
+
 
 ;;; can't use reduce because sometimes you need to reconsider the x (when x>p)
 
@@ -239,6 +268,21 @@
 
 ;;; not exactly the right thing
 (defn ijks [xv p apfs] nil)
+
+;;; kind of like mc/cartesian-product but filtered for the coontainment of the total length
+;;; of the pattern.
+
+;;; cnt a2 b1 c3  total=6
+;;; xv len 12
+;;; a: 0 .. 7 (- 12 5)
+;;; b: (+ a 2) ..
+
+
+
+;;; need to consider pair-wise patterns (and N-wise as well).  It may be hopeless to try the
+;;; other adjpat if the two are antagonistic.  Just disqualify immediately.  You can build
+;;; out a multi-adjpat (or partial vinc) in the cnt order, largest first.  Mayve only this
+;;; stack of tests, not necessarily worth the single adjpat for second, third, etc.
 
 ;;; BUGGY NOT FINISHED
 (defn vincular-pattern-fn [pat]
