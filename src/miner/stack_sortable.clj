@@ -4,6 +4,14 @@
 
 ;;; https://en.wikipedia.org/wiki/Stack-sortable_permutation
 
+
+;;; Good paper that has proper definitions and probably lots more stuff to understand,
+;;; especially with cyclic permutations which I have not even considered.
+;;;
+;;; https://arxiv.org/pdf/2107.12353.pdf
+
+
+
 ;;; Note: this works for many collections, but not if coll contains the pattern 231
 (defn naive-stack-sort [coll]
   (loop [stack [] xs (seq coll) res []]
@@ -86,25 +94,29 @@
 ;;; better idea to check the gaps
 ;;;  reord [[index width] ...]
 (defn apat-fn [adjpat]
-  (let [cnt (count adjpat)
-        sortas (sort adjpat)
-        reord (mapv vector
-                    (map first (sort-by peek (map-indexed vector adjpat)))
-                    (into [0] (map - (rest sortas) sortas)))]
-    ;;(println "apat-fn" reord)
-    (assert (pos? cnt) "Empty adjpat")
-    (if (= cnt 1)
-      (fn ([] adjpat) ([v i] i))
-      (fn
-        ([] adjpat)
-        ([v i]
-         (when (reduce (fn [r [j w]]
-                         (let [x (nth v (+ i j))]
-                           ;;(println "af" r x w)
-                           (if (<= (+ r w) x) x (reduced nil))))
-                       -1
-                       reord)
-           i))))))
+  (let [cnt (count adjpat)]
+    (case cnt
+      0 (assert (pos? cnt) "Empty adjpat")
+      1 (fn ([] adjpat) ([v i] i))
+      2 (let [[a b] adjpat]
+          (if (< a b)
+            (fn ([] adjpat) ([v i] (when (<= (+ (v i) (- b a)) (v (inc i))) i)))
+            (fn ([] adjpat) ([v i] (when (>= (v i) (+ (- a b) (v (inc i)))) i)))))
+      ;; 3 or more -- maybe you should optimize three arg with six cases?
+      (let [sortas (sort adjpat)
+            reord (mapv vector
+                        (map first (sort-by peek (map-indexed vector adjpat)))
+                        (into [0] (map - (rest sortas) sortas)))]
+        ;;(println "apat-fn" reord)
+        (fn ([] adjpat)
+          ([v i]
+           (when (reduce (fn [r [j w]]
+                           (let [x (nth v (+ i j))]
+                             ;;(println "af" r x w)
+                             (if (<= (+ r w) x) x (reduced nil))))
+                         -1
+                         reord)
+             i)))))))
 
 
 ;; simpler reord [[index width] ...]
@@ -216,24 +228,36 @@
     pat
     (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split (str pat) #"-"))))
 
-(declare vincular-pattern-fn)
 
-;;; FIXME, BUGGY, NOT IMPLEMENTED
-;;; need to generate subcolls in proper size according to adjacency vectors
-;;; then remap them in proper order
-#_
+;;; reord is flat index remap
+;;; [[1  0]  [2  7  3  5]  [4  6]]
+;;; [1  0    2  7  3  5     4  6]
+;;;  3  4   10 11 12 13     20 21
+
+;;; FIXME:  how do you wire a reord perm function?  Can you synthesize a fn that reords by args?
+;;; Without having to remap at runtime.
+
+;;; not exactly the right thing
+(defn ijks [xv p apfs] nil)
+
+;;; BUGGY NOT FINISHED
 (defn vincular-pattern-fn [pat]
   (let [p (vincular-pattern pat)
         adjcnt (count p)
-        pm (zipmap (map dec p) (range))]
-    (println "pattern-fn " pm)
+        flatp (into [] cat pat)
+        cnt (count flatp)
+        apfs (mapv apat-fn p)
+        reord (mapv first (sort-by peek (map-indexed vector flatp)))]
+    (println "vincular-pattern-fn " reord)
     (fn [xv]
       (and (>= (count xv) cnt)
-           (some (fn [q] (transduce (map #(nth q (get pm %)))
-                                    (fn ([r x] (if (< r x) x (reduced -1))) ([r] (pos? r)))
+           (some (fn [iv] (transduce (map #(nth xv (peek %)))
+                                    (fn ([r x] (if (< r x) x (reduced -1)))
+                                      ([r] (pos? r)))
                                     -1
-                                    (range cnt)))
-                 (mc/combinations xv cnt))))))
+                                    (sort (map vector reord iv))))
+                 ;; FIXME better if lazy ijks
+                 (ijks xv p apfs))))))
 
 ;;; working example
 ;; [[4 3] [2] [1 5]]
