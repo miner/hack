@@ -76,8 +76,18 @@
                    (mc/combinations xv cnt)))))))
 
 
+;;; trying to generalize for vincular patterns as vector of adjpat
 
-;; but you actually need to leave enough room between them, not just <
+;;; returns vector of adjacency vectors [[2 3] [1 4]]  for vincular pattern "23-14"
+(defn vincular-pattern [pat]
+  (if (vector? pat)
+    pat
+    (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split (str pat) #"-"))))
+
+
+
+
+;; you actually need to leave enough room between them, not just <
 ;; 6 1 3
 ;; 2 0 1
 
@@ -89,6 +99,8 @@
 ;;; For convenience, no-arg returns original adjpat -- not sure that's useful but good for
 ;;; debugging.
 
+;;; handles single adjacency pattern, good preliminary test for allocating adjacent chunks
+;;; during search for vincular match.
 
 (defn apat-fn [adjpat]
   (let [cnt (count adjpat)]
@@ -158,14 +170,14 @@
         reord))))
 
 
-;;; FIXME -- you shouldn't actually use the vinc-apat-reord with single adjpat as the adjpat
+;;; FIXME -- you shouldn't actually use the vinc-apat-reord with single adjpat as the adjpat-fn
 ;;; test covers the single case better.
 
 (defn vinc-reord [pat]
   (sort (sequence (mapcat vinc-apat-reord) pat (range))))
 
 
-
+;;; FIXME: WIP
 (defn vinc-pat-fn [pat]
   (let [cnt (count pat)
         reords (map vinc-reord (rest (reductions conj [] pat)))]
@@ -200,13 +212,6 @@
 
 
 
-
-
-;;; returns vector of adjacency vectors [[2 3] [1 4]]
-(defn vincular-pattern [pat]
-  (if (vector? pat)
-    pat
-    (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split (str pat) #"-"))))
 
 
 ;;; reord is flat index remap
