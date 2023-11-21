@@ -66,7 +66,7 @@
 
 
 
-
+;;; Note: one-line "231" is that same as vincular "2-3-1".
 
 
 ;;; converts 231 or "231" to [2 3 1]
@@ -76,6 +76,8 @@
     (mapv #(- (long %) (long \0)) (str pat))))
 
 
+;;; FIXME: this assumes canonical "reduced" one-line pattern.  Probably better to sort like
+;;; vincular approach.
 
 ;;; This version handles case of pat possibly being within larger pattern (not exact size match)
 ;;; only handle "one-line" notation, not vincular
@@ -86,13 +88,16 @@
         ;;     (str "pattern-fn expects 1..9+, failed: " pat))
         pm (zipmap (map dec p) (range))]
     (println "pattern-fn " pm)
-    (fn [xv]
-      (and (>= (count xv) cnt)
-           (some (fn [q] (transduce (map #(nth q (get pm %)))
-                                    (fn ([r x] (if (< r x) x (reduced -1))) ([r] (pos? r)))
-                                    -1
-                                    (range cnt)))
-                 (mc/combinations xv cnt))))))
+    (case cnt
+      0 (assert (pos? cnt) "Empty pattern")
+      1 (fn [xv] (pos? (count xv)))
+      (fn [xv]
+        (and (>= (count xv) cnt)
+             (some (fn [q] (transduce (map #(nth q (get pm %)))
+                                      (fn ([r x] (if (< r x) x (reduced -1))) ([r] (pos? r)))
+                                      -1
+                                      (range cnt)))
+                   (mc/combinations xv cnt)))))))
 
 
 (defn subv2? [pat i v]
@@ -121,7 +126,14 @@
 ;; 2 0 1
 
 ;;; better idea to check the gaps
-;;;  reord [[index width] ...]
+;;;  reord [[offset width] ...]
+;;; returns fn that checks order matchs adjpat against v at index i
+;;;   also check width to allow others to possibly fit in.
+;;;   If test succeeds, returns original i, otherwise nil
+;;; For convenience, no-arg returns original adjpat -- not sure that's useful but good for
+;;; debugging.
+
+
 (defn apat-fn [adjpat]
   (let [cnt (count adjpat)]
     (case cnt
@@ -147,6 +159,219 @@
                          reord)
              i)))))))
 
+
+;;; [Extracted from above, but not used directly]
+
+;;; for adjpat we want the width between elements
+;;; input [A ...] returns [offset width] within that adjacency
+(defn apat-reord [adjpat]
+  (let [cnt (count adjpat)]
+    (case cnt
+      0 (assert (pos? cnt) "Empty adjpat")
+      1 [[0 0]]
+      2 (let [[a b] adjpat]
+          (if (< a b) [[0 0] [1 (- b a)]] [[1 (- a b)] [0 0]]))
+      ;; 3 or more -- maybe you should optimize three arg with six cases?  Not now.
+      (let [sortas (sort adjpat)
+            reord (mapv vector
+                        (map first (sort-by peek (map-indexed vector adjpat)))
+                        (into [0] (map - (rest sortas) sortas)))]
+        ;;(println "apat-reord1" reord)
+        reord))))
+
+
+
+
+;;; input [A ...]  returns [[A ith offset] ...]
+;;; ith index (from original vinc pat), offset is order with adjacency.
+;;; Leading A lets it sort correctly with multiple adjpats so we can mix and get the overall order.
+
+(defn vinc-apat-reord [adjpat i]
+  (let [cnt (count adjpat)]
+    (case cnt
+      0 (assert (pos? cnt) "Empty adjpat")
+      1 (into adjpat [i 0])
+      2 (let [[a b] adjpat]
+          (if (< a b) [[a i 0] [b i 1]] [[b i 1] [a i 0]]))
+      ;; 3 or more -- maybe you should optimize three arg with six cases?  Not now.
+      (let [reord (mapv vector
+                        adjpat
+                        (repeat i)
+                        (map first (sort-by peek (map-indexed vector adjpat))))]
+        (println "vinc-apat-reord" adjpat i "=>" reord)
+        reord))))
+
+
+;;; FIXME -- you shouldn't actually use the vinc-apat-reord with single adjpat as the adjpat
+;;; test covers the single case better.
+
+(defn vinc-reord [pat]
+  (sort (sequence (mapcat vinc-apat-reord) pat (range))))
+
+
+
+(defn vinc-pat-fn [pat]
+  (let [cnt (count pat)
+        reords (map vinc-reord (rest (reductions conj [] pat)))]
+    reords))
+        
+
+#_
+    (case cnt
+      0 (assert (pos? cnt) "Empty pat")
+      1 (fn ([] adjpat) ([v i] i))
+      2 (let [[a b] adjpat]
+          (if (< a b)
+            (fn ([] adjpat) ([v i] (when (<= (+ (v i) (- b a)) (v (inc i))) i)))
+            (fn ([] adjpat) ([v i] (when (>= (v i) (+ (- a b) (v (inc i)))) i)))))
+      ;; 3 or more -- maybe you should optimize three arg with six cases?
+      (let [sortas (sort adjpat)
+            reord (mapv vector
+                        (map first (sort-by peek (map-indexed vector adjpat)))
+                        (into [0] (map - (rest sortas) sortas)))]
+        ;;(println "apat-fn" reord)
+        (fn ([] adjpat)
+          ([v i]
+           (when (reduce (fn [r [j w]]
+                           (let [x (nth v (+ i j))]
+                             ;;(println "af" r x w)
+                             (if (<= (+ r w) x) x (reduced nil))))
+                         -1
+                         reord)
+             i)))))
+
+
+
+
+
+
+
+;;; returns vector of adjacency vectors [[2 3] [1 4]]
+(defn vincular-pattern [pat]
+  (if (vector? pat)
+    pat
+    (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split (str pat) #"-"))))
+
+
+;;; reord is flat index remap
+;;; [[1  0]  [2  7  3  5]  [4  6]]
+;;; [1  0    2  7  3  5     4  6]
+;;;  3  4   10 11 12 13     20 21
+
+;;; [[a b] [c d e] [f g]]
+
+
+
+;;; FIXME:  how do you wire a reord perm function?  Can you synthesize a fn that reords by args?
+;;; Without having to remap at runtime.
+
+;;; not exactly the right thing
+(defn ijks [xv p apfs] nil)
+
+;;; kind of like mc/cartesian-product but filtered for the coontainment of the total length
+;;; of the pattern.
+
+;;; cnt a2 b1 c3  total=6
+;;; xv len 12
+;;; a: 0 .. 7 (- 12 5)
+;;; b: (+ a 2) ..
+
+
+
+;;; need to consider pair-wise patterns (and N-wise as well).  It may be hopeless to try the
+;;; other adjpat if the two are antagonistic.  Just disqualify immediately.  You can build
+;;; out a multi-adjpat (or partial vinc) in the cnt order, largest first.  Mayve only this
+;;; stack of tests, not necessarily worth the single adjpat for second, third, etc.
+
+;;; BUGGY NOT FINISHED
+(defn vincular-pattern-fn [pat]
+  (let [p (vincular-pattern pat)
+        adjcnt (count p)
+        flatp (into [] cat pat)
+        cnt (count flatp)
+        apfs (mapv apat-fn p)
+        reord (mapv first (sort-by peek (map-indexed vector flatp)))]
+    (println "vincular-pattern-fn " reord)
+    (fn [xv]
+      (and (>= (count xv) cnt)
+           (some (fn [iv] (transduce (map #(nth xv (peek %)))
+                                    (fn ([r x] (if (< r x) x (reduced -1)))
+                                      ([r] (pos? r)))
+                                    -1
+                                    (sort (map vector reord iv))))
+                 ;; FIXME better if lazy ijks
+                 (ijks xv p apfs))))))
+
+;;; working example
+;; [[4 3] [2] [1 5]]
+;; cnt 2   1   2   =   5
+
+;;; experimenting for vincular generation
+(defn sample2 []
+  (let [pv [[4 3] [2] [1 6 5]]
+        cntv (mapv count pv)
+        spacev (vec (reductions - (reduce + 0 cntv) (pop cntv)))
+        v (vec (range 10 21))
+        len (count v)
+        maxv (mapv #(- (inc len) %) spacev)]
+    ;; (println "pv" pv ", v" v ", max xyz" xmax ymax zmax)
+    (for [x (range 0 (maxv 0))
+          y (range (+ x (cntv 0)) (maxv 1))
+          z (range (+ y (cntv 1)) (maxv 2))]
+      ;; (let [_ (println "xyz" x y z)]
+      (concat (subvec v x (+ x (cntv 0)))
+              (subvec v y (+ y (cntv 1)))
+              (subvec v z (+ z (cntv 2)))))))
+
+;;; would like to have a runtime `for` that reduces over a collection of nested endpoints or
+;;; intervals.
+
+
+;;; Think about sliding windows
+;;; iterate through "space in front"
+;;; try widest first
+;;; probably need "state" map with chosen indices
+;;; test fn can decode from pv and indicies
+
+
+(defn sample []
+  (let [pv [[4 3] [2] [1 6 5]]
+        v (vec (range 10 21))
+        cntv (mapv count pv)
+        init (reduce (fn [r pp]
+                       (let [cnt (count r)]
+                         (into r (range cnt (+ cnt (count pp))))))
+                     []
+                     pv)]
+    init))
+
+    
+        
+
+
+#_ (require '[clojure.math.combinatorics :as mc])
+            
+
+            
+
+(defn canonical-perm [v]
+  (let [remap (zipmap (sort v) (range 1 (inc (count v))))]
+    (mapv remap v)))
+
+
+(defn WAScontains231? [v]
+  ;; v is permuation vector of 1..N when N is count
+  (some #(= (canonical-perm %) [2 3 1]) (mc/combinations v 3)))
+
+
+(defn cbax? [v]
+  (let [p3142? (vincular-pattern-fn "3-14-2")
+        p2413? (vincular-pattern-fn "2-41-3")]
+    (not (or (p3142? v) (p2413? v)))))
+
+
+;;; ----------------------------------------------------------------------
+;;; old stuff
 
 ;; simpler reord [[index width] ...]
 (defn apat4-fn [adjpat]
@@ -250,122 +475,3 @@
                  -1
                  reord)))))
 
-
-;;; returns vector of adjacency vectors [[2 3] [1 4]]
-(defn vincular-pattern [pat]
-  (if (vector? pat)
-    pat
-    (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split (str pat) #"-"))))
-
-
-;;; reord is flat index remap
-;;; [[1  0]  [2  7  3  5]  [4  6]]
-;;; [1  0    2  7  3  5     4  6]
-;;;  3  4   10 11 12 13     20 21
-
-;;; FIXME:  how do you wire a reord perm function?  Can you synthesize a fn that reords by args?
-;;; Without having to remap at runtime.
-
-;;; not exactly the right thing
-(defn ijks [xv p apfs] nil)
-
-;;; kind of like mc/cartesian-product but filtered for the coontainment of the total length
-;;; of the pattern.
-
-;;; cnt a2 b1 c3  total=6
-;;; xv len 12
-;;; a: 0 .. 7 (- 12 5)
-;;; b: (+ a 2) ..
-
-
-
-;;; need to consider pair-wise patterns (and N-wise as well).  It may be hopeless to try the
-;;; other adjpat if the two are antagonistic.  Just disqualify immediately.  You can build
-;;; out a multi-adjpat (or partial vinc) in the cnt order, largest first.  Mayve only this
-;;; stack of tests, not necessarily worth the single adjpat for second, third, etc.
-
-;;; BUGGY NOT FINISHED
-(defn vincular-pattern-fn [pat]
-  (let [p (vincular-pattern pat)
-        adjcnt (count p)
-        flatp (into [] cat pat)
-        cnt (count flatp)
-        apfs (mapv apat-fn p)
-        reord (mapv first (sort-by peek (map-indexed vector flatp)))]
-    (println "vincular-pattern-fn " reord)
-    (fn [xv]
-      (and (>= (count xv) cnt)
-           (some (fn [iv] (transduce (map #(nth xv (peek %)))
-                                    (fn ([r x] (if (< r x) x (reduced -1)))
-                                      ([r] (pos? r)))
-                                    -1
-                                    (sort (map vector reord iv))))
-                 ;; FIXME better if lazy ijks
-                 (ijks xv p apfs))))))
-
-;;; working example
-;; [[4 3] [2] [1 5]]
-;; cnt 2   1   2   =   5
-
-;;; experimenting for vincular generation
-(defn sample1 []
-  (let [pv [[4 3] [2] [1 6 5]]
-        cntv (mapv count pv)
-        spacev (vec (reductions - (reduce + 0 cntv) (pop cntv)))
-        v (vec (range 10 21))
-        len (count v)
-        maxv (mapv #(- (inc len) %) spacev)]
-    ;; (println "pv" pv ", v" v ", max xyz" xmax ymax zmax)
-    (for [x (range 0 (maxv 0))
-          y (range (+ x (count (first pv))) (maxv 1))
-          z (range (+ y (count (second pv))) (maxv 2))]
-      ;; (let [_ (println "xyz" x y z)]
-      (concat (subvec v x (+ x (cntv 0)))
-              (subvec v y (+ y (cntv 1)))
-              (subvec v z (+ z (cntv 2)))))))
-
-;;; would like to have a runtime `for` that reduces over a collection of nested endpoints or
-;;; intervals.
-
-
-;;; Think about sliding windows
-;;; iterate through "space in front"
-;;; try widest first
-;;; probably need "state" map with chosen indices
-;;; test fn can decode from pv and indicies
-
-
-(defn sample []
-  (let [pv [[4 3] [2] [1 6 5]]
-        v (vec (range 10 21))
-        cntv (mapv count pv)
-        init (reduce (fn [r pp]
-                       (let [cnt (count r)]
-                         (into r (range cnt (+ cnt (count pp))))))
-                     []
-                     pv)]
-    init))
-
-    
-        
-
-
-#_ (require '[clojure.math.combinatorics :as mc])
-            
-
-            
-
-(defn canonical-perm [v]
-  (let [remap (zipmap (sort v) (range 1 (inc (count v))))]
-    (mapv remap v)))
-
-
-(defn WAScontains231? [v]
-  ;; v is permuation vector of 1..N when N is count
-  (some #(= (canonical-perm %) [2 3 1]) (mc/combinations v 3)))
-
-
-(defn cbax? [v]
-  (let [p3142? (vincular-pattern-fn "3-14-2")
-        p2413? (vincular-pattern-fn "2-41-3")]
-    (not (or (p3142? v) (p2413? v)))))
