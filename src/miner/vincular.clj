@@ -158,7 +158,7 @@
   (let [cnt (count adjpat)]
     (case cnt
       0 (assert (pos? cnt) "Empty adjpat")
-      1 (into adjpat [i 0])
+      1 [(into adjpat [i 0])]
       2 (let [[a b] adjpat]
           (if (< a b) [[a i 0] [b i 1]] [[b i 1] [a i 0]]))
       ;; 3 or more -- maybe you should optimize three arg with six cases?  Not now.
@@ -193,7 +193,7 @@
             (fn ([] adjpat) ([v i] (when (<= (+ (v i) (- b a)) (v (inc i))) i)))
             (fn ([] adjpat) ([v i] (when (>= (v i) (+ (- a b) (v (inc i)))) i)))))
       ;; 3 or more -- maybe you should optimize three arg with six cases?
-      (let [sortas (sort adjpat)
+           (let [sortas (sort adjpat)
             reord (mapv vector
                         (map first (sort-by peek (map-indexed vector adjpat)))
                         (into [0] (map - (rest sortas) sortas)))]
@@ -262,6 +262,9 @@
                                     (sort (map vector reord iv))))
                  ;; FIXME better if lazy ijks
                  (ijks xv p apfs))))))
+
+
+
 
 ;;; working example
 ;; [[4 3] [2] [1 5]]
