@@ -40,7 +40,8 @@
 ;;; Deeper theorems about kinds of permutations patterns and constructions.
 ;;; https://www.semanticscholar.org/reader/7c36bc81f544ffb3100ab03c3e97757ad1c0c6c4
 
-
+#_
+(require '[clojure.math.combinatorics :as mc])
 
 
 
@@ -148,10 +149,12 @@
         reord))))
 
 
+;;; Note: apat reord is different format from vinc reord, tricky!
 
 
-;;; input [A ...]  returns [[A ith offset] ...]
-;;; ith index (from original vinc pat), offset is order with adjacency.
+
+;;; input [A ...]  returns [[A Ith offset] ...]
+;;; ith index (from original vinc pat), offset is order within adjacency.
 ;;; Leading A lets it sort correctly with multiple adjpats so we can mix and get the overall order.
 
 (defn vinc-apat-reord [adjpat i]
@@ -162,10 +165,7 @@
       2 (let [[a b] adjpat]
           (if (< a b) [[a i 0] [b i 1]] [[b i 1] [a i 0]]))
       ;; 3 or more -- maybe you should optimize three arg with six cases?  Not now.
-      (let [reord (mapv vector
-                        adjpat
-                        (repeat i)
-                        (map first (sort-by peek (map-indexed vector adjpat))))]
+      (let [reord (sort (map-indexed (fn [j a] [a i j]) adjpat))]
         (println "vinc-apat-reord" adjpat i "=>" reord)
         reord))))
 
@@ -177,40 +177,78 @@
   (sort (sequence (mapcat vinc-apat-reord) pat (range))))
 
 
-;;; FIXME: WIP
+;;; FIXME: could optimize for cnt=1, no need to mix
+#_
 (defn vinc-pat-fn [pat]
   (let [cnt (count pat)
-        reords (map vinc-reord (rest (reductions conj [] pat)))]
-    reords))
+        apv (mapv apat-fn pat)
+        cntv (mapv count pat)
+        ctot (reduce + 0 cntv)  ;; could be same as (peek (vec starts))
+        starts (reductions + 0 (pop cntv))
+        endsps  (reductions - ctot (pop cntv))
+        ;; apatv (mapv apat-fn pat)
+        reordv (mapv vinc-reord (rest (reductions conj [] pat)))]
+    (assert (pos? cnt) "Empty pat")
+    (println "vinc-pat-fn" reordv)
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)
+             ijkv (mapv (fn [ap st en]
+                          (let [apf (apat-fn ap)]
+                            (filter #(apf v %) (range st (- len en)))))
+                        pat starts endsps)]
+         ;; FIXME (some (fn [& ijk]
+         (reduce (fn [r [_A off i]]
+                   (let [x (v (+ i off))]
+                     (if (< r x) x (reduced nil))))
+                 -1
+                 reordv))))))
         
 
-#_
-    (case cnt
-      0 (assert (pos? cnt) "Empty pat")
-      1 (fn ([] adjpat) ([v i] i))
-      2 (let [[a b] adjpat]
-          (if (< a b)
-            (fn ([] adjpat) ([v i] (when (<= (+ (v i) (- b a)) (v (inc i))) i)))
-            (fn ([] adjpat) ([v i] (when (>= (v i) (+ (- a b) (v (inc i)))) i)))))
-      ;; 3 or more -- maybe you should optimize three arg with six cases?
-           (let [sortas (sort adjpat)
-            reord (mapv vector
-                        (map first (sort-by peek (map-indexed vector adjpat)))
-                        (into [0] (map - (rest sortas) sortas)))]
-        ;;(println "apat-fn" reord)
-        (fn ([] adjpat)
-          ([v i]
-           (when (reduce (fn [r [j w]]
-                           (let [x (nth v (+ i j))]
-                             ;;(println "af" r x w)
-                             (if (<= (+ r w) x) x (reduced nil))))
-                         -1
-                         reord)
-             i)))))
+(defn vincpf [pat]
+  (let [cnt (count pat)
+        apv (mapv apat-fn pat)
+        cntv (mapv count pat)
+        ctot (reduce + 0 cntv)  ;; could be same as (peek (vec starts))
+        startv (vec (reductions + 0 (pop cntv)))
+        endsps  (reductions - ctot (pop cntv))
+        ;; apatv (mapv apat-fn pat)
+        reordv (mapv vinc-reord (rest (reductions conj [] pat)))]
+    ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
+    (assert (pos? cnt) "Empty pat")
+    (println "vincpf" reordv)
+    (println "  startv" startv)
+    (let [v (into (into [] cat pat) cat pat)]
+      (println " fake v " v)
+      (let [len (count v)
+            ijkv (mapv (fn [ap st en]
+                          (let [apf (apat-fn ap)]
+                            (filter #(apf v %) (range st (- (inc len) en)))))
+                       pat startv endsps)]
+        (println " len" len)
+        ijkv))))
+
+;;; startv is the min indices [A B C]
+;;; first check apv for each
+;;; if A fails inc A and try again until good A
+;;;   then B similarly, plus check vinc-AB until good B
+;;;   then C similarly, plus check full vinc (ABC) until good C --> success
+;;;   or out of C, then backtrack to inc B again
+;;;   same backtrack to inc C again
+
+;;; backtrack = inc previous P and reset Q to (init-Q P) based on widths
+
+;;; might be simpler to init with [0] and add new index as you go (+ (width q) p)
 
 
 
+;;; FIXME: NO don't do this.  You need to iterate from the init [i j k] and advance
+;;; according to pat widths
 
+(defn lazy-ijks [ijkv cntv]
+  (let [spaces (into [0] (pop cntv))]
+    (filter #(apply <= (map + % spaces))
+            (apply mc/cartesian-product ijkv))))
 
 
 
@@ -226,8 +264,6 @@
 ;;; FIXME:  how do you wire a reord perm function?  Can you synthesize a fn that reords by args?
 ;;; Without having to remap at runtime.
 
-;;; not exactly the right thing
-(defn ijks [xv p apfs] nil)
 
 ;;; kind of like mc/cartesian-product but filtered for the coontainment of the total length
 ;;; of the pattern.
@@ -245,7 +281,7 @@
 ;;; stack of tests, not necessarily worth the single adjpat for second, third, etc.
 
 ;;; BUGGY NOT FINISHED
-(defn vincular-pattern-fn [pat]
+(defn BUGGY-vincular-pattern-fn [pat]
   (let [p (vincular-pattern pat)
         adjcnt (count p)
         flatp (into [] cat pat)
