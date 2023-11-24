@@ -284,6 +284,11 @@
 
 ;;;; NEEDS MORE TESTING
 
+;;; baxter the hard way
+(def bxx? (complement (some-fn (vinc-pat-fn [[3] [1 4] [2]])
+                               (vinc-pat-fn [[2] [4 1] [3]]))))
+
+
 
 ;;; startv is the min indices [A B C]
 ;;; first check apv for each
