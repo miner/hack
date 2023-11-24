@@ -207,7 +207,7 @@
 (defn vinc-fn [reord]
   (case (count reord)
     0 (assert (pos? reord) "Empty reord")
-    1 (fn [v i] i)
+    1 (fn [v i] i)  ;; the apat-fn does the real work for single
     (fn [v i]
       (when (reduce (fn [r [_A i off]]
                       (let [x (v (+ i off))]
@@ -232,22 +232,23 @@
     (assert (pos? cnt) "Empty pat")
     (println "vincpf" reordv)
     (println "  startv" startv)
-    (let [v (into (into [] cat pat) cat pat)
+    (let [v (into (into [3 7] cat pat) cat pat)
           len (count v)]
       (println " fake v " v " len" len)
       (loop [ijk [0]]
+        (println "  ijk" ijk)
         (let [ith (dec (count ijk))
               i (peek ijk)]
           (cond (nil? i) false
-                (>= i (- len (endspv i)))
-                      (let [ijk2 (pop ijk)]
-                        (when-not (zero? (count ijk2))
-                          (conj (pop ijk2) (inc (peek ijk2)))))
-                  (not ((apv ith) v i)) (recur (conj (pop ijk) (inc i)))
-                  (not ((vpv ith) v i)) (recur (conj (pop ijk) (inc i)))
-                  (= ith (dec cnt)) ijk ;; success
-                  ;; good so far, add another index
-                  :else (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))
+                (>= i (- len (endspv ith)))
+                    (let [ijk2 (pop ijk)]
+                      (recur (when-not (zero? (count ijk2))
+                               (conj (pop ijk2) (inc (peek ijk2))))))
+                (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
+                (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                (= ith (dec cnt))   ijk ;; success
+                ;; good so far, add another index
+                :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))
 
 
 
@@ -344,7 +345,7 @@
                                     -1
                                     (sort (map vector reord iv))))
                  ;; FIXME better if lazy ijks
-                 (ijks xv p apfs))))))
+                 (lazy-ijks xv p apfs))))))
 
 
 
@@ -410,7 +411,7 @@
   ;; v is permuation vector of 1..N when N is count
   (some #(= (canonical-perm %) [2 3 1]) (mc/combinations v 3)))
 
-
+#_
 (defn cbax? [v]
   (let [p3142? (vincular-pattern-fn "3-14-2")
         p2413? (vincular-pattern-fn "2-41-3")]
