@@ -166,7 +166,7 @@
           (if (< a b) [[a i 0] [b i 1]] [[b i 1] [a i 0]]))
       ;; 3 or more -- maybe you should optimize three arg with six cases?  Not now.
       (let [reord (sort (map-indexed (fn [j a] [a i j]) adjpat))]
-        (println "vinc-apat-reord" adjpat i "=>" reord)
+        ;;(println "vinc-apat-reord" adjpat i "=>" reord)
         reord))))
 
 
@@ -206,18 +206,18 @@
 
 (defn vinc-fn [reord]
   (case (count reord)
-    0 (assert (pos? reord) "Empty reord")
-    1 (fn [v i] i)  ;; the apat-fn does the real work for single
-    (fn [v i]
+    0 (assert (pos? reord) "Empty vinc reord")
+    1 (fn [v ijk] ijk)  ;; the apat-fn does the real work for single
+    (fn [v ijk]
       (when (reduce (fn [r [_A i off]]
-                      (let [x (v (+ i off))]
+                      (let [x (v (+ (ijk i) off))]
                         (if (< r x) x (reduced nil))))
                     -1
                     reord)
-        i))))
+        ijk))))
 
 
-(defn vincpf [pat]
+(defn test-vincpf [pat v]
   (let [cnt (count pat)
         apv (mapv apat-fn pat)
         cntv (mapv count pat)
@@ -232,49 +232,58 @@
     (assert (pos? cnt) "Empty pat")
     (println "vincpf" reordv)
     (println "  startv" startv)
-    (let [v (into (into [3 7] cat pat) cat pat)
-          len (count v)]
-      (println " fake v " v " len" len)
+    (let [len (count v)]
+      (println " input v " v " len" len)
       (loop [ijk [0]]
         (println "  ijk" ijk)
         (let [ith (dec (count ijk))
               i (peek ijk)]
           (cond (nil? i) false
-                (>= i (- len (endspv ith)))
+                (> i (- len (endspv ith)))
                     (let [ijk2 (pop ijk)]
                       (recur (when-not (zero? (count ijk2))
                                (conj (pop ijk2) (inc (peek ijk2))))))
                 (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
+                (println "   apv " ijk) ijk
                 (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                (println "   vinc" ijk) ijk
                 (= ith (dec cnt))   ijk ;; success
                 ;; good so far, add another index
                 :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))
 
-
-
-
-(defn WIP-SAVE-vincpf [pat]
+(defn vinc-pat-fn [pat]
   (let [cnt (count pat)
         apv (mapv apat-fn pat)
         cntv (mapv count pat)
         ctot (reduce + 0 cntv)  ;; could be same as (peek (vec starts))
+        ;; don't need startv???
         startv (vec (reductions + 0 (pop cntv)))
-        endsps  (reductions - ctot (pop cntv))
+        endspv  (vec (reductions - ctot (pop cntv)))
         ;; apatv (mapv apat-fn pat)
-        reordv (mapv vinc-reord (rest (reductions conj [] pat)))]
+        reordv (mapv vinc-reord (rest (reductions conj [] pat)))
+        vpv (mapv vinc-fn reordv)]
     ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
     (assert (pos? cnt) "Empty pat")
-    (println "vincpf" reordv)
-    (println "  startv" startv)
-    (let [v (into (into [] cat pat) cat pat)]
-      (println " fake v " v)
-      (let [len (count v)
-            ijkv (mapv (fn [ap st en]
-                          (let [apf (apat-fn ap)]
-                            (filter #(apf v %) (range st (- (inc len) en)))))
-                       pat startv endsps)]
-        (println " len" len)
-        ijkv))))
+
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)]
+         (loop [ijk [0]]
+           (let [ith (dec (count ijk))
+                 i (peek ijk)]
+             (cond (nil? i) false
+                   (> i (- len (endspv ith)))
+                       (let [ijk2 (pop ijk)]
+                         (recur (when-not (zero? (count ijk2))
+                                  (conj (pop ijk2) (inc (peek ijk2))))))
+                   (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                   (= ith (dec cnt))   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
+;;;; NEEDS MORE TESTING
+
 
 ;;; startv is the min indices [A B C]
 ;;; first check apv for each
