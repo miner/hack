@@ -198,14 +198,61 @@
                             (filter #(apf v %) (range st (- len en)))))
                         pat starts endsps)]
          ;; FIXME (some (fn [& ijk]
-         (reduce (fn [r [_A off i]]
+         (reduce (fn [r [_A i off]]
                    (let [x (v (+ i off))]
                      (if (< r x) x (reduced nil))))
                  -1
                  reordv))))))
-        
+
+(defn vinc-fn [reord]
+  (case (count reord)
+    0 (assert (pos? reord) "Empty reord")
+    1 (fn [v i] i)
+    (fn [v i]
+      (when (reduce (fn [r [_A i off]]
+                      (let [x (v (+ i off))]
+                        (if (< r x) x (reduced nil))))
+                    -1
+                    reord)
+        i))))
+
 
 (defn vincpf [pat]
+  (let [cnt (count pat)
+        apv (mapv apat-fn pat)
+        cntv (mapv count pat)
+        ctot (reduce + 0 cntv)  ;; could be same as (peek (vec starts))
+        ;; don't need startv???
+        startv (vec (reductions + 0 (pop cntv)))
+        endspv  (vec (reductions - ctot (pop cntv)))
+        ;; apatv (mapv apat-fn pat)
+        reordv (mapv vinc-reord (rest (reductions conj [] pat)))
+        vpv (mapv vinc-fn reordv)]
+    ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
+    (assert (pos? cnt) "Empty pat")
+    (println "vincpf" reordv)
+    (println "  startv" startv)
+    (let [v (into (into [] cat pat) cat pat)
+          len (count v)]
+      (println " fake v " v " len" len)
+      (loop [ijk [0]]
+        (let [ith (dec (count ijk))
+              i (peek ijk)]
+          (cond (nil? i) false
+                (>= i (- len (endspv i)))
+                      (let [ijk2 (pop ijk)]
+                        (when-not (zero? (count ijk2))
+                          (conj (pop ijk2) (inc (peek ijk2)))))
+                  (not ((apv ith) v i)) (recur (conj (pop ijk) (inc i)))
+                  (not ((vpv ith) v i)) (recur (conj (pop ijk) (inc i)))
+                  (= ith (dec cnt)) ijk ;; success
+                  ;; good so far, add another index
+                  :else (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))
+
+
+
+
+(defn WIP-SAVE-vincpf [pat]
   (let [cnt (count pat)
         apv (mapv apat-fn pat)
         cntv (mapv count pat)
