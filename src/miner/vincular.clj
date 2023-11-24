@@ -177,33 +177,6 @@
   (sort (sequence (mapcat vinc-apat-reord) pat (range))))
 
 
-;;; FIXME: could optimize for cnt=1, no need to mix
-#_
-(defn vinc-pat-fn [pat]
-  (let [cnt (count pat)
-        apv (mapv apat-fn pat)
-        cntv (mapv count pat)
-        ctot (reduce + 0 cntv)  ;; could be same as (peek (vec starts))
-        starts (reductions + 0 (pop cntv))
-        endsps  (reductions - ctot (pop cntv))
-        ;; apatv (mapv apat-fn pat)
-        reordv (mapv vinc-reord (rest (reductions conj [] pat)))]
-    (assert (pos? cnt) "Empty pat")
-    (println "vinc-pat-fn" reordv)
-    (fn ([] pat)
-      ([v]
-       (let [len (count v)
-             ijkv (mapv (fn [ap st en]
-                          (let [apf (apat-fn ap)]
-                            (filter #(apf v %) (range st (- len en)))))
-                        pat starts endsps)]
-         ;; FIXME (some (fn [& ijk]
-         (reduce (fn [r [_A i off]]
-                   (let [x (v (+ i off))]
-                     (if (< r x) x (reduced nil))))
-                 -1
-                 reordv))))))
-
 (defn vinc-fn [reord]
   (case (count reord)
     0 (assert (pos? reord) "Empty vinc reord")
@@ -216,7 +189,7 @@
                     reord)
         ijk))))
 
-
+;;; not necessarily maintained -- delete it later
 (defn test-vincpf [pat v]
   (let [cnt (count pat)
         apv (mapv apat-fn pat)
@@ -251,8 +224,38 @@
                 ;; good so far, add another index
                 :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))
 
-(defn vinc-pat-fn [pat]
-  (let [cnt (count pat)
+(defn vincular-pattern-fn [pat]
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endspv  (vec (reductions - (reduce + 0 cntv) (pop cntv)))
+        apv (mapv apat-fn pat)
+        vpv (mapv vinc-fn (map vinc-reord (rest (reductions conj [] pat))))]
+    ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
+    (assert (pos? cnt) "Empty pat")
+
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)
+             maxv (mapv #(- len %) endspv)]
+         (loop [ijk [0]]
+           (let [ith (dec (count ijk))
+                 i (peek ijk)]
+             (cond (nil? i) false
+                   (> i (maxv ith))
+                       (let [ijk2 (pop ijk)]
+                         (recur (when-not (zero? (count ijk2))
+                                  (conj (pop ijk2) (inc (peek ijk2))))))
+                   (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                   (= ith (dec cnt))   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
+
+(defn vincular-pattern-fn1 [pat]
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
         apv (mapv apat-fn pat)
         cntv (mapv count pat)
         ctot (reduce + 0 cntv)  ;; could be same as (peek (vec starts))
@@ -282,11 +285,16 @@
                    ;; good so far, add another index
                    :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
 
+
 ;;;; NEEDS MORE TESTING
 
 ;;; baxter the hard way
-(def bxx? (complement (some-fn (vinc-pat-fn [[3] [1 4] [2]])
-                               (vinc-pat-fn [[2] [4 1] [3]]))))
+(def bxx? (complement (some-fn (vincular-pattern-fn "3-14-2") (vincular-pattern-fn "2-41-3"))))
+
+(let [p3142? (vincular-pattern-fn "3-14-2")
+      p2413? (vincular-pattern-fn "2-41-3")]
+  (defn cbax? [v]
+    (not (or (p3142? v) (p2413? v)))))
 
 
 
@@ -334,32 +342,6 @@
 ;;; xv len 12
 ;;; a: 0 .. 7 (- 12 5)
 ;;; b: (+ a 2) ..
-
-
-
-;;; need to consider pair-wise patterns (and N-wise as well).  It may be hopeless to try the
-;;; other adjpat if the two are antagonistic.  Just disqualify immediately.  You can build
-;;; out a multi-adjpat (or partial vinc) in the cnt order, largest first.  Mayve only this
-;;; stack of tests, not necessarily worth the single adjpat for second, third, etc.
-
-;;; BUGGY NOT FINISHED
-(defn BUGGY-vincular-pattern-fn [pat]
-  (let [p (vincular-pattern pat)
-        adjcnt (count p)
-        flatp (into [] cat pat)
-        cnt (count flatp)
-        apfs (mapv apat-fn p)
-        reord (mapv first (sort-by peek (map-indexed vector flatp)))]
-    (println "vincular-pattern-fn " reord)
-    (fn [xv]
-      (and (>= (count xv) cnt)
-           (some (fn [iv] (transduce (map #(nth xv (peek %)))
-                                    (fn ([r x] (if (< r x) x (reduced -1)))
-                                      ([r] (pos? r)))
-                                    -1
-                                    (sort (map vector reord iv))))
-                 ;; FIXME better if lazy ijks
-                 (lazy-ijks xv p apfs))))))
 
 
 
@@ -411,7 +393,8 @@
         
 
 
-#_ (require '[clojure.math.combinatorics :as mc])
+#_
+(require '[clojure.math.combinatorics :as mc])
             
 
             
@@ -425,11 +408,7 @@
   ;; v is permuation vector of 1..N when N is count
   (some #(= (canonical-perm %) [2 3 1]) (mc/combinations v 3)))
 
-#_
-(defn cbax? [v]
-  (let [p3142? (vincular-pattern-fn "3-14-2")
-        p2413? (vincular-pattern-fn "2-41-3")]
-    (not (or (p3142? v) (p2413? v)))))
+
 
 ;;; ----------------------------------------------------------------------
 ;;; older junk
