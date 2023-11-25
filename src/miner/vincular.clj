@@ -173,21 +173,19 @@
 ;;; FIXME -- you shouldn't actually use the vinc-apat-reord with single adjpat as the adjpat-fn
 ;;; test covers the single case better.
 
-(defn vinc-reord [pat]
-  (sort (sequence (mapcat vinc-apat-reord) pat (range))))
 
-
-(defn vinc-fn [reord]
-  (case (count reord)
-    0 (assert (pos? reord) "Empty vinc reord")
-    1 (fn [v ijk] ijk)  ;; the apat-fn does the real work for single
-    (fn [v ijk]
-      (when (reduce (fn [r [_A i off]]
-                      (let [x (v (+ (ijk i) off))]
-                        (if (< r x) x (reduced nil))))
-                    -1
-                    reord)
-        ijk))))
+(defn vinc-fn [pat]
+  (let [reord (sort (sequence (mapcat vinc-apat-reord) pat (range)))]
+    (case (count reord)
+      0 (assert (pos? reord) "Empty vinc reord")
+      1 (fn [v ijk] ijk)  ;; the apat-fn does the real work for single
+      (fn [v ijk]
+        (when (reduce (fn [r [_A i off]]
+                        (let [x (v (+ (ijk i) off))]
+                          (if (< r x) x (reduced nil))))
+                      -1
+                      reord)
+          ijk)))))
 
 ;;; not necessarily maintained -- delete it later
 (defn test-vincpf [pat v]
@@ -199,11 +197,9 @@
         startv (vec (reductions + 0 (pop cntv)))
         endspv  (vec (reductions - ctot (pop cntv)))
         ;; apatv (mapv apat-fn pat)
-        reordv (mapv vinc-reord (rest (reductions conj [] pat)))
-        vpv (mapv vinc-fn reordv)]
-    ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
+        vpv (mapv vinc-fn (rest (reductions conj [] pat)))]
+    ;;; seem faster to (mapv #(vinc-reord (subvec ppp 0 %)) (range 1 (inc (count ppp))))
     (assert (pos? cnt) "Empty pat")
-    (println "vincpf" reordv)
     (println "  startv" startv)
     (let [len (count v)]
       (println " input v " v " len" len)
@@ -224,13 +220,16 @@
                 ;; good so far, add another index
                 :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))
 
+;;; it might be better to pre-filter all ijks by apatfn rather than retrying ks mulitple
+;;; times.  More bookkeeping but should be faster
+
 (defn vincular-pattern-fn [pat]
   (let [pat (vincular-pattern pat)
         cnt (count pat)
         cntv (mapv count pat)
         endspv  (vec (reductions - (reduce + 0 cntv) (pop cntv)))
         apv (mapv apat-fn pat)
-        vpv (mapv vinc-fn (map vinc-reord (rest (reductions conj [] pat))))]
+        vpv (mapv vinc-fn (rest (reductions conj [] pat)))]
     ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
     (assert (pos? cnt) "Empty pat")
 
@@ -243,39 +242,6 @@
                  i (peek ijk)]
              (cond (nil? i) false
                    (> i (maxv ith))
-                       (let [ijk2 (pop ijk)]
-                         (recur (when-not (zero? (count ijk2))
-                                  (conj (pop ijk2) (inc (peek ijk2))))))
-                   (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
-                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
-                   (= ith (dec cnt))   ijk ;; success
-                   ;; good so far, add another index
-                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
-
-
-(defn vincular-pattern-fn1 [pat]
-  (let [pat (vincular-pattern pat)
-        cnt (count pat)
-        apv (mapv apat-fn pat)
-        cntv (mapv count pat)
-        ctot (reduce + 0 cntv)  ;; could be same as (peek (vec starts))
-        ;; don't need startv???
-        startv (vec (reductions + 0 (pop cntv)))
-        endspv  (vec (reductions - ctot (pop cntv)))
-        ;; apatv (mapv apat-fn pat)
-        reordv (mapv vinc-reord (rest (reductions conj [] pat)))
-        vpv (mapv vinc-fn reordv)]
-    ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
-    (assert (pos? cnt) "Empty pat")
-
-    (fn ([] pat)
-      ([v]
-       (let [len (count v)]
-         (loop [ijk [0]]
-           (let [ith (dec (count ijk))
-                 i (peek ijk)]
-             (cond (nil? i) false
-                   (> i (- len (endspv ith)))
                        (let [ijk2 (pop ijk)]
                          (recur (when-not (zero? (count ijk2))
                                   (conj (pop ijk2) (inc (peek ijk2))))))

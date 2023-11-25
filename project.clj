@@ -1,12 +1,12 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.48.0"]
+  :dependencies [[djblue/portal "0.49.1"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.267"]
                  ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
-                 [com.velisco/strgen "0.2.4"]
+                 [com.velisco/strgen "0.2.5"]
                  [org.clojure/math.combinatorics "0.2.0"]
                  [org.clojure/data.int-map "1.2.1"]
                  [org.clojure/data.avl "0.1.0"]
@@ -17,7 +17,7 @@
                  [instaparse "1.4.12"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "1.0.1"]
-                 [quil "3.1.0"]
+                 [quil "4.3.1323"]
                  [primitive-math "0.1.6"]
                  [com.velisco/herbert "0.7.0"]
                  [org.clojure/algo.monads "0.1.6"]

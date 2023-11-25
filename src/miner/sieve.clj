@@ -334,6 +334,13 @@
 
 (assert (= (count primes-300) 300))
 
+;;; The highest known prime is 2^(82,589,933) - 1.  Known as M82589933, with 24,862,048 digits.
+;;; Too big for Clojure to handle!
+;;; (defn highest-prime (dec (long (clojure.math/pow 2.0 82589933.0))))
+
+;;; BigInteger can work, but don't print it with over 24 million digits!
+;;; (defn highest-prime (dec (.pow (java.math.BigInteger "2") 82589933)))
+                     
 
 (defn palindromic? [n]
   (let [s (str n)]
