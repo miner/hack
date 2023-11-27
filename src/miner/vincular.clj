@@ -223,20 +223,27 @@
 ;;; it might be better to pre-filter all ijks by apatfn rather than retrying ks mulitple
 ;;; times.  More bookkeeping but should be faster
 
+;;; do not bother with (vpv 0) as (apv 0) covers -- but actually it's slower to test ith.
+;;; Need to replace the vpv 0 with a constantly true fn.  The apv test will happen first so
+;;; if that succeeded the vpv would have as well.  BTW, `constantly` produced a slower test
+;;; than an explicit fn with the right args.  Might be worth adding explicit args to
+;;; constantly???  No, my testing is suspect.  Better to do the obvious thing
+
+
 (defn vincular-pattern-fn [pat]
   (let [pat (vincular-pattern pat)
         cnt (count pat)
         cntv (mapv count pat)
-        endspv  (vec (reductions - (reduce + 0 cntv) (pop cntv)))
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
         apv (mapv apat-fn pat)
-        vpv (mapv vinc-fn (rest (reductions conj [] pat)))]
+        vpv (into [(constantly true)] (map vinc-fn) (rest (rest (reductions conj [] pat))))]
     ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
     (assert (pos? cnt) "Empty pat")
 
     (fn ([] pat)
       ([v]
        (let [len (count v)
-             maxv (mapv #(- len %) endspv)]
+             maxv (mapv #(- len %) endsp)]
          (loop [ijk [0]]
            (let [ith (dec (count ijk))
                  i (peek ijk)]
@@ -250,6 +257,8 @@
                    (= ith (dec cnt))   ijk ;; success
                    ;; good so far, add another index
                    :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
+
 
 
 ;;;; NEEDS MORE TESTING
