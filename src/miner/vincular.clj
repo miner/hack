@@ -107,6 +107,30 @@
   (let [cnt (count adjpat)]
     (case cnt
       0 (assert (pos? cnt) "Empty adjpat")
+      1 (fn [v i] i)
+      2 (let [[a b] adjpat]
+          (if (< a b)
+            (fn [v i] (when (<= (+ (v i) (- b a)) (v (inc i))) i))
+            (fn [v i] (when (>= (v i) (+ (- a b) (v (inc i)))) i))))
+      ;; 3 or more -- maybe you should optimize three arg with six cases?
+      (let [sortas (sort adjpat)
+            reord (mapv vector
+                        (map first (sort-by peek (map-indexed vector adjpat)))
+                        (into [0] (map - (rest sortas) sortas)))]
+        ;;(println "apat-fn" reord)
+        (fn [v i]
+          (when (reduce (fn [r [j w]]
+                          (let [x (nth v (+ i j))]
+                            ;;(println "af" r x w)
+                            (if (<= (+ r w) x) x (reduced nil))))
+                        -1
+                        reord)
+            i))))))
+
+(defn apat-fn1 [adjpat]
+  (let [cnt (count adjpat)]
+    (case cnt
+      0 (assert (pos? cnt) "Empty adjpat")
       1 (fn ([] adjpat) ([v i] i))
       2 (let [[a b] adjpat]
           (if (< a b)
@@ -287,13 +311,14 @@
                    ;; good so far, add another index
                    :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
 
+;;; tried memoize with apv fn but still slow
+
 
 ;;; RECONSIDERING -- better to keep stack of index ranges.  Use old logic but grab original
 ;;; apv range and bump with old logic
 
 ;;; WORKS but slow for test-baxter
-
-(defn vp-fn [pat]
+(defn vp-fn1 [pat]
   (let [pat (vincular-pattern pat)
         cnt (count pat)
         cntv (mapv count pat)
@@ -329,6 +354,98 @@
                    ;; good so far, add another index
                    :else  (recur (conj ijkv (drop-while #(< % (+ (peek ijk) (cntv ith)))
                                                         (rngv (inc ith)))))))))))))
+
+;;; slower but I like the idea
+(defn vp-fn-slow-filt [pat]
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        apv (mapv apat-fn pat)
+        vpv (into [(constantly true)]
+                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
+                  (range 2 (inc cnt)))]
+    (assert (pos? cnt) "Empty pat")
+
+    (fn [v]
+       (let [width (inc (count v))
+             maxv (mapv #(- width %) endsp)
+             ;;_ (println "maxv" maxv)
+             rngv (mapv (fn [af start end] (filter #(af v %) (range start end)))
+                        apv
+                        (into [0] cntv)
+                        maxv)]
+
+         ;; (println "rngv" rngv)
+         (loop [ijkv [(rngv 0)]]
+           ;; (println "ijkv" ijkv)
+           (let [ith (dec (count ijkv))
+                 ijk (mapv first ijkv)
+                 i (peek ijk)]
+             ;; (println "  ijk" ijk)
+             (cond (neg? ith) false
+
+                   (nil? i) (let [ijkv2 (pop ijkv)]
+                              (recur (when-not (zero? (count ijkv2))
+                                       (conj (pop ijkv2)
+                                             (rest (peek ijkv2))))))
+
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijkv) (rest (ijkv ith))))
+                   (= (inc ith) cnt)   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijkv (drop-while #(< % (+ (peek ijk) (cntv ith)))
+                                                        (rngv (inc ith))))))))))))
+
+
+;;; only do the filter on demand, still not so good
+;;; I wonder if filter chunck size is getting us?  Or just too much collection manipualtion?
+(defn vp-fn4 [pat]
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        apv (mapv apat-fn pat)
+        rngx (fn [v x st end]
+               (filter #((apv x) v %)
+                       (range (+ st (nth cntv (dec x) 0)) end)))
+        vpv (into [(constantly true)]
+                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
+                  (range 2 (inc cnt)))]
+    (assert (pos? cnt) "Empty pat")
+
+    (fn [v]
+       (let [width (inc (count v))
+             maxv (mapv #(- width %) endsp)
+             ;;_ (println "maxv" maxv)
+             rngv (mapv (fn [af start end] (filter #(af v %) (range start end)))
+                        apv
+                        (into [0] cntv)
+                        maxv)]
+
+         ;; (println "rngv" rngv)
+         (loop [ijkv [(rngx v 0 0 (maxv 0))]]
+           ;; (println "ijkv" ijkv)
+           (let [ith (dec (count ijkv))
+                 ijk (mapv first ijkv)
+                 i (peek ijk)]
+             ;; (println "  ijk" ijk)
+             (cond (neg? ith) false
+
+                   (nil? i) (let [ijkv2 (pop ijkv)]
+                              (recur (when-not (zero? (count ijkv2))
+                                       (conj (pop ijkv2)
+                                             (rest (peek ijkv2))))))
+
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijkv) (rest (ijkv ith))))
+                   (= (inc ith) cnt)   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijkv (rngx v (inc ith)
+                                                  ;;(+ (peek ijk) (cntv ith))
+                                                  (peek ijk)
+                                                  (maxv (inc ith))))))))))))
+
+
+
 
 (defn vp-test []
   (let [vp? (vp-fn "3-14-2")]
