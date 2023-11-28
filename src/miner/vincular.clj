@@ -230,14 +230,43 @@
 ;;; constantly???  No, my testing is suspect.  Better to do the obvious thing
 
 
-(defn vincular-pattern-fn [pat]
+(defn vincular-pattern-fn-orig [pat]
   (let [pat (vincular-pattern pat)
         cnt (count pat)
         cntv (mapv count pat)
         endsp (reductions - (reduce + 0 cntv) (pop cntv))
         apv (mapv apat-fn pat)
         vpv (into [(constantly true)] (map vinc-fn) (rest (rest (reductions conj [] pat))))]
-    ;;; seem faster to (mapv #(vinc-record (subvec ppp 0 %)) (range 1 (inc (count ppp))))
+    ;;; seem faster to (map #(vinc-record (subvec ppp 0 %)) (range 2 (inc cnt)))
+    (assert (pos? cnt) "Empty pat")
+
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)
+             maxv (mapv #(- len %) endsp)]
+         (loop [ijk [0]]
+           (let [ith (dec (count ijk))
+                 i (peek ijk)]
+             (cond (nil? i) false
+                   (> i (maxv ith))
+                       (let [ijk2 (pop ijk)]
+                         (recur (when-not (zero? (count ijk2))
+                                  (conj (pop ijk2) (inc (peek ijk2))))))
+                   (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                   (= ith (dec cnt))   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
+(defn vincular-pattern-fn [pat]
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        apv (mapv apat-fn pat)
+        vpv (into [(constantly true)]
+                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
+                  (range 2 (inc cnt)))]
     (assert (pos? cnt) "Empty pat")
 
     (fn ([] pat)
@@ -259,12 +288,66 @@
                    :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
 
 
+;;; RECONSIDERING -- better to keep stack of index ranges.  Use old logic but grab original
+;;; apv range and bump with old logic
 
+;;; WORKS but slow for test-baxter
+
+(defn vp-fn [pat]
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        apv (mapv apat-fn pat)
+        vpv (into [(constantly true)]
+                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
+                  (range 2 (inc cnt)))]
+    (assert (pos? cnt) "Empty pat")
+
+    (fn ([] pat)
+      ([v]
+       (let [maxv (mapv #(- (inc (count v)) %) endsp)
+             ;;_ (println "maxv" maxv)
+             rngv (mapv (fn [x] (filter #((apv x) v %) (range (nth cntv (dec x) 0) (maxv x))))
+                        (range cnt))]
+         ;; (println "rngv" rngv)
+         (loop [ijkv [(rngv 0)]]
+           ;; (println "ijkv" ijkv)
+           (let [ith (dec (count ijkv))
+                 ijk (mapv first ijkv)
+                 i (peek ijk)]
+             ;; (println "  ijk" ijk)
+             (cond (neg? ith) false
+
+                   (nil? i) (let [ijkv2 (pop ijkv)]
+                              (recur (when-not (zero? (count ijkv2))
+                                       (conj (pop ijkv2)
+                                             (rest (peek ijkv2))))))
+
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijkv) (rest (ijkv ith))))
+                   (= (inc ith) cnt)   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijkv (drop-while #(< % (+ (peek ijk) (cntv ith)))
+                                                        (rngv (inc ith)))))))))))))
+
+(defn vp-test []
+  (let [vp? (vp-fn "3-14-2")]
+    (println "(vp? [5 3 1 4 2])")
+    (assert (vp? [5 3 1 4 2]))
+    (println)
+    (println "(vp? [3 1 4 6 2])")
+    (assert (vp? [3 1 4 6 2]))
+    true))
+  
 
 ;;;; NEEDS MORE TESTING
 
 ;;; baxter the hard way
 (def bxx? (complement (some-fn (vincular-pattern-fn "3-14-2") (vincular-pattern-fn "2-41-3"))))
+
+(def bxx2? (complement (some-fn (vp-fn "3-14-2") (vp-fn "2-41-3"))))
+
+
 
 (let [p3142? (vincular-pattern-fn "3-14-2")
       p2413? (vincular-pattern-fn "2-41-3")]
