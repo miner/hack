@@ -397,8 +397,11 @@
                                                         (rngv (inc ith))))))))))))
 
 
-;;; only do the filter on demand, still not so good
+;;; only do the filter on demand, still not so good but a bit better for some cases
 ;;; I wonder if filter chunck size is getting us?  Or just too much collection manipualtion?
+
+;;; Probably need to analyse the pattern and do the longs adj pat first!
+
 (defn vp-fn4 [pat]
   (let [pat (vincular-pattern pat)
         cnt (count pat)
