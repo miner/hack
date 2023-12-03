@@ -311,6 +311,23 @@
                    ;; good so far, add another index
                    :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
 
+;;; New idea:  try keep apat-fn state of testing in long bits.  Mark off failures so you
+;;; don't have to try again.  Also need to keep lenght of previously tested.  So that's two
+;;; longs per index.  (Could keep count in same bits but that doesn't save much.)
+
+;;; one byte is enough for count, 7 bytes for flags -- but the calcs not worth it?
+
+;;; Could do two-bits per index.  00 unk, 10 good, 11 bad
+
+
+
+;;; thought of memoizing #(ap v %) rather than ap
+;;; use int-map for cache
+;;; make a transducer memo with storage option
+
+
+
+
 ;;; tried memoize with apv fn but still slow
 
 
@@ -409,6 +426,7 @@
         endsp (reductions - (reduce + 0 cntv) (pop cntv))
         apv (mapv apat-fn pat)
         rngx (fn [v x st end]
+               ;; st is actually the current previous index, add width to get start
                (filter #((apv x) v %)
                        (range (+ st (nth cntv (dec x) 0)) end)))
         vpv (into [(constantly true)]
