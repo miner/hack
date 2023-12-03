@@ -1,5 +1,6 @@
 (ns miner.vincular
   (:require [clojure.math.combinatorics :as mc]
+            [clojure.data.int-map :as im]
             [clojure.string :as str]))
 
 ;;; see also baxter.clj and stack_sortable.clj
@@ -127,6 +128,7 @@
                         reord)
             i))))))
 
+;;; old way had convenience no-arg to recall adjpat (for debugging)
 (defn apat-fn1 [adjpat]
   (let [cnt (count adjpat)]
     (case cnt
@@ -311,6 +313,66 @@
                    ;; good so far, add another index
                    :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
 
+
+;;; thought of memoizing #(ap v %) rather than ap
+;;; use int-map for cache
+;;; make a transducer memo with storage option
+
+;;; tried memoize with apv fn but still slow -- but that was checking two args, new idea is
+;;; to specialize with closed v
+
+(defn int-memoize
+  "Specialized version of `memoize` that optimizes for `f` taking a single integer arg"
+  [f]
+  (let [mem (atom (im/int-map))]
+    (fn [arg]
+      (if-let [e (find @mem arg)]
+        (val e)
+        (let [ret (f arg)]
+          (swap! mem assoc arg ret)
+          ret)))))
+
+;;; experiment with int-memoize but not faster
+(defn vp-fn3 [pat]
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        apv (mapv apat-fn pat)
+        vpv (into [(constantly true)]
+                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
+                  (range 2 (inc cnt)))]
+    (assert (pos? cnt) "Empty pat")
+
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)
+             memapv (mapv (fn [a] (int-memoize #(a v %))) apv)
+             maxv (mapv #(- len %) endsp)]
+         (loop [ijk [0]]
+           (let [ith (dec (count ijk))
+                 i (peek ijk)]
+             (cond (nil? i) false
+                   (> i (maxv ith))
+                       (let [ijk2 (pop ijk)]
+                         (recur (when-not (zero? (count ijk2))
+                                  (conj (pop ijk2) (inc (peek ijk2))))))
+                   (not ((memapv ith) i))   (recur (conj (pop ijk) (inc i)))
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                   (= ith (dec cnt))   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
+
+
+
+
+
+
+
+
+
+
 ;;; New idea:  try keep apat-fn state of testing in long bits.  Mark off failures so you
 ;;; don't have to try again.  Also need to keep lenght of previously tested.  So that's two
 ;;; longs per index.  (Could keep count in same bits but that doesn't save much.)
@@ -320,15 +382,6 @@
 ;;; Could do two-bits per index.  00 unk, 10 good, 11 bad
 
 
-
-;;; thought of memoizing #(ap v %) rather than ap
-;;; use int-map for cache
-;;; make a transducer memo with storage option
-
-
-
-
-;;; tried memoize with apv fn but still slow
 
 
 ;;; RECONSIDERING -- better to keep stack of index ranges.  Use old logic but grab original
@@ -468,6 +521,12 @@
 
 
 
+;;; baxter true
+(def b20 [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19])
+
+;;; non-baxter so has to test more
+(def nb20 [0 10 2 3 4 5 6 7 8 12 9 12 13 14 1 16 17 18 19])
+
 (defn vp-test []
   (let [vp? (vp-fn "3-14-2")]
     (println "(vp? [5 3 1 4 2])")
@@ -476,7 +535,7 @@
     (println "(vp? [3 1 4 6 2])")
     (assert (vp? [3 1 4 6 2]))
     true))
-  
+
 
 ;;;; NEEDS MORE TESTING
 
