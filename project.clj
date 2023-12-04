@@ -1,6 +1,6 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.49.1"]
+  :dependencies [[djblue/portal "0.50.0"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.267"]
                  ;;[com.datomic/client-api "1.0.67"]
@@ -35,7 +35,7 @@
                  [digest "1.4.10"]
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
-                 [org.clojars.quoll/tiara "0.3.3"]
+                 [org.clojars.quoll/tiara "0.3.4"]
                  [clj-commons/fs "1.6.310"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
