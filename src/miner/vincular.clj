@@ -45,6 +45,11 @@
 (require '[clojure.math.combinatorics :as mc])
 
 
+;;; NEW IDEA:  try adj pat only for single vinc, otherwise only vinc 2+.  Theory is that
+;;; adjpat is not saving much if you still have to can vinc and vinc on 1 is trivial because
+;;; adjpat is the real test there.  So eliminated apv and incorporate adjpat 1 into vpv.
+
+
 
 
 ;;; converts 231 or "231" to [2 3 1]
@@ -128,6 +133,300 @@
                         reord)
             i))))))
 
+;;; Note: apat reord is different format from vinc reord, tricky!
+
+
+
+;;; input [A ...]  returns [[A Ith offset] ...]
+;;; ith index (from original vinc pat), offset is order within adjacency.
+;;; Leading A lets it sort correctly with multiple adjpats so we can mix and get the overall order.
+
+(defn vinc-apat-reord [adjpat i]
+  (let [cnt (count adjpat)]
+    (case cnt
+      0 (assert (pos? cnt) "Empty adjpat")
+      1 [(into adjpat [i 0])]
+      2 (let [[a b] adjpat]
+          (if (< a b) [[a i 0] [b i 1]] [[b i 1] [a i 0]]))
+      ;; 3 or more -- maybe you should optimize three arg with six cases?  Not now.
+      (let [reord (sort (map-indexed (fn [j a] [a i j]) adjpat))]
+        ;;(println "vinc-apat-reord" adjpat i "=>" reord)
+        reord))))
+
+
+;;; FIXME -- you shouldn't actually use the vinc-apat-reord with single adjpat as the adjpat-fn
+;;; test covers the single case better.
+
+;;; only when (count pat) = 1 so it's just an adjpat
+(defn vinc-apat-fn [adjpat]
+  (let [cnt (count adjpat)]
+    (case cnt
+      0 (assert (pos? cnt) "Empty adjpat")
+      1 (fn [v ijk] ijk)
+      2 (let [[a b] adjpat]
+          (if (< a b)
+            (fn [v [i]] (when (<= (+ (v i) (- b a)) (v (inc i))) [i]))
+            (fn [v [i]] (when (>= (v i) (+ (- a b) (v (inc i)))) [i]))))
+      ;; 3 or more -- maybe you should optimize three arg with six cases?
+      (let [sortas (sort adjpat)
+            reord (mapv vector
+                        (map first (sort-by peek (map-indexed vector adjpat)))
+                        (into [0] (map - (rest sortas) sortas)))]
+        ;;(println "apat-fn" reord)
+        (fn [v [i]]
+          (when (reduce (fn [r [j w]]
+                          (let [x (nth v (+ i j))]
+                            ;;(println "af" r x w)
+                            (if (<= (+ r w) x) x (reduced nil))))
+                        -1
+                        reord)
+            [i]))))))
+
+(defn vinc-fn [pat]
+  (let [reord (sort (sequence (mapcat vinc-apat-reord) pat (range)))]
+    (case (count reord)
+      0 (assert (pos? reord) "Empty vinc reord")
+      1 (fn [v ijk] ijk)  ;; the apat-fn does the real work for single
+      (fn [v ijk]
+        (when (reduce (fn [r [_A i off]]
+                        (let [x (v (+ (ijk i) off))]
+                          (if (< r x) x (reduced nil))))
+                      -1
+                      reord)
+          ijk)))))
+
+;;; New idea, but not faster for bax
+(defn vp-fn [pat]
+  ;; (assert (pos? (count pat)) "Empty pat")
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        vpv (into [(vinc-apat-fn (nth pat 0))]
+                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
+                  (range 2 (inc cnt)))]
+
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)
+             maxv (mapv #(- len %) endsp)]
+         (loop [ijk [0]]
+           (let [ith (dec (count ijk))
+                 i (peek ijk)]
+             (cond (nil? i) false
+                   (> i (maxv ith))
+                       (let [ijk2 (pop ijk)]
+                         (recur (when-not (zero? (count ijk2))
+                                  (conj (pop ijk2) (inc (peek ijk2))))))
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                   (= ith (dec cnt))   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
+
+
+
+
+
+;;; it might be better to pre-filter all ijks by apatfn rather than retrying ks mulitple
+;;; times.  More bookkeeping but should be faster
+
+;;; do not bother with (vpv 0) as (apv 0) covers -- but actually it's slower to test ith.
+;;; Need to replace the vpv 0 with a constantly true fn.  The apv test will happen first so
+;;; if that succeeded the vpv would have as well.  BTW, `constantly` produced a slower test
+;;; than an explicit fn with the right args.  Might be worth adding explicit args to
+;;; constantly???  No, my testing is suspect.  Better to do the obvious thing
+
+
+
+
+(defn vincular-pattern-fn [pat]
+  ;;  (assert (pos? (count pat)) "Empty pat")
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        apv (mapv apat-fn pat)
+        vpv (into [(constantly true)]
+                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
+                  (range 2 (inc cnt)))]
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)
+             maxv (mapv #(- len %) endsp)]
+         (loop [ijk [0]]
+           (let [ith (dec (count ijk))
+                 i (peek ijk)]
+             (cond (nil? i) false
+                   (> i (maxv ith))
+                       (let [ijk2 (pop ijk)]
+                         (recur (when-not (zero? (count ijk2))
+                                  (conj (pop ijk2) (inc (peek ijk2))))))
+                   (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                   (= ith (dec cnt))   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
+
+
+
+
+
+
+;;; New idea:  try keep apat-fn state of testing in long bits.  Mark off failures so you
+;;; don't have to try again.  Also need to keep lenght of previously tested.  So that's two
+;;; longs per index.  (Could keep count in same bits but that doesn't save much.)
+
+;;; one byte is enough for count, 7 bytes for flags -- but the calcs not worth it?
+
+;;; Could do two-bits per index.  00 unk, 10 good, 11 bad
+
+
+
+
+;;; baxter true
+(def b20 [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19])
+
+;;; non-baxter so has to test more
+(def nb20 [0 10 2 3 4 5 6 7 8 12 9 12 13 14 1 16 17 18 19])
+
+(defn vp-test []
+  (let [vp? (vp-fn "3-14-2")]
+    (println "(vp? [5 3 1 4 2])")
+    (assert (vp? [5 3 1 4 2]))
+    (println "(vp? [3 1 4 6 2])")
+    (assert (vp? [3 1 4 6 2]))
+    (assert (not (vp? b20)))
+    (assert (vp? nb20))
+    true))
+
+
+;;;; NEEDS MORE TESTING
+
+;;; baxter the hard way
+(def bxx? (complement (some-fn (vincular-pattern-fn "3-14-2") (vincular-pattern-fn "2-41-3"))))
+
+(def bxx2? (complement (some-fn (vp-fn "3-14-2") (vp-fn "2-41-3"))))
+
+;;; Need a more complex pattern to test
+
+(let [p3142? (vincular-pattern-fn "3-14-2")
+      p2413? (vincular-pattern-fn "2-41-3")]
+  (defn cbax? [v]
+    (not (or (p3142? v) (p2413? v)))))
+
+
+
+;;; startv is the min indices [A B C]
+;;; first check apv for each
+;;; if A fails inc A and try again until good A
+;;;   then B similarly, plus check vinc-AB until good B
+;;;   then C similarly, plus check full vinc (ABC) until good C --> success
+;;;   or out of C, then backtrack to inc B again
+;;;   same backtrack to inc C again
+
+;;; backtrack = inc previous P and reset Q to (init-Q P) based on widths
+
+;;; might be simpler to init with [0] and add new index as you go (+ (width q) p)
+
+
+
+;;; reord is flat index remap
+;;; [[1  0]  [2  7  3  5]  [4  6]]
+;;; [1  0    2  7  3  5     4  6]
+;;;  3  4   10 11 12 13     20 21
+
+;;; [[a b] [c d e] [f g]]
+
+
+
+;;; FIXME:  how do you wire a reord perm function?  Can you synthesize a fn that reords by args?
+;;; Without having to remap at runtime.
+
+
+;;; kind of like mc/cartesian-product but filtered for the coontainment of the total length
+;;; of the pattern.
+
+;;; cnt a2 b1 c3  total=6
+;;; xv len 12
+;;; a: 0 .. 7 (- 12 5)
+;;; b: (+ a 2) ..
+
+
+        
+
+
+#_
+(require '[clojure.math.combinatorics :as mc])
+            
+
+
+;;; ----------------------------------------------------------------------
+;;; older junk
+
+
+(defn canonical-perm [v]
+  (let [remap (zipmap (sort v) (range 1 (inc (count v))))]
+    (mapv remap v)))
+
+
+(defn WAScontains231? [v]
+  ;; v is permuation vector of 1..N when N is count
+  (some #(= (canonical-perm %) [2 3 1]) (mc/combinations v 3)))
+
+
+
+(defn subv2? [pat i v]
+  (let [cnt (count pat)
+        pm (zipmap (range) pat)]
+    (println "subv " pm)
+    (mapv v (map #(+ % i) (sort-by pm (range cnt))))))
+
+;;; reord for adjpat, return adj test fn which checks partial order for that block
+;;; returns good index or nil.
+(defn adjpat-fn [adjpat]
+  (let [cnt (count adjpat)
+        reord (mapv peek (sort (map-indexed (fn [i p] (vector p i)) adjpat)))]
+    (assert (pos? cnt) "Empty adjpat")
+    (fn [v i]
+      (transduce (map #(nth v (+ i %)))
+                 (fn ([r x] (if (< r x) x (reduced nil)))
+                   ([r] (when r i)))
+                 -1
+                 reord))))
+
+
+(defn vincular-pattern-fn-orig [pat]
+  ;; (assert (pos? (count pat)) "Empty pat")
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        apv (mapv apat-fn pat)
+        vpv (into [(constantly true)] (map vinc-fn) (rest (rest (reductions conj [] pat))))]
+    ;;; seem faster to (map #(vinc-record (subvec ppp 0 %)) (range 2 (inc cnt)))
+
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)
+             maxv (mapv #(- len %) endsp)]
+         (loop [ijk [0]]
+           (let [ith (dec (count ijk))
+                 i (peek ijk)]
+             (cond (nil? i) false
+                   (> i (maxv ith))
+                       (let [ijk2 (pop ijk)]
+                         (recur (when-not (zero? (count ijk2))
+                                  (conj (pop ijk2) (inc (peek ijk2))))))
+                   (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                   (= ith (dec cnt))   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
+
+
 ;;; old way had convenience no-arg to recall adjpat (for debugging)
 (defn apat-fn1 [adjpat]
   (let [cnt (count adjpat)]
@@ -173,146 +472,6 @@
                         (into [0] (map - (rest sortas) sortas)))]
         ;;(println "apat-reord1" reord)
         reord))))
-
-
-;;; Note: apat reord is different format from vinc reord, tricky!
-
-
-
-;;; input [A ...]  returns [[A Ith offset] ...]
-;;; ith index (from original vinc pat), offset is order within adjacency.
-;;; Leading A lets it sort correctly with multiple adjpats so we can mix and get the overall order.
-
-(defn vinc-apat-reord [adjpat i]
-  (let [cnt (count adjpat)]
-    (case cnt
-      0 (assert (pos? cnt) "Empty adjpat")
-      1 [(into adjpat [i 0])]
-      2 (let [[a b] adjpat]
-          (if (< a b) [[a i 0] [b i 1]] [[b i 1] [a i 0]]))
-      ;; 3 or more -- maybe you should optimize three arg with six cases?  Not now.
-      (let [reord (sort (map-indexed (fn [j a] [a i j]) adjpat))]
-        ;;(println "vinc-apat-reord" adjpat i "=>" reord)
-        reord))))
-
-
-;;; FIXME -- you shouldn't actually use the vinc-apat-reord with single adjpat as the adjpat-fn
-;;; test covers the single case better.
-
-
-(defn vinc-fn [pat]
-  (let [reord (sort (sequence (mapcat vinc-apat-reord) pat (range)))]
-    (case (count reord)
-      0 (assert (pos? reord) "Empty vinc reord")
-      1 (fn [v ijk] ijk)  ;; the apat-fn does the real work for single
-      (fn [v ijk]
-        (when (reduce (fn [r [_A i off]]
-                        (let [x (v (+ (ijk i) off))]
-                          (if (< r x) x (reduced nil))))
-                      -1
-                      reord)
-          ijk)))))
-
-;;; not necessarily maintained -- delete it later
-(defn test-vincpf [pat v]
-  (let [cnt (count pat)
-        apv (mapv apat-fn pat)
-        cntv (mapv count pat)
-        ctot (reduce + 0 cntv)  ;; could be same as (peek (vec starts))
-        ;; don't need startv???
-        startv (vec (reductions + 0 (pop cntv)))
-        endspv  (vec (reductions - ctot (pop cntv)))
-        ;; apatv (mapv apat-fn pat)
-        vpv (mapv vinc-fn (rest (reductions conj [] pat)))]
-    ;;; seem faster to (mapv #(vinc-reord (subvec ppp 0 %)) (range 1 (inc (count ppp))))
-    (assert (pos? cnt) "Empty pat")
-    (println "  startv" startv)
-    (let [len (count v)]
-      (println " input v " v " len" len)
-      (loop [ijk [0]]
-        (println "  ijk" ijk)
-        (let [ith (dec (count ijk))
-              i (peek ijk)]
-          (cond (nil? i) false
-                (> i (- len (endspv ith)))
-                    (let [ijk2 (pop ijk)]
-                      (recur (when-not (zero? (count ijk2))
-                               (conj (pop ijk2) (inc (peek ijk2))))))
-                (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
-                (println "   apv " ijk) ijk
-                (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
-                (println "   vinc" ijk) ijk
-                (= ith (dec cnt))   ijk ;; success
-                ;; good so far, add another index
-                :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))
-
-;;; it might be better to pre-filter all ijks by apatfn rather than retrying ks mulitple
-;;; times.  More bookkeeping but should be faster
-
-;;; do not bother with (vpv 0) as (apv 0) covers -- but actually it's slower to test ith.
-;;; Need to replace the vpv 0 with a constantly true fn.  The apv test will happen first so
-;;; if that succeeded the vpv would have as well.  BTW, `constantly` produced a slower test
-;;; than an explicit fn with the right args.  Might be worth adding explicit args to
-;;; constantly???  No, my testing is suspect.  Better to do the obvious thing
-
-
-(defn vincular-pattern-fn-orig [pat]
-  (let [pat (vincular-pattern pat)
-        cnt (count pat)
-        cntv (mapv count pat)
-        endsp (reductions - (reduce + 0 cntv) (pop cntv))
-        apv (mapv apat-fn pat)
-        vpv (into [(constantly true)] (map vinc-fn) (rest (rest (reductions conj [] pat))))]
-    ;;; seem faster to (map #(vinc-record (subvec ppp 0 %)) (range 2 (inc cnt)))
-    (assert (pos? cnt) "Empty pat")
-
-    (fn ([] pat)
-      ([v]
-       (let [len (count v)
-             maxv (mapv #(- len %) endsp)]
-         (loop [ijk [0]]
-           (let [ith (dec (count ijk))
-                 i (peek ijk)]
-             (cond (nil? i) false
-                   (> i (maxv ith))
-                       (let [ijk2 (pop ijk)]
-                         (recur (when-not (zero? (count ijk2))
-                                  (conj (pop ijk2) (inc (peek ijk2))))))
-                   (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
-                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
-                   (= ith (dec cnt))   ijk ;; success
-                   ;; good so far, add another index
-                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
-
-(defn vincular-pattern-fn [pat]
-  (let [pat (vincular-pattern pat)
-        cnt (count pat)
-        cntv (mapv count pat)
-        endsp (reductions - (reduce + 0 cntv) (pop cntv))
-        apv (mapv apat-fn pat)
-        vpv (into [(constantly true)]
-                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
-                  (range 2 (inc cnt)))]
-    (assert (pos? cnt) "Empty pat")
-
-    (fn ([] pat)
-      ([v]
-       (let [len (count v)
-             maxv (mapv #(- len %) endsp)]
-         (loop [ijk [0]]
-           (let [ith (dec (count ijk))
-                 i (peek ijk)]
-             (cond (nil? i) false
-                   (> i (maxv ith))
-                       (let [ijk2 (pop ijk)]
-                         (recur (when-not (zero? (count ijk2))
-                                  (conj (pop ijk2) (inc (peek ijk2))))))
-                   (not ((apv ith) v i))   (recur (conj (pop ijk) (inc i)))
-                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
-                   (= ith (dec cnt))   ijk ;; success
-                   ;; good so far, add another index
-                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
-
 
 ;;; thought of memoizing #(ap v %) rather than ap
 ;;; use int-map for cache
@@ -362,26 +521,6 @@
                    (= ith (dec cnt))   ijk ;; success
                    ;; good so far, add another index
                    :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
-
-
-
-
-
-
-
-
-
-
-
-;;; New idea:  try keep apat-fn state of testing in long bits.  Mark off failures so you
-;;; don't have to try again.  Also need to keep lenght of previously tested.  So that's two
-;;; longs per index.  (Could keep count in same bits but that doesn't save much.)
-
-;;; one byte is enough for count, 7 bytes for flags -- but the calcs not worth it?
-
-;;; Could do two-bits per index.  00 unk, 10 good, 11 bad
-
-
 
 
 ;;; RECONSIDERING -- better to keep stack of index ranges.  Use old logic but grab original
@@ -517,90 +656,6 @@
                                                   ;;(+ (peek ijk) (cntv ith))
                                                   (peek ijk)
                                                   (maxv (inc ith))))))))))))
-
-
-
-
-;;; baxter true
-(def b20 [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19])
-
-;;; non-baxter so has to test more
-(def nb20 [0 10 2 3 4 5 6 7 8 12 9 12 13 14 1 16 17 18 19])
-
-(defn vp-test []
-  (let [vp? (vp-fn "3-14-2")]
-    (println "(vp? [5 3 1 4 2])")
-    (assert (vp? [5 3 1 4 2]))
-    (println)
-    (println "(vp? [3 1 4 6 2])")
-    (assert (vp? [3 1 4 6 2]))
-    true))
-
-
-;;;; NEEDS MORE TESTING
-
-;;; baxter the hard way
-(def bxx? (complement (some-fn (vincular-pattern-fn "3-14-2") (vincular-pattern-fn "2-41-3"))))
-
-(def bxx2? (complement (some-fn (vp-fn "3-14-2") (vp-fn "2-41-3"))))
-
-
-
-(let [p3142? (vincular-pattern-fn "3-14-2")
-      p2413? (vincular-pattern-fn "2-41-3")]
-  (defn cbax? [v]
-    (not (or (p3142? v) (p2413? v)))))
-
-
-
-;;; startv is the min indices [A B C]
-;;; first check apv for each
-;;; if A fails inc A and try again until good A
-;;;   then B similarly, plus check vinc-AB until good B
-;;;   then C similarly, plus check full vinc (ABC) until good C --> success
-;;;   or out of C, then backtrack to inc B again
-;;;   same backtrack to inc C again
-
-;;; backtrack = inc previous P and reset Q to (init-Q P) based on widths
-
-;;; might be simpler to init with [0] and add new index as you go (+ (width q) p)
-
-
-
-;;; FIXME: NO don't do this.  You need to iterate from the init [i j k] and advance
-;;; according to pat widths
-
-(defn lazy-ijks [ijkv cntv]
-  (let [spaces (into [0] (pop cntv))]
-    (filter #(apply <= (map + % spaces))
-            (apply mc/cartesian-product ijkv))))
-
-
-
-;;; reord is flat index remap
-;;; [[1  0]  [2  7  3  5]  [4  6]]
-;;; [1  0    2  7  3  5     4  6]
-;;;  3  4   10 11 12 13     20 21
-
-;;; [[a b] [c d e] [f g]]
-
-
-
-;;; FIXME:  how do you wire a reord perm function?  Can you synthesize a fn that reords by args?
-;;; Without having to remap at runtime.
-
-
-;;; kind of like mc/cartesian-product but filtered for the coontainment of the total length
-;;; of the pattern.
-
-;;; cnt a2 b1 c3  total=6
-;;; xv len 12
-;;; a: 0 .. 7 (- 12 5)
-;;; b: (+ a 2) ..
-
-
-
-
 ;;; working example
 ;; [[4 3] [2] [1 5]]
 ;; cnt 2   1   2   =   5
@@ -626,6 +681,8 @@
 ;;; intervals.
 
 
+
+
 ;;; Think about sliding windows
 ;;; iterate through "space in front"
 ;;; try widest first
@@ -645,46 +702,3 @@
     init))
 
     
-        
-
-
-#_
-(require '[clojure.math.combinatorics :as mc])
-            
-
-            
-
-(defn canonical-perm [v]
-  (let [remap (zipmap (sort v) (range 1 (inc (count v))))]
-    (mapv remap v)))
-
-
-(defn WAScontains231? [v]
-  ;; v is permuation vector of 1..N when N is count
-  (some #(= (canonical-perm %) [2 3 1]) (mc/combinations v 3)))
-
-
-
-;;; ----------------------------------------------------------------------
-;;; older junk
-
-(defn subv2? [pat i v]
-  (let [cnt (count pat)
-        pm (zipmap (range) pat)]
-    (println "subv " pm)
-    (mapv v (map #(+ % i) (sort-by pm (range cnt))))))
-
-;;; reord for adjpat, return adj test fn which checks partial order for that block
-;;; returns good index or nil.
-(defn adjpat-fn [adjpat]
-  (let [cnt (count adjpat)
-        reord (mapv peek (sort (map-indexed (fn [i p] (vector p i)) adjpat)))]
-    (assert (pos? cnt) "Empty adjpat")
-    (fn [v i]
-      (transduce (map #(nth v (+ i %)))
-                 (fn ([r x] (if (< r x) x (reduced nil)))
-                   ([r] (when r i)))
-                 -1
-                 reord))))
-
-
