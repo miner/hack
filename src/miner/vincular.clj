@@ -48,6 +48,12 @@
 ;;; NEW IDEA:  try adj pat only for single vinc, otherwise only vinc 2+.  Theory is that
 ;;; adjpat is not saving much if you still have to can vinc and vinc on 1 is trivial because
 ;;; adjpat is the real test there.  So eliminated apv and incorporate adjpat 1 into vpv.
+;;;   NOT FASTER
+
+;;; I think the real issue is that I need to test longest adjpat first.  That was the
+;;; original idea but I punted on the implementation.
+
+;;; "1-2345-6"  seems like 2-block should go first as it is hardest to satisfy
 
 
 
@@ -85,11 +91,23 @@
 
 ;;; trying to generalize for vincular patterns as vector of adjpat
 
+;;; faster
+(defn unique-pattern? [pat]
+  (transduce cat
+             (fn ([x] (boolean x))
+               ([r x] (if (contains? r x) (reduced false) (conj r x))))
+             #{}             
+             pat))
+
+(defn uniq-pat? [pat]
+  (apply distinct? (sequence cat pat)))
+
 ;;; returns vector of adjacency vectors [[2 3] [1 4]]  for vincular pattern "23-14"
 (defn vincular-pattern [pat]
+  {:pre [(seq pat)] :post [(apply distinct? (sequence cat %))]}
   (if (vector? pat)
     pat
-    (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split (str pat) #"-"))))
+    (mapv (fn [a] (mapv #(- (long %) (long \0)) a)) (str/split pat #"-"))))
 
 
 
@@ -195,8 +213,8 @@
                       reord)
           ijk)))))
 
-;;; New idea, but not faster for bax
-(defn vp-fn [pat]
+;;; New idea on integrate apat-vinc.  Sounds like a good idea, but not faster for bax.
+(defn vp-fn-in-order [pat]
   ;; (assert (pos? (count pat)) "Empty pat")
   (let [pat (vincular-pattern pat)
         cnt (count pat)
@@ -224,6 +242,34 @@
                    :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
 
 
+(defn vp-fn [pat]
+  ;; (assert (pos? (count pat)) "Empty pat")
+  (let [pat (vincular-pattern pat)
+        cnt (count pat)
+        cntv (mapv count pat)
+        endsp (reductions - (reduce + 0 cntv) (pop cntv))
+        sorted-apat (sort-by count pat)
+        vpv (into [(vinc-apat-fn (nth pat 0))]
+                  (comp (map #(subvec pat 0 %)) (map vinc-fn))
+                  (range 2 (inc cnt)))]
+
+    (fn ([] pat)
+      ([v]
+       (let [len (count v)
+             maxv (mapv #(- len %) endsp)]
+         (loop [ijk [0]]
+           (let [ith (dec (count ijk))
+                 i (peek ijk)]
+             (cond (nil? i) false
+                   (> i (maxv ith))
+                       (let [ijk2 (pop ijk)]
+                         (recur (when-not (zero? (count ijk2))
+                                  (conj (pop ijk2) (inc (peek ijk2))))))
+                   (not ((vpv ith) v ijk))   (recur (conj (pop ijk) (inc i)))
+                   (= ith (dec cnt))   ijk ;; success
+                   ;; good so far, add another index
+                   :else  (recur (conj ijk (+ (peek ijk) (cntv ith))))))))))))
+
 
 
 
@@ -237,6 +283,15 @@
 ;;; than an explicit fn with the right args.  Might be worth adding explicit args to
 ;;; constantly???  No, my testing is suspect.  Better to do the obvious thing
 
+(def argv '[a0 a1 a2 a3 a4 a5 a6 a7 a8 a9])
+
+(defn adj-fn [apat]
+  (let [cnt (count apat)
+        args (subvec argv 0 cnt)
+        reo (mapv peek (sort (map vector apat args)))]
+    (println apat)
+    reo))
+;; but also need spacing
 
 
 

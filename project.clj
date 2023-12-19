@@ -1,6 +1,6 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.50.0"]
+  :dependencies [[djblue/portal "0.51.0"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.267"]
                  ;;[com.datomic/client-api "1.0.67"]
