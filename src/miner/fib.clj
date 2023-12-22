@@ -43,7 +43,8 @@
 
 (ns miner.fib
   (:refer-clojure)
-  (:require [primitive-math :as p]))
+  (:require [primitive-math :as p]
+            [clojure.math :as m]))
 
 
 (def save-unchecked-all *unchecked-math*)
@@ -383,7 +384,7 @@
 ;;; classic from @steffan-westcott, revised for 0 start, which I prefer
 (defn lazy-fib-seq
   ([] (lazy-fib-seq 0 1))
-  ([a b] (lazy-seq (cons a (lazy-fib-seq b (+ a b))))))
+  ([^long a ^long b] (lazy-seq (cons a (lazy-fib-seq b (+ a b))))))
 
 
 (comment
@@ -416,8 +417,36 @@
                          (Math/sqrt 5.0))))))
 
 
+;;; https://news.ycombinator.com/item?id=38599168
+;;; directly calc nth Fib.  Not practical, just interesting math.
+;;; works for n < 7 before long overflow.  Maybe better in bigints.
 
-        
+(defn magic-fib [^long n]
+  (let [b (bit-shift-left 2 n)]
+    (mod (m/floor-div (* (m/pow b n) b) (dec (- (* b b) b))) b)))
+
+;;; http://fare.tunes.org/files/fun/fibonacci.lisp
+;;; Lisp very-fast-fib-2, ported to Clojure by SEM
+;;; (similar to fast-fib but slightly faster)
+;;; directly calc the nth Fib
+;;; also q ends up being Fib(n+1) but we don't take advantage of that
+(defn vf-fib [^long n]
+  (loop [a 0
+         b 1  
+	     p 0
+         q 1
+         n n]
+    (if (zero? n)
+      p
+      (let [c (+ a b)
+            a2 (+ (* a a) (* b b))
+            b2 (* b (+ a c))
+            n2 (quot n 2)]
+        (if (odd? n)
+          (recur a2 b2 (+ (* a p) (* b q)) (+ (* b p) (* c q)) n2)
+          (recur a2 b2 p q n2))))))
+
+
 
 ;; For reference
 ;; http://www.miniwebtool.com/list-of-fibonacci-numbers/?number=100
