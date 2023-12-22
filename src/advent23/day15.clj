@@ -19,7 +19,7 @@
 ;;; SEM version
 
 (defn sem-calc [word]
-  (reduce (fn [r b] (bit-and 0xFF (* (+ (long b) r) 17))) 0 (seq word)))
+  (reduce (fn [r b] (bit-and 0xFF (* (+ (long b) r) 17))) 0 word))
 
 (defn sem1 [s]
   (reduce + 0 (mapv sem-calc (str/split s #","))))
@@ -55,7 +55,7 @@
 (defn sem-calc2 [word]
   (if (= (first word) \,)
     0
-    (reduce (fn [r b] (bit-and 0xFF (* (+ (long b) r) 17))) 0 (seq word))))
+    (reduce (fn [r b] (bit-and 0xFF (* (+ (long b) r) 17))) 0 word)))
 
 (defn sem4 [s]
   (transduce (comp (partition-by #(= % \,)) (map sem-calc2))

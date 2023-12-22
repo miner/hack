@@ -36,6 +36,7 @@
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [org.clojars.quoll/tiara "0.3.4"]
+                 [com.github.nubank/morse "v2023.10.06.02"]
                  [clj-commons/fs "1.6.310"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
@@ -44,12 +45,12 @@
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
              :clj18 {:dependencies [   
-                                   [org.clojure/clojure "1.8.0"]
-                                   ]}
+                                    [org.clojure/clojure "1.8.0"]
+                                    ]}
 
              :clj17 {:dependencies [   
-                                   [org.clojure/clojure "1.7.0"]
-                                   ]}
+                                    [org.clojure/clojure "1.7.0"]
+                                    ]}
              :rebl {:dependencies [
                                    [org.clojure/core.async "1.6.681"]
                                    [REBL "0.9.220"]
@@ -59,7 +60,9 @@
              :snapshot {:dependencies [[org.clojure/clojure "1.10.0-master-snapshot"]]}
              }
   :jvm-opts ["-Djdk.attach.allowAttachSelf"]
-  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
+  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"
+                 ;; for Morse
+                 "jitpack" "https://jitpack.io"}
 
   ;; :bootclasspath true
   ;; :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
