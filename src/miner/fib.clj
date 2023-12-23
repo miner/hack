@@ -428,8 +428,8 @@
 ;;; http://fare.tunes.org/files/fun/fibonacci.lisp
 ;;; Lisp very-fast-fib-2, ported to Clojure by SEM
 ;;; (similar to fast-fib but slightly faster)
-;;; directly calc the nth Fib
-;;; also q ends up being Fib(n+1) but we don't take advantage of that
+;;; directly calc the nth Fib, using some matrix math.
+;;; btw, q ends up being Fib(n+1) but we don't take advantage of that
 (defn vf-fib [^long n]
   (loop [a 0
          b 1  
@@ -445,6 +445,16 @@
         (if (odd? n)
           (recur a2 b2 (+ (* a p) (* b q)) (+ (* b p) (* c q)) n2)
           (recur a2 b2 p q n2))))))
+
+
+;;; https://github.com/alidasdan/fibonacci-number-algorithms/blob/master/src/ad_fib12.py
+(def phi (/ (inc (m/sqrt 5.0)) 2.0))
+
+;;; This is accurate for cnt < 79
+
+(defn rphi-fibs [^long cnt]
+  ;; (assert (< cnt 79))
+  (take cnt (list* 0 1 (iterate (fn [^long f] (m/round (* ^double phi f))) 1))))
 
 
 
