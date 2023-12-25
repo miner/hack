@@ -2,7 +2,7 @@
   :min-lein-version "2.0.0"
   :dependencies [[djblue/portal "0.51.0"]
                  [dom-top "1.0.9"]
-                 [com.datomic/local "1.0.267"]
+                 [com.datomic/local "1.0.276"]
                  ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
@@ -36,7 +36,7 @@
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [org.clojars.quoll/tiara "0.3.4"]
-                 [com.github.nubank/morse "v2023.10.06.02"]
+                 [com.github.nubank/morse "2023.10.06.02"]
                  [clj-commons/fs "1.6.310"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
