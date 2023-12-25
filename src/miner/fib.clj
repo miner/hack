@@ -401,20 +401,14 @@
 
 ;; But not as fast as myfib!
 
-;; very fast direct calculation but wrong after n > 70 due to rounding errors
+;; fast direct calculation but wrong after n > 70 due to rounding errors
+;; (actually, phi-fib is a bit faster)
 (defn binet-fib [n]
-  ; (assert (<= n 70))
-  (let [phi (/ (+ 1.0 (Math/sqrt 5.0)) 2.0)]
-    (long (Math/round (/ (- (Math/pow phi n) (Math/pow (- 1.0 phi) n))
-                         (Math/sqrt 5.0))))))
+  ;; (assert (<= n 70))
+  (let [phi (/ (+ 1.0 (m/sqrt 5.0)) 2.0)]
+    (m/round (/ (- (m/pow phi n) (m/pow (- 1.0 phi) n))
+                         (m/sqrt 5.0)))))
 
-
-;; slight refactoring, not much diff
-(defn binet-fib2 [n]
-  ; (assert (<= n 70))
-  (let [phi1 (/ (Math/sqrt 5.0) 2.0)]
-    (long (Math/round (/ (- (Math/pow (+ 0.5 phi1) n) (Math/pow (- 0.5 phi1) n))
-                         (Math/sqrt 5.0))))))
 
 
 ;;; https://news.ycombinator.com/item?id=38599168
@@ -457,7 +451,48 @@
   (take cnt (list* 0 1 (iterate (fn [^long f] (m/round (* ^double phi f))) 1))))
 
 
+;;; F[n] = round(phi^n / sqrt(5))
+;;; https://github.com/alidasdan/fibonacci-number-algorithms/blob/master/src/ad_fib5.py
 
+(def sqrt5 (m/sqrt 5))
+
+;;; accurate for n < 72
+(defn phi-fib [^long n]
+  ;; (assert (< n 72))
+  (m/round (/ (m/pow phi n) ^double sqrt5)))
+  
+(defn phi-fibs [cnt]
+  ;; (assert (< n 72)
+  (take cnt (map #(m/round (/ ^double % ^double sqrt5))
+                 (cons 0 (iterate #(* ^double phi ^double %) phi)))))
+
+;;; faster than binet
+(defn xphi-fibs [^long cnt]
+  ;; (assert (< n 72)
+  (transduce (comp (take (dec cnt)) (map #(/ ^double % ^double sqrt5)) (map m/round))
+             conj
+             [0]
+             (iterate #(* ^double phi ^double %) phi)))
+
+;;; https://news.ycombinator.com/item?id=9815839 for original link
+;;; my code is derived from https://gist.github.com/clifton/97f8a862a590c15e1785
+;;; clever way of extracting fibs from the fractional digits of the inverse of a
+;;; special "989" BigDecimal
+
+(let [denom 999999999999999999999998999999999999999999999999M
+      inv989str (str (.divide 1M denom (java.math.MathContext. 2780)))]
+  (defn numeric-fibs [^long cnt]
+    (assert (< cnt 118))
+    (transduce (comp (drop 2) (partition-all 24) (take (- cnt 2))
+                     (map #(drop-while #{\0} %))
+                     (map #(apply str %))
+                     (map read-string))
+               conj
+               [0 1]
+               inv989str)))
+
+
+         
 ;; For reference
 ;; http://www.miniwebtool.com/list-of-fibonacci-numbers/?number=100
 (def fib100 [0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181 6765 10946 17711 28657
