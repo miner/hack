@@ -1,47 +1,8 @@
 (ns miner.pedro
-  (:require (clojure [string :as str])))
+  (:require [clojure.string :as str]))
 
-;;; See pedro.txt for more info
+;;; See pedro.txt for more info.
 
-;;;----------------------------------------------------------------------
-;;; was pedro/util.clj
-
-
-;; original:
-;; http://groups.google.com/group/clojure/browse_thread/thread/234ac3ff0a4b6b80?pli=1
-;; but slightly changed for Clojure updates since 1.0
-
-(defn unmangle
-"Given the name of a class that implements a Clojure function, returns the function's name in Clojure. Note: If the true Clojure function name
-  contains any underscores (a rare occurrence), the unmangled name will
-  contain hyphens at those locations instead."
-  [class-name]
-  (.replace
-   (clojure.string/replace class-name #"^(.+)\$([^@]+)(|@.+)$" "$1/$2")
-   \_ \-))
-
-;; only appropriate for debugging
-(defmacro current-fn-name []
-  "Returns a string, the name of the current Clojure function; very expensive -- use only for debugging"
-  `(unmangle (.getClassName ^StackTraceElement (first (.getStackTrace (Throwable.))))))
-
-(defmacro unfinished []
-  `(println "Warning: unfinished fn " (current-fn-name)))
-
-(defmacro not-implemented []
-  `(throw (ex-info "Unfinished" {:frame (current-fn-name)})))
-
-
-;; Dynamic var (as in 1.3)
-;; Not the same as clojure.contrib.def version
-(defmacro defvar
-  "Defines a dynamic var with an optional intializer and doc string"
-  ([name]
-     (list `def (with-meta name (assoc (meta name) :dynamic true))))
-  ([name init]
-     (list `def (with-meta name (assoc (meta name) :dynamic true)) init))
-  ([name doc-string init]
-     (list `def (with-meta name (assoc (meta name) :doc doc-string :dynamic true)) init)))
 
 
 ;; expects numbers as result of keyfn, but special cases nil arg and nil result, treating

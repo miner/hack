@@ -1,8 +1,8 @@
 (ns miner.halfbaked
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [clojure.repl :as repl]))
 
-
-
+;;; Not a library (anymore).  Just source code you're welcome to copy.
 
 (defn sym
   "Like `symbol` but allows more flexibility in the types of arguments, which can be a Namespace,
@@ -16,64 +16,29 @@
                 (or (keyword? ns) (symbol? ns)) (symbol (name ns) (name x))
                 ;; (instance? clojure.lang.Namespace ns)
                 :else (symbol (str ns) (name x)))))
+     
 
+;;; Given the fnclass, a Java class that implements the Clojure function (basically the
+;;; value of a Clojure fn var), returns the plain string of the qualified function name.
+;;; Useful for debugging and error messages.
 
-;; See  clojure.lang.Compiler/CHAR_MAP for the official list of conversions
-;; Some don't happen in normal code so I elided them.
-(def demangle-replacements
-  (array-map "_QMARK_" "?"
-             "_BANG_" "!"
-             "_STAR_" "*"
-             "_GT_" ">"
-             "_EQ_" "="
-             "_PLUS_" "+"
-             "_LT_" "<"
-             "_SLASH_" "/"
-             "_AMPERSAND_" "&"
-             "_TILDE_" "~"
-             ;; keep underbar last
-             "_" "-"))
-
-;; see also clojure.main/demunge
-
-;; a faster but ugly version is in demangle.clj
-(defn ^String demangle
-  "Demangle a clojure identifier name"
-  [^String s]
-  (reduce-kv str/replace s demangle-replacements))
-
-(defn compiled-fn-name
-  "returns the simple name (a string) for the given function f as determined by the compiler"
-  [f]
-  (let [f (if (var? f) (var-get f) f)
-        compiled-name (when (fn? f) (str f))
-        fname (second (first (re-seq #"[$](.*)@" compiled-name)))]
-    (if fname
-      (demangle fname)
-      compiled-name)))
-
-
-;; original:
-;; http://groups.google.com/group/clojure/browse_thread/thread/234ac3ff0a4b6b80?pli=1
-;; but slightly changed for Clojure updates since 1.0
-
-;; See also clojure.repl/demunge for the official way to do this now.
-
-(defn demangle-class-name
-  "Given the name of a class that implements a Clojure function, returns the function's
-   name in Clojure. Note: If the true Clojure function name
-   contains any underscores (a rare occurrence), the unmangled name will
-   contain hyphens at those locations instead."
-  [class-name]
-  (demangle (clojure.string/replace class-name #"^(.+)\$([^@]+)(|@.+)$" "$1/$2")))
+(defn demungify [fnclass]
+  (-> fnclass
+      str
+      repl/demunge
+      (str/replace #"(--.+)?@.+"  "")))
 
 ;; only appropriate for debugging
 (defmacro current-fn-name []
-  "Returns a string, the name of the current Clojure function"
-  `(-> (Throwable.) .getStackTrace first .getClassName demangle-class-name))
+  "Returns a string, the name of the current Clojure function; very expensive -- use only for debugging"
+  `(demungify (.getClassName ^StackTraceElement (first (.getStackTrace (Throwable.))))))
+
+(defmacro unfinished []
+  `(println "Warning: unfinished fn " (current-fn-name)))
 
 (defmacro not-implemented []
-  `(throw (Error. (str "fn " (current-fn-name) " not implemented"))))
+  `(throw (ex-info "Function not implemented" {:frame (current-fn-name)})))
+
 
 ;; Baishampayan Ghose  b.ghose@gmail.com
 (defmacro with-timeout [ms & body]

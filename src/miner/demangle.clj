@@ -1,8 +1,73 @@
 
+;;; This stuff is old and obsolete.  Clojure has changed a lot internally since 1.0.
+
+;;; My preferred replacement is updated in halfbaked.clj.
+
+;;; No Namespace here.  We're not using this anywhere.  Preserved for historic interest.
+
+
 ;; replacements for demangle
 ;; faster but ugly
 
 ;; See also clojure.main/demunge
+
+
+;; See  clojure.lang.Compiler/CHAR_MAP for the official list of conversions
+;; Some don't happen in normal code so I elided them.
+(def demangle-replacements
+  (array-map "_QMARK_" "?"
+             "_BANG_" "!"
+             "_STAR_" "*"
+             "_GT_" ">"
+             "_EQ_" "="
+             "_PLUS_" "+"
+             "_LT_" "<"
+             "_SLASH_" "/"
+             "_AMPERSAND_" "&"
+             "_TILDE_" "~"
+             ;; keep underbar last
+             "_" "-"))
+
+;; see also clojure.main/demunge
+
+;; a faster but ugly version is in demangle.clj
+(defn ^String demangle
+  "Demangle a clojure identifier name"
+  [^String s]
+  (reduce-kv str/replace s demangle-replacements))
+
+(defn compiled-fn-name
+  "returns the simple name (a string) for the given function f as determined by the compiler"
+  [f]
+  (let [f (if (var? f) (var-get f) f)
+        compiled-name (when (fn? f) (str f))
+        fname (second (first (re-seq #"[$](.*)@" compiled-name)))]
+    (if fname
+      (demangle fname)
+      compiled-name)))
+
+
+;; original:
+;; http://groups.google.com/group/clojure/browse_thread/thread/234ac3ff0a4b6b80?pli=1
+;; but slightly changed for Clojure updates since 1.0
+
+;; See also clojure.repl/demunge for the official way to do this now.
+
+(defn demangle-class-name
+  "Given the name of a class that implements a Clojure function, returns the function's
+   name in Clojure. Note: If the true Clojure function name
+   contains any underscores (a rare occurrence), the unmangled name will
+   contain hyphens at those locations instead."
+  [class-name]
+  (demangle (clojure.string/replace class-name #"^(.+)\$([^@]+)(|@.+)$" "$1/$2")))
+
+;; only appropriate for debugging
+(defmacro current-fn-name []
+  "Returns a string, the name of the current Clojure function"
+  `(-> (Throwable.) .getStackTrace first .getClassName demangle-class-name))
+
+(defmacro not-implemented []
+  `(throw (Error. (str "fn " (current-fn-name) " not implemented"))))
 
 
 ;; horrible loop doing two things at once
