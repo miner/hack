@@ -4,6 +4,7 @@ pom.xml
 /target/
 /lib/
 /classes/
+/dev/
 .lein-*
 .nrepl-*
 TAGS
