@@ -197,13 +197,6 @@ infinite sequences."
   "Returns true iff `num` is a multiple of `divisor`"
   (zero? (rem num divisor)))
 
-
-;; by JUXT blog -- but sort is too slow to use like this
-(defn jgcd [a b]
-  (let [[x y] (sort [a b])
-        [q r] ((juxt quot rem) y x)]
-    (if (zero? r) x (recur x r))))
-
 (defn my-abs [n] (if (neg? n) (- n) n))
 
 ;; version taken from math.number-tower
@@ -227,13 +220,14 @@ infinite sequences."
       a
       (recur b (rem a b)))))
 
-;; slightly faster to inline abs and type hint
+;; slightly faster to inline abs and type hint, maybe not faster than built-in abs ???
 (defn gcd2 ^long [^long a ^long b]
   (loop [a (if (neg? a) (- a) a)
          b (if (neg? b) (- b) b)]
     (if (zero? b)
       a
       (recur b (rem a b)))))
+
 
 (defn test-gcd
   ([] (test-gcd gcd))
