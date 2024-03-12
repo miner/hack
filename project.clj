@@ -37,11 +37,11 @@
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [org.clojars.quoll/tiara "0.3.4"]
                  [com.github.nubank/morse "2023.10.06.02"]
-                 [clj-commons/fs "1.6.310"]]
+                 [clj-commons/fs "1.6.311"]]
   :global-vars {*warn-on-reflection* true
                 *unchecked-math* :warn-on-boxed}
   :profiles {:dev  {:source-paths ["src" "dev"]
-                    :dependencies [[org.clojure/clojure "1.12.0-alpha8"]
+                    :dependencies [[org.clojure/clojure "1.12.0-alpha9"]
                                    ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
