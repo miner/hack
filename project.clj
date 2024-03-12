@@ -39,7 +39,8 @@
                  [com.github.nubank/morse "2023.10.06.02"]
                  [clj-commons/fs "1.6.311"]]
   :global-vars {*warn-on-reflection* true
-                *unchecked-math* :warn-on-boxed}
+                ;; *unchecked-math* :warn-on-boxed
+                }
   :profiles {:dev  {:source-paths ["src" "dev"]
                     :dependencies [[org.clojure/clojure "1.12.0-alpha9"]
                                    ;; [org.clojure/core.async "1.5.640"]

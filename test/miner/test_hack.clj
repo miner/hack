@@ -3,7 +3,7 @@
             [clojure.test.check.generators :as gen]
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
-            [miner.strgen :as sg]))
+#_            [miner.strgen :as sg]))
 
 (deftest show-info
   (testing "Show test info"
