@@ -230,3 +230,51 @@
                ([res] (when (string? res) res)))
              0
              (range 1 (count s))))
+
+
+;;; old method notation
+(defn zuniq-subs [width s]
+  (transduce conj
+             (fn ([st i]
+                  (let [c (.charAt ^String s ^int i)]
+                    (loop [j (dec i)]
+                      (cond (< j st) (if (= (- i st) (dec width))
+                                       (reduced (subs s st (inc i)))
+                                       st)
+                            (= (.charAt ^String s ^int j) c) (inc j)
+                            :else (recur (dec j))))))
+               ([res] (when (string? res) res)))
+             0
+             (range 1 (count s))))
+
+
+;;; file bug ask/clojure about reduce-kv on strings.  Probably easy fix by adding something
+;;; for IKVReduce
+
+(when-not (extends? clojure.core.protocols/IKVReduce java.lang.String)
+  (extend-type java.lang.String clojure.core.protocols/IKVReduce
+    (kv-reduce [s f init]
+      (reduce (fn [res i] (f res i (String/charAt s i))) init (range (count s))))))
+
+
+(defn urkv-subs [width s]
+  (let [res (reduce-kv (fn [st i c]
+                         (loop [j (dec i)]
+                           (cond (< j st) (if (= (- i st) (dec width))
+                                            (reduced (subs s st (inc i)))
+                                            st)
+                                 (= (String/charAt s j) ^char c) (inc j)
+                                 :else (recur (dec j)))))
+                       0
+                       s)]
+    (when (string? res)
+      res)))
+
+;;; not sure this is good idea
+(defmacro when-> [expr & preds]
+  (let [name (gensym)]
+    `(as-> ~expr ~name
+       ~@(map (fn [p] `(when (and ~name (~p ~name)) ~name)) preds))))
+  
+
+  
