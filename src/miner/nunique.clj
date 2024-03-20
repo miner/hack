@@ -231,6 +231,22 @@
              0
              (range 1 (count s))))
 
+;;; (generic) `get` is much slower than String/charAt. (maybe 5x)
+(defn guniq-subs [width s]
+  (transduce conj
+             (fn ([st i]
+                  (let [c (get s i)]
+                    (loop [j (dec i)]
+                      (cond (< j st) (if (= (- i st) (dec width))
+                                       (reduced (subs s st (inc i)))
+                                       st)
+                            (= (get s j) c) (inc j)
+                            :else (recur (dec j))))))
+               ([res] (when (string? res) res)))
+             0
+             (range 1 (count s))))
+
+
 
 ;;; old method notation
 (defn zuniq-subs [width s]
