@@ -59,13 +59,16 @@
 (defn semsub1 [width s]
   (when-let [v (first (sequence (comp (slide width) (filter uniq?) (take 1)) s))]
     (apply str v)))
-             
+
+;; slightly faster than semsub1
+(defn semsub11 [width s]
+  (not-empty (apply str (first (sequence (comp (slide width) (filter uniq?) (take 1)) s)))))
 
 (defn semsub2 [width s]
   (first (filter uniq? (map #(subs s % (+ width %)) (range (- (inc (count s)) width))))))
 
 
-;;; fastest
+;;; faster
 (defn semsub [width s]
   (first (sequence (comp (map #(subs s % (+ width %))) (filter uniq?) (take 1))
                    (range (- (inc (count s)) width)))))
@@ -73,7 +76,7 @@
 
 
 
-;;; double time
+;;; double time slow
 (defn ss3 [width s]
   (let [unique-at? (fn [i]
                      (reduce (fn [r j]
@@ -95,20 +98,6 @@
                              (reduced (apply str r))
                              (pop r))))
                        (queue (seq (subs s 0 (dec width))))
-                       (range width (count s)))]
-    (when (string? result)
-      result)))
-
-
-;;; must uniq all 4 or mark pre-duplicate
-;;; probably should skip past dups
-(defn BUG-ss5 [width s]
-  (let [result (reduce (fn [res i]
-                         (let [c (String/charAt s i)]
-                           (if (some #(= ^char c ^char %) res) ;;;BUG
-                             (conj (subvec res 1) c)
-                             (reduced (apply str (conj res c))))))
-                       (vec (subs s 0 (dec width)))
                        (range width (count s)))]
     (when (string? result)
       result)))
@@ -135,7 +124,7 @@
       res)))
 
 ;;; pretty much same as above, but prettier
-;; conj is the no-op transducer, faster than (map identity)
+;; conj is effectively the identity transducer, faster than (map identity)
 (defn ss7 [width s]
   (transduce conj  
              (fn ([uv c]
@@ -160,24 +149,6 @@
                                        uv))
                           (= (v i) c) (conj (subvec v (inc i)) c)
                           :else (recur (dec i)))))
-               ([res] (when (string? res) res)))
-             []
-             s))
-
-
-;;; slower and more confusing
-(defn ss9 [width s]
-  (transduce conj  
-             (fn ([v c]
-                  (reduce (fn [v i]
-                            (cond (neg? i) (let [uv (conj v c)]
-                                             (if (= (count uv) width)
-                                               (reduced (reduced (apply str uv)))
-                                               uv))
-                                  (= (v i) c) (reduced (conj (subvec v (inc i)) c))
-                                  :else v))
-                          v
-                          (range (dec (count v)) -2 -1)))
                ([res] (when (string? res) res)))
              []
              s))
@@ -247,7 +218,6 @@
              (range 1 (count s))))
 
 
-
 ;;; old method notation
 (defn zuniq-subs [width s]
   (transduce conj
@@ -265,32 +235,39 @@
 
 
 ;;; file bug ask/clojure about reduce-kv on strings.  Probably easy fix by adding something
-;;; for IKVReduce
+;;; for IKVReduce.  Maybe should be on java.lang.CharSequence??? but other CharSequence
+;;; implementations might be mutable which is dangerous.  So, let's just stay with String.
 
 (when-not (extends? clojure.core.protocols/IKVReduce java.lang.String)
   (extend-type java.lang.String clojure.core.protocols/IKVReduce
     (kv-reduce [s f init]
-      (reduce (fn [res i] (f res i (String/charAt s i))) init (range (count s))))))
+      (reduce (fn [res i] (f res i (String/charAt s i))) init (range (String/length s))))))
 
 
+;;; seems generally useful notation
+;;; note that nil expr returns nil without calling pred
+(defmacro when? [pred expr]
+  `(when-let [x# ~expr]
+     (when (~pred x#)
+       x#)))
+
+;;; depends on my IKVReduce extension to String
 (defn urkv-subs [width s]
-  (let [res (reduce-kv (fn [st i c]
-                         (loop [j (dec i)]
-                           (cond (< j st) (if (= (- i st) (dec width))
-                                            (reduced (subs s st (inc i)))
-                                            st)
-                                 (= (String/charAt s j) ^char c) (inc j)
-                                 :else (recur (dec j)))))
-                       0
-                       s)]
-    (when (string? res)
-      res)))
+  (when? string?
+         (reduce-kv (fn [st i c]
+                      (loop [j (dec i)]
+                        (cond (< j st) (if (= (- i st) (dec width))
+                                         (reduced (subs s st (inc i)))
+                                         st)
+                              (= (String/charAt s j) ^char c) (inc j)
+                              :else (recur (dec j)))))
+                    0
+                    s)))
+       
 
 ;;; not sure this is good idea
 (defmacro when-> [expr & preds]
   (let [name (gensym)]
     `(as-> ~expr ~name
        ~@(map (fn [p] `(when (and ~name (~p ~name)) ~name)) preds))))
-  
-
   
