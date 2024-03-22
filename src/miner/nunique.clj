@@ -244,25 +244,29 @@
       (reduce (fn [res i] (f res i (String/charAt s i))) init (range (String/length s))))))
 
 
-;;; seems generally useful notation
+;;; seems generally useful notation, Just a single predicate check.
+;;; could be called when? but not predicate, when1, filt, filt1
+;;; -- like   (first (filter pred (list expr)))
+
 ;;; note that nil expr returns nil without calling pred
-(defmacro when? [pred expr]
+(defmacro confirm [pred expr]
   `(when-let [x# ~expr]
      (when (~pred x#)
        x#)))
 
 ;;; depends on my IKVReduce extension to String
+;;; OK but not fastest
 (defn urkv-subs [width s]
-  (when? string?
-         (reduce-kv (fn [st i c]
-                      (loop [j (dec i)]
-                        (cond (< j st) (if (= (- i st) (dec width))
-                                         (reduced (subs s st (inc i)))
-                                         st)
-                              (= (String/charAt s j) ^char c) (inc j)
-                              :else (recur (dec j)))))
-                    0
-                    s)))
+  (confirm string?
+           (reduce-kv (fn [st i c]
+                        (loop [j (dec i)]
+                          (cond (< j st) (if (= (- i st) (dec width))
+                                           (reduced (subs s st (inc i)))
+                                           st)
+                                (= (String/charAt s j) ^char c) (inc j)
+                                :else (recur (dec j)))))
+                      0
+                      s)))
        
 
 ;;; not sure this is good idea
