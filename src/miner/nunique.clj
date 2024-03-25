@@ -244,30 +244,42 @@
       (reduce (fn [res i] (f res i (String/charAt s i))) init (range (String/length s))))))
 
 
+
+;;; we want to protect against nil expr so pred doesn't have to handle it
+;;; still uncertain about name
+(defn whenp [pred expr]
+  (when (and expr (pred expr))
+    expr))
+
+
+;;; depends on my IKVReduce extension to String
+;;; OK but not fastest
+(defn urkv-subs [width s]
+  (whenp string?
+         (reduce-kv (fn [st i c]
+                      (loop [j (dec i)]
+                        (cond (< j st) (if (= (- i st) (dec width))
+                                         (reduced (subs s st (inc i)))
+                                         st)
+                              (= (String/charAt s j) ^char c) (inc j)
+                              :else (recur (dec j)))))
+                    0
+                    s)))
+       
+
+
+;;; NOT GOOD IDEA after all.  See whenp about
+
 ;;; seems generally useful notation, Just a single predicate check.
 ;;; could be called when? but not predicate, when1, filt, filt1
 ;;; -- like   (first (filter pred (list expr)))
 
 ;;; note that nil expr returns nil without calling pred
-(defmacro confirm [pred expr]
+;;; BUT you don't need a macro, as you're going to caluculate both args anyway
+(defmacro when-pred-macro [pred expr]
   `(when-let [x# ~expr]
      (when (~pred x#)
        x#)))
-
-;;; depends on my IKVReduce extension to String
-;;; OK but not fastest
-(defn urkv-subs [width s]
-  (confirm string?
-           (reduce-kv (fn [st i c]
-                        (loop [j (dec i)]
-                          (cond (< j st) (if (= (- i st) (dec width))
-                                           (reduced (subs s st (inc i)))
-                                           st)
-                                (= (String/charAt s j) ^char c) (inc j)
-                                :else (recur (dec j)))))
-                      0
-                      s)))
-       
 
 ;;; not sure this is good idea
 (defmacro when-> [expr & preds]
