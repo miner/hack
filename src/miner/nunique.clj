@@ -247,6 +247,10 @@
 
 ;;; we want to protect against nil expr so pred doesn't have to handle it
 ;;; still uncertain about name
+;;; seems generally useful notation, Just a single predicate check.
+;;; could be called when? but not predicate, when1, filt, filt1
+;;; -- like   (first (filter pred (list expr)))
+
 (defn whenp [pred expr]
   (when (and expr (pred expr))
     expr))
@@ -268,11 +272,8 @@
        
 
 
-;;; NOT GOOD IDEA after all.  See whenp about
+;;; NOT GOOD IDEA to implement as macro.  See whenp above
 
-;;; seems generally useful notation, Just a single predicate check.
-;;; could be called when? but not predicate, when1, filt, filt1
-;;; -- like   (first (filter pred (list expr)))
 
 ;;; note that nil expr returns nil without calling pred
 ;;; BUT you don't need a macro, as you're going to caluculate both args anyway
