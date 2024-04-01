@@ -202,6 +202,9 @@
              0
              (range 1 (count s))))
 
+;;; not faster with local  [getch (fn [i] (String/charAt s i))]
+
+
 ;;; (generic) `get` is much slower than String/charAt. (maybe 5x)
 (defn guniq-subs [width s]
   (transduce conj
