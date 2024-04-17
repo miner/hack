@@ -572,22 +572,34 @@
   (let [step (fn step [n base extra]
                (if (>= n cnt)
                  extra
-                 (let [base (concat base extra)]
-                   (concat extra
+                 (concat extra
+                         (let [base (concat base extra)]
                            (lazy-seq (step (inc n)
                                            base
                                            (if (odd? n)
                                              (mapcat #(cons [% n] base) (range n))
                                              (sequence cat (repeat n (cons [0 n] base))))))))))]
-    (lazy-seq (step 1 [] []))))
+    (lazy-seq (step 1 nil nil))))
+
 
 
 ;;; lazy and fairly fast, about 2x crperm2
 (defn crperm3 [cnt]
-  (reductions
-   (fn [a [i j]] (assoc a i (a j) j (a i)))
-   (vec (range cnt))
-   (lswaps cnt)))
+  (let [step (fn step [n base extra]
+               (if (>= n cnt)
+                 extra
+                 (concat extra
+                         (let [base (concat base extra)]
+                           (lazy-seq (step (inc n)
+                                           base
+                                           (if (odd? n)
+                                             (mapcat #(cons [% n] base) (range n))
+                                             (sequence cat (repeat n (cons [0 n] base))))))))))]
+    (reductions
+     (fn [a [i j]] (assoc a i (a j) j (a i)))
+     (vec (range cnt))
+     (lazy-seq (step 1 nil nil)))))
+
 
 
 
