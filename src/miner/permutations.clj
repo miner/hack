@@ -496,7 +496,7 @@
 
 
 ;;; Original code from stack-exchange, just refactored for easier comparison.  I didn't like
-;;; the recursive swaps.  I worked out a better way below in my crperm24, which uses tail
+;;; the recursive swaps.  I worked out a better way below in my crperm2, which uses tail
 ;;; recursion and transducers for better performance.
 
 (defn crperm1 [n]
@@ -518,21 +518,31 @@
              (swaps (count v))))]
     (perms (vec (range n)))))
 
+
+#_ (quick-bench (count (crperm1 9)))
+;;;=> 362880
+
+#_ (quick-bench (nth (crperm3 9) 150))
+;;; Execution time mean : 3.455148 ms
+;;; good test of laziness
+
+
+
+
 ;;; Note: this is described as an implementation of Heap's algorithm.  I have another
 ;;; version above called heaps-permutations that is faster.  It looks quite different as the
 ;;; swaps are controlled by counters rather than realized as a sequence.  My version
-;;; crperm24 is probably easier to read.  But there's still some mystery associated with how
+;;; crperm2 is probably easier to read.  But there's still some mystery associated with how
 ;;; it works.
 
 ;;; refactoring and consolidating for a cleaner, faster implementation, but maybe not so
 ;;; easy to understand.  BTW, it is brittle with respect to the ordering of the swaps [i j]
 ;;; Also, not lazy.  That might be an issue for some applications.  (Original is lazy with
 ;;; reductions.  And swaps are fairly lazy.  Anway, I have a much faster eager version and a
-;;; somewhat faster lazy version below.)
+;;; somewhat faster lazy version in crperm3 below.)
 
 
-;;; best of 24, 25
-(defn crperm26 [cnt]
+(defn crperm2 [cnt]
   (reductions
    (fn [a [i j]] (assoc a i (a j) j (a i)))
    (vec (range cnt))
@@ -554,8 +564,6 @@
           (range 1 cnt)))
 
 
-
-
 ;;; maybe useful later?  the count of swaps is n!-1
 ;;; cnt (if (<= n 1) 0 (reduce * -1 (range 1 (inc n))))
 
@@ -574,233 +582,12 @@
     (lazy-seq (step 1 [] []))))
 
 
-;;; lazy and fairly fast, about 2x crperm26
-(defn crperm27 [cnt]
+;;; lazy and fairly fast, about 2x crperm2
+(defn crperm3 [cnt]
   (reductions
    (fn [a [i j]] (assoc a i (a j) j (a i)))
    (vec (range cnt))
    (lswaps cnt)))
 
-
-
-;;; reductions is sort of a lazy reduce but you have to adjust the f maybe
-;;; base is init
-
-
-
-     
-;;; maybe simpler, about same:  (apply concat base (repeat n (cons [0 n] base)))
-
-
-
-
-
-;;; ----------------------------------------------------------------------
-
-
-;;; Much below this is experimental, not worth saving
-
-
-(defn crperm24 [cnt]
-  (reductions
-   (fn [a [i j]] (assoc a i (a j) j (a i)))
-   (vec (range cnt)) 
-   (loop [n 1 base []]
-     (if (>= n cnt)
-       base
-       (recur (inc n)
-              (if (odd? n)
-                (into base (mapcat #(cons [% n] base)) (range n))
-                (into base cat (repeat n (cons [0 n] base)))))))))
-
-;;; about same as 24, maybe nicer with reduce?
-(defn crperm25 [cnt]
-  (reductions
-   (fn [a [i j]] (assoc a i (a j) j (a i)))
-   (vec (range cnt)) 
-   (loop [n 1 base []]
-     (if (>= n cnt)
-       base
-       (recur (inc n)
-              (if (odd? n)
-                (reduce (fn [r i] (into (conj r [i n]) base)) base (range n))
-                (into base cat (repeat n (cons [0 n] base)))))))))
-
-;;; my first improvement.  Note order of swaps is critical and delicate.  Needs good testing.
-(defn crperm2 [n]
-  (letfn [(semswaps [n]
-            ;; generate pair of indices
-            (if (= n 1)
-              []
-              (let [base (semswaps (dec n))
-                    extras (if (odd? n) (repeat (dec n) 0) (range (dec n)))]
-                ;; (println "semswaps base n=" n base)
-                ;; (println "      extras=   " extras)
-                (transduce (mapcat (fn [x] (cons [x (dec n)] base)))
-                           conj
-                           base
-                           extras))))
-          
-          (perms [v]
-            ;; v is the original elements in a vector
-            (reductions
-             (fn [a [i j]] (assoc a i (a j) j (a i)))
-             v
-             (semswaps (count v))))]        
-    (perms (vec (range n)))))
-
-;;; faster with transducers, but still want to be tail recursive
-(defn semswaps [n]
- ;; generate pair of indices
-  (if (<= n 1)
-    []
-    (let [base (semswaps (dec n))
-          extras (if (odd? n) (repeat (dec n) 0) (range (dec n)))]
-      ;; (println "semswaps base n=" n base)
-      ;; (println "      extras=   " extras)
-      (transduce (mapcat (fn [x] (cons [x (dec n)] base)))
-                conj
-                base
-                extras))))
-
-
-;;; refactored to be tail recursive and to use transducers
-;;; This is somewhat tricky so be careful if you change it.  Test with original swaps1.
-;;; Much faster
-(defn rswaps3 [cnt]
-  ;; generate pair of indices
-  (loop [n 1 base []]
-    (if (>= n cnt)
-      base
-      (recur (inc n)
-             (if (odd? n)
-               (into base (mapcat #(conj (seq base) (vector % n))) (range n))
-               (into base cat (repeat n (conj (seq base) [0 n]))))))))
-
-
-
-
- 
-
-;;; better rswaps, somewhat faster
-(defn crperm21 [n]
-  (letfn [(rswaps [cnt]
-            ;; generate pair of indices
-            (loop [n 1 base []]
-              (if (>= n cnt)
-                base
-                (recur (inc n)
-                       (if (odd? n)
-                         (into base (mapcat #(conj (seq base) (vector % n))) (range n))
-                         (into base cat (repeat n (conj (seq base) [0 n]))))))))
-          
-          (perms [v]
-            ;; v is the original elements in a vector
-            (reductions
-             (fn [a [i j]] (assoc a i (a j) j (a i)))
-             v
-             (rswaps (count v))))]
-    (perms (vec (range n)))))
-
-
-
-
-(defn semswaps3 [n]
-  ;; generate pair of indices
-  (if (= n 1)
-    []
-    (let [base (semswaps3 (dec n))
-          extras (if (odd? n) (repeat (dec n) 0) (range (dec n)))]
-      ;; (println "semswaps base n=" n base)
-      ;; (println "      extras=   " extras)
-      (transduce (mapcat (fn [x] (list* x (dec n) base)))
-                 conj
-                 base
-                 extras))))
-
-;;; slower than crperm2
-(defn crperm3 [n]
-  (letfn [(semswaps [n]
-            ;; generate pair of indices
-            (if (= n 1)
-              []
-              (let [base (semswaps (dec n))
-                    extras (if (odd? n) (repeat (dec n) 0) (range (dec n)))]
-                (transduce (mapcat (fn [x] (list* x (dec n) base)))
-                           conj
-                           base
-                           extras))))
-          
-          (perms [v]
-            ;; v is the original elements in a vector
-            (transduce (partitionv-all 2)
-                       (completing (fn [r [i j]]
-                                     (let [a (peek r)]
-                                       (conj r (assoc a i (a j) j (a i))))))
-                       [v]
-                       (semswaps (count v))))]
-    (perms (vec (range n)))))
-
-;;; faster than 3 but slower than 2
-(defn crperm4 [n]
-  (letfn [(semswaps [n]
-            ;; generate pair of indices
-            (if (<= n 1)
-              []
-              (let [base (semswaps (dec n))
-                    extras (if (odd? n) (repeat (dec n) 0) (range (dec n)))]
-                (transduce (mapcat (fn [x] (cons  [x (dec n)] base)))
-                           conj
-                           base
-                           extras))))
-          
-          (perms [v]
-            ;; v is the original elements in a vector
-            (transduce conj
-                       (completing (fn [r [i j]]
-                                     (let [a (peek r)]
-                                       (conj r (assoc a i (a j) j (a i))))))
-                       [v]
-                       (semswaps (count v))))]
-    (perms (vec (range n)))))
-
-
-;;; trying to be better at laziness -- works but not lazy enough
-(defn lswaps-not [cnt]
-  (let [step (fn step [n base]
-               (if (>= n cnt)
-                 base
-                 (lazy-seq (step (inc n)
-                                 (if (odd? n)
-                                   (reduce (fn [r i] (into (conj r [i n]) base)) base (range n))
-                                   (into base cat (repeat n (cons [0 n] base))))))))]
-    (lazy-seq (step 1 []))))
-
-;;; need more lazy
-(defn lswaps-WORKS [cnt]
-  (let [step (fn step [n base]
-               (if (>= n cnt)
-                 base
-                 (lazy-seq (step (inc n)
-                                 (if (odd? n)
-                                   (reduce (fn [r i] (concat r (cons [i n] base))) base (range n))
-                                   (concat base (sequence cat (repeat n (cons [0 n] base)))))))))]
-    (lazy-seq (step 1 []))))
-
-;;; not any better
-(defn lswaps3 [cnt]
-  (let [step (fn [base n]
-               (if (odd? n)
-                 (reduce (fn [r i] (concat r (cons [i n] base))) base (range n))
-                 (concat base (sequence cat (repeat n (cons [0 n] base))))))]
-   (reduce step [] (range 1 cnt))))
-
-
-(defn lswaps4 [cnt]
-  (let [step (fn [base n]
-               (if (odd? n)
-                 (concat base (mapcat (fn [i] (cons [i n] base)) (range n)))
-                 (concat base (sequence cat (repeat n (cons [0 n] base))))))]
-   (reduce step [] (range 1 cnt))))
 
 
