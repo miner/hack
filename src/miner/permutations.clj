@@ -574,20 +574,20 @@
 (defn lswaps [cnt]
   (let [step (fn step [n base]
                (when (< n cnt)
-                 (let [extra (if (odd? n)
+                 (let [ext (if (odd? n)
                                (mapcat #(cons [% n] base) (range n))
                                (sequence cat (repeat n (cons [0 n] base))))]
-                   (concat extra (lazy-seq (step (inc n) (concat base extra)))))))]
+                   (concat ext (lazy-seq (step (inc n) (concat base ext)))))))]
     (lazy-seq (step 1 nil))))
 
 ;;; lazy and fairly fast, about 2x crperm2
 (defn crperm3 [cnt]
   (let [step (fn step [n base]
                (when (< n cnt)
-                 (let [extra (if (odd? n)
+                 (let [ext (if (odd? n)
                                (mapcat #(cons [% n] base) (range n))
                                (sequence cat (repeat n (cons [0 n] base))))]
-                   (concat extra (lazy-seq (step (inc n) (concat base extra)))))))]
+                   (concat ext (lazy-seq (step (inc n) (concat base ext)))))))]
     (reductions
      (fn [a [i j]] (assoc a i (a j) j (a i)))
      (vec (range cnt))
