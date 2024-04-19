@@ -567,38 +567,31 @@
 ;;; maybe useful later?  the count of swaps is n!-1
 ;;; cnt (if (<= n 1) 0 (reduce * -1 (range 1 (inc n))))
 
+
+
+
 ;;; Lazy fast, but slow compared to eager eswaps
 (defn lswaps [cnt]
-  (let [step (fn step [n base extra]
-               (if (>= n cnt)
-                 extra
-                 (concat extra
-                         (let [base (concat base extra)]
-                           (lazy-seq (step (inc n)
-                                           base
-                                           (if (odd? n)
-                                             (mapcat #(cons [% n] base) (range n))
-                                             (sequence cat (repeat n (cons [0 n] base))))))))))]
-    (lazy-seq (step 1 nil nil))))
-
-
+  (let [step (fn step [n base]
+               (when (< n cnt)
+                 (let [extra (if (odd? n)
+                               (mapcat #(cons [% n] base) (range n))
+                               (sequence cat (repeat n (cons [0 n] base))))]
+                   (concat extra (lazy-seq (step (inc n) (concat base extra)))))))]
+    (lazy-seq (step 1 nil))))
 
 ;;; lazy and fairly fast, about 2x crperm2
 (defn crperm3 [cnt]
-  (let [step (fn step [n base extra]
-               (if (>= n cnt)
-                 extra
-                 (concat extra
-                         (let [base (concat base extra)]
-                           (lazy-seq (step (inc n)
-                                           base
-                                           (if (odd? n)
-                                             (mapcat #(cons [% n] base) (range n))
-                                             (sequence cat (repeat n (cons [0 n] base))))))))))]
+  (let [step (fn step [n base]
+               (when (< n cnt)
+                 (let [extra (if (odd? n)
+                               (mapcat #(cons [% n] base) (range n))
+                               (sequence cat (repeat n (cons [0 n] base))))]
+                   (concat extra (lazy-seq (step (inc n) (concat base extra)))))))]
     (reductions
      (fn [a [i j]] (assoc a i (a j) j (a i)))
      (vec (range cnt))
-     (lazy-seq (step 1 nil nil)))))
+     (lazy-seq (step 1 nil)))))
 
 
 
