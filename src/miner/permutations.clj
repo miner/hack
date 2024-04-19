@@ -575,8 +575,8 @@
   (let [step (fn step [n base]
                (when (< n cnt)
                  (let [ext (if (odd? n)
-                               (mapcat #(cons [% n] base) (range n))
-                               (sequence cat (repeat n (cons [0 n] base))))]
+                             (mapcat #(cons [% n] base) (range n))
+                             (sequence cat (repeat n (cons [0 n] base))))]
                    (concat ext (lazy-seq (step (inc n) (concat base ext)))))))]
     (lazy-seq (step 1 nil))))
 
@@ -585,8 +585,8 @@
   (let [step (fn step [n base]
                (when (< n cnt)
                  (let [ext (if (odd? n)
-                               (mapcat #(cons [% n] base) (range n))
-                               (sequence cat (repeat n (cons [0 n] base))))]
+                             (mapcat #(cons [% n] base) (range n))
+                             (sequence cat (repeat n (cons [0 n] base))))]
                    (concat ext (lazy-seq (step (inc n) (concat base ext)))))))]
     (reductions
      (fn [a [i j]] (assoc a i (a j) j (a i)))
