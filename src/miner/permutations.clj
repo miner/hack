@@ -588,7 +588,7 @@
                              (mapcat #(cons [% n] base) (range n))
                              (sequence cat (repeat n (cons [0 n] base))))]
                    (concat ext (lazy-seq (step (inc n) (concat base ext)))))))]
-  (reductions
+    (reductions
      (fn [a [i j]] (assoc a i (a j) j (a i)))
      (vec (range cnt))
      (lazy-seq (step 1 nil)))))
