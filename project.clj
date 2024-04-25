@@ -1,6 +1,6 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.52.2"]
+  :dependencies [[djblue/portal "0.55.1"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.277"]
                  ;;[com.datomic/client-api "1.0.67"]
@@ -14,7 +14,7 @@
                  [org.clojure/core.async "1.6.681"]
                  [org.clojure/tools.macro "0.2.0"]
                  [org.clojure/data.priority-map "1.2.0"]
-                 [instaparse "1.4.12"]
+                 [instaparse "1.4.14"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "1.1.0"]
                  [quil "4.3.1563"]

@@ -564,6 +564,28 @@
           (range 1 cnt)))
 
 
+
+(defn esw [cnt]
+  (reduce (fn [base n]
+            (if (odd? n)
+              (into base (mapcat #(list* % n base)) (range n))
+              (into base cat (repeat n (list* 0 n base)))))
+          []
+          (range 1 cnt)))
+
+;;; similar to crperm2
+(defn crperm4 [cnt]
+  (transduce (partitionv-all 2)
+             (fn ([r [i j]]
+                  (let [a (peek r)]
+                    (conj r (assoc a i (a j) j (a i)))))
+               ([r] r))
+             [(vec (range cnt))]
+             (esw cnt)))
+
+
+
+
 ;;; maybe useful later?  the count of swaps is n!-1
 ;;; cnt (if (<= n 1) 0 (reduce * -1 (range 1 (inc n))))
 
