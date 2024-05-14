@@ -3,6 +3,7 @@
   :dependencies [[djblue/portal "0.55.1"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.277"]
+                 [com.taoensso/telemere "1.0.0-beta11"]
                  ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
