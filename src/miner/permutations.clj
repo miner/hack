@@ -48,6 +48,26 @@
 ;;; implicitly disallow these expressions as patterns.  Probaly need to find a more formal
 ;;; definition to confirm this statement.
 
+
+
+
+
+;;; Even better paper "A Fast Algorithm for Permutation Pattern Matching Based on
+;;; Alternating Runs"
+;;; explains terminology and proves their solution (still NP)
+;;; https://arxiv.org/pdf/1204.5224
+
+;;; Good survey of terms "Permutation Classes"
+;;; https://arxiv.org/pdf/1409.5159
+
+;;; "Limited Shapes of Restricted Permutations" thesis by Samuel Miner at UCLA
+;;; good history of avoidance patterns
+;;; https://www.math.ucla.edu/~pak/papers/Miner-thesis.pdf
+
+
+
+
+
 ;;; remap over-excited pattern into base indices (zero-based).
 (defn canonical-pattern [pat]
   (let [pat-map (zipmap (sort (distinct pat)) (range))]
