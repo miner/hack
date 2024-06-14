@@ -31,3 +31,9 @@
 (defn c4 [n]
   (long (cm/ceil (/ n 4.0))))
 
+
+(defn quot-up [n d]
+  (quot (+ n (dec d)) d))
+
+(defn ceild [n d]
+  (long (cm/ceil (/ (double n) (double d)))))
