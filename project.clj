@@ -43,7 +43,7 @@
                 ;; *unchecked-math* :warn-on-boxed
                 }
   :profiles {:dev  {:source-paths ["src" "dev"]
-                    :dependencies [[org.clojure/clojure "1.12.0-beta2"]
+                    :dependencies [[org.clojure/clojure "1.12.0-rc1"]
                                    ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}

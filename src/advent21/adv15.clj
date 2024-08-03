@@ -63,7 +63,7 @@
 
 
 
-;;;; Copied from my miner/edijkstra.clj
+;;;; Copied from my miner/dijkstra.clj
 ;;; assume path-map of {[a b] cost ...}
 
 (defn gen-path-map [grid]

@@ -5,7 +5,7 @@
 ;; http://clj-me.cgrand.net/2010/09/04/a-in-clojure/
 ;; slightly updated for priority-map reference
 
-(defn A*
+(defn cgrand-A*
   "Finds a path between start and goal inside the graph described by edges
   (a map of edge to distance); estimate is an heuristic for the actual
   distance. Accepts a named option: :monotonic (default to true).
@@ -33,14 +33,45 @@
                    (if mono (conj done x) done))))))))
 
 
+
+;;; SEM slightly faster
+(defn A*
+  "Finds a path between start and goal inside the graph described by edges
+  (a map of edge to distance); estimate is an heuristic for the actual
+  distance. Accepts a named option: :monotonic (default to true).
+  Returns the path if found or nil."
+  [edges estimate start goal & {mono :monotonic :or {mono true}}]
+  (let [f (memoize #(estimate % goal))
+        neighbors (reduce (fn [m [a b]] (assoc m a (conj (m a #{}) b)))
+                          {} (keys edges))]
+    (loop [q (priority-map start (f start))
+           preds {}
+           shortest {start 0}
+           done #{}]
+      (when-let [[x hx] (peek q)]
+        (if (= goal x)
+          (rseq (into [] (take-while some?) (iterate preds goal)))
+          (let [dx (- hx (f x))
+                bn (for [n (into [] (remove done) (neighbors x))
+                         :let [hn (+ dx (edges [x n]) (f n))
+                               sn (shortest n Long/MAX_VALUE)]
+                         :when (< hn sn)]
+                     [n hn])]
+            (recur (into (pop q) bn)
+                   (into preds (for [[n] bn] [n x]))
+                   (into shortest bn)
+                   (if mono (conj done x) done))))))))
+
+
+
 ;;; SEM: I tried use Long/MAX_VALUE instead of Double/POSITIVE_INFINITY but no performance
 ;;; advantage.  It might be good if no-arg (estimate)
 
 
-;;; 01/06/22 02:10 by miner -- new idea:  apply edijkstra.clj ideas to cgrand's A*
+;;; 01/06/22 02:10 by miner -- new idea:  apply dijkstra.clj ideas to cgrand's A*
 ;;; implementation to keep full path rather than calculating at end from parents.  Also
 ;;; consider cheaper lazy priority map with min search backup. (Also see "IDA*" comment below.)
-;;; good test in advent21/adv15.clj
+;;; good test in advent21/adv15.clj -- unimplemented
 
 ;;; Example:
 (defn euclidian-distance [a b] ; multidimensional
