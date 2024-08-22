@@ -1,8 +1,8 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.56.0"]
+  :dependencies [[djblue/portal "0.57.2"]
                  [dom-top "1.0.9"]
-                 [com.datomic/local "1.0.277"]
+                 [com.datomic/local "1.0.285"]
                  [com.taoensso/telemere "1.0.0-beta11"]
                  ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
@@ -30,13 +30,13 @@
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "1.2.0"]
                  [com.clojure-goes-fast/clj-memory-meter "0.3.0"]
-                 [com.clojure-goes-fast/clj-java-decompiler "0.3.4"]
+                 [com.clojure-goes-fast/clj-java-decompiler "0.3.6"]
                  [metrics-clojure "2.10.0"]
                  [net.cgrand/xforms "0.19.6"]
                  [digest "1.4.10"]
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
-                 [org.clojars.quoll/tiara "0.3.4"]
+                 [org.clojars.quoll/tiara "0.3.5"]
                  [com.github.nubank/morse "2023.10.06.02"]
                  [clj-commons/fs "1.6.311"]]
   :global-vars {*warn-on-reflection* true
