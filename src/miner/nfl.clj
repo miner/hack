@@ -2,7 +2,13 @@
   (:require [clojure.data.csv :as csv])
   (:require [clojure.java.io :as io]))
 
-;;; Note: winner score first.  Not home/away
+;;; A scorigami is a final score that has never happened before in NFL history.  Jon Bois
+;;; popularized the concept.
+
+;;; https://en.wikipedia.org/wiki/Scorigami
+
+
+;;; Note: winner score first.  No distinction of home/away.
 
 (defn winner-score [x]
   (parse-long (nth x 2)))
@@ -16,8 +22,8 @@
 ;; https://www.pro-football-reference.com/boxscores/game-scores.htm
 
 (def nfl-scores-file "nfl-scores.csv")
-;; this file is only most recent example of that score, not all games
-;; ordered by most frequent ("count") score
+;; this file is only most recent example of that score, not all games.
+;; ordered by highest frequency ("count") column
 
 (def nfl-missing-scores-file "nfl-missing-scores.csv")
 ;; I assume there's some implied max score.  Apparently, 70.
