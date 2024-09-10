@@ -1,6 +1,6 @@
 (defproject hack "0.3.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.57.2"]
+  :dependencies [[djblue/portal "0.57.3"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.285"]
                  [com.taoensso/telemere "1.0.0-beta11"]
@@ -8,12 +8,13 @@
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
                  [com.velisco/strgen "0.2.5"]
+                 [org.clojure/data.csv "1.1.0"]
                  [org.clojure/math.combinatorics "0.3.0"]
                  [org.clojure/data.int-map "1.3.0"]
                  [org.clojure/data.avl "0.2.0"]
                  [org.clojure/core.rrb-vector "0.2.0"]
                  [org.clojure/core.async "1.6.681"]
-                 [org.clojure/tools.macro "0.2.0"]
+                 [org.clojure/tools.macro "0.2.1"]
                  [org.clojure/data.priority-map "1.2.0"]
                  [instaparse "1.5.0"]
                  ;;[clj-webdriver "0.5.1"]
@@ -25,7 +26,7 @@
                  [org.clojure/tools.trace "0.8.0"]
                  ;; [org.clojure/core.match "0.2.2"]
                  [org.clojure/core.match "1.1.0"]
-                 [org.clojure/tools.macro "0.2.0"]
+                 [org.clojure/tools.macro "0.2.1"]
                  [backtick "0.3.5"]
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "1.2.0"]
@@ -36,7 +37,7 @@
                  [digest "1.4.10"]
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
-                 [org.clojars.quoll/tiara "0.3.5"]
+                 [org.clojars.quoll/tiara "0.3.6"]
                  [com.github.nubank/morse "2023.10.06.02"]
                  [clj-commons/fs "1.6.311"]]
   :global-vars {*warn-on-reflection* true
