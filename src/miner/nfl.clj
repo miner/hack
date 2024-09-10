@@ -7,6 +7,8 @@
 
 ;;; https://en.wikipedia.org/wiki/Scorigami
 
+;;; Unpdated chart on the web:
+;;; https://nflscorigami.com/
 
 ;;; Note: winner score first.  No distinction of home/away.
 
@@ -20,6 +22,8 @@
   
 ;;; NFL data source
 ;; https://www.pro-football-reference.com/boxscores/game-scores.htm
+
+;;; 09/10/24  14:38 by miner -- files downloaded for testing.
 
 (def nfl-scores-file "nfl-scores.csv")
 ;; this file is only most recent example of that score, not all games.
