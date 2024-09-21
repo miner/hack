@@ -309,7 +309,7 @@
 
 ;;; BEST SO FAR
 
-(defn my-way [rv]
+(defn my-way5 [rv]
   (if (empty? rv)
     [nil 0]
     (let [rexp (conj (mapv (fn [x] (if (neg? x) 0 x)) (interleave rv (map * rv (subvec rv 1))))
@@ -340,4 +340,169 @@
                   [-1]
                   pvs)
           (recur (into [] (mapcat expand-pin2) pvs) (dec i)))))))
+
+
+(defn my-way [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [rexp (mapv #(if (neg? %) 0 %)
+                     (reduce (fn [rexp i] (-> rexp (conj (* (rv i) (rv (dec i)))) (conj (rv i))))
+                             [(rv 0)]
+                             (range 1 (count rv))))
+          ;; every expansion must be two elements
+          ;; avoid redundant zeros
+          expand-pin2 (fn [pv]
+                        (let [nx (rexp (count pv))
+                              nx2 (rexp (inc (count pv)))
+                              pv0 (conj pv 0)
+                              pv00 (conj pv0 0)]
+                          (if (zero? (peek pv))
+                            (cond (and (zero? nx) (zero? nx2))  [pv00]
+                                  (zero? nx)   [pv00 (conj pv0 nx2)]
+                                  (zero? nx2)  [pv00 (conj pv nx 0)]
+                                  :else [pv00 (conj pv nx 0) (conj pv0 nx2)])
+                            (if (zero? nx2)
+                              [pv00]
+                              [pv00 (conj pv0 nx2)]))))
+          r0 (rexp 0)]
+      (loop [pvs (if (zero? r0) [[0]] [[0] [r0]])   i (dec (count rv))]
+        (if (zero? i)
+          (reduce (fn [bestv pv]
+                    (let [score (reduce + 0 pv)]
+                      (if (> score (peek bestv))
+                        (conj pv score)
+                        bestv)))
+                  [-1]
+                  pvs)
+          (recur (into [] (mapcat expand-pin2) pvs) (dec i)))))))
+
+
+
+
+
+(defn zneg [^long x]
+  (if (neg? x) 0 x))
+
+;;; much faster -- need to integrate
+(defn nezreward [rv]
+  (mapv zneg
+        (reduce (fn [rexp r] (-> rexp (conj (* r (peek rexp))) (conj r)))
+                [(rv 0)]
+                (subvec rv 1))))
+
+(defn sem-way [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [rexp (nezreward rv)
+          ;; every expansion must be two elements
+          ;; avoid redundant zeros
+          expand-pin2 (fn [pv]
+                        (let [nx (rexp (count pv))
+                              nx2 (rexp (inc (count pv)))
+                              pv0 (conj pv 0)
+                              pv00 (conj pv0 0)]
+                          (if (zero? (peek pv))
+                            (cond (and (zero? nx) (zero? nx2))  [pv00]
+                                  (zero? nx)   [pv00 (conj pv0 nx2)]
+                                  (zero? nx2)  [pv00 (conj pv nx 0)]
+                                  :else [pv00 (conj pv nx 0) (conj pv0 nx2)])
+                            (if (zero? nx2)
+                              [pv00]
+                              [pv00 (conj pv0 nx2)]))))
+          r0 (rexp 0)]
+      (loop [pvs (if (zero? r0) [[0]] [[0] [r0]])   i (dec (count rv))]
+        (if (zero? i)
+          (reduce (fn [bestv pv]
+                    (let [score (reduce + 0 pv)]
+                      (if (> score (peek bestv))
+                        (conj pv score)
+                        bestv)))
+                  [-1]
+                  pvs)
+          (recur (into [] (mapcat expand-pin2) pvs) (dec i)))))))
+
+
+
+
+;; every expansion must be two elements
+;; avoid redundant zeros
+(defn expand-pinv [rexp pv]
+  (let [nx (rexp (count pv))
+        nx2 (rexp (inc (count pv)))
+        pv0 (conj pv 0)
+        pv00 (conj pv0 0)]
+    (if (zero? (peek pv))
+      (cond (and (zero? nx) (zero? nx2))  [pv00]
+            (zero? nx)   [pv00 (conj pv0 nx2)]
+            (zero? nx2)  [pv00 (conj pv nx 0)]
+            :else [pv00 (conj pv nx 0) (conj pv0 nx2)])
+      (if (zero? nx2)
+        [pv00]
+        [pv00 (conj pv0 nx2)]))))
+
+
+(defn sem-way2 [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [rexp (nezreward rv)
+          xexpander (mapcat #(expand-pinv rexp %))
+          r0 (rexp 0)]
+      (loop [pvs (if (zero? r0) [[0]] [[0] [r0]])   i (dec (count rv))]
+        (if (zero? i)
+          (reduce (fn [bestv pv]
+                    (let [score (reduce + 0 pv)]
+                      (if (> score (peek bestv))
+                        (conj pv score)
+                        bestv)))
+                  [-1]
+                  pvs)
+          (recur (into [] xexpander pvs) (dec i)))))))
+
+;;; lazy (sequence xexpander pvs) is slightly slower
+
+
+;;; not faster, but I think I like the nested reduce instead of the loop
+(defn sem-way4 [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [rexp (nezreward rv)
+          xexpander (mapcat #(expand-pinv rexp %))
+          r0 (rexp 0)]
+      (reduce (fn [bestv pv]
+                (let [score (reduce + 0 pv)]
+                  (if (> score (peek bestv))
+                    (conj pv score)
+                    bestv)))
+              [-1]
+              (reduce (fn [pvs _i] (into [] xexpander pvs))
+                      (if (zero? r0) [[0]] [[0] [r0]])
+                      (range 1 (count rv)))))))
+
+
+;; calls (f init) then f on the nested result `n` times.  Zero-th is just init.
+;; condensed loop
+(defn iterated [n f init]
+  (if (pos? n)
+    (recur (unchecked-dec n) f (f init))
+    init))
+
+
+;;; iterated instead of forced reduce
+
+(defn sem-way5 [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [rexp (nezreward rv)
+          xexpander (mapcat #(expand-pinv rexp %))
+          r0 (rexp 0)]
+      (reduce (fn [bestv pv]
+                (let [score (reduce + 0 pv)]
+                  (if (> score (peek bestv))
+                    (conj pv score)
+                    bestv)))
+              [-1]
+              (iterated (dec (count rv))
+                        (fn [pvs] (into [] xexpander pvs))
+                        (if (zero? r0) [[0]] [[0] [r0]]))))))
+
 
