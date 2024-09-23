@@ -17,18 +17,19 @@
 ;;; Take as many roles as you want.  Leave some pins if you want.  How do you maximize
 ;;; accumulated score given reward vector.
 
-;;; The article explains dynamic programming approach.  More efficient than my brute force
-;;; solution.
+;;; The article explains dynamic programming approach.  Probably more efficient than my
+;;; brute force solution.
 
-;;; For Clojure, we will use zero-based index
+;;; For Clojure, we will use zero-based indexing
 
 ;;; Expanded reward interleaves the mutliples into the original reward vector.  The single
-;;; pins are at odd indices and the double hits (multiples) are at even indices.  Always start
-;;; with 0 as there is no previous pin.  The negative rewards are never taken so we zero
-;;; them out.  The goal then is to find possible choices.  We start with the choices from
-;;; the left (index 0) and consider the choices two at a time -- take one of skip, hit
-;;; double or hit single.  If the previous is a single or double hit, then we can't double
-;;; hit.  If it's a single, then we can still single again.  In any case, we can skip.
+;;; pin rewards are at odd indices and the double hits (multiples) are at even indices.
+;;; Always start with a 0 as there is no pin to multiply before the first one.  The negative
+;;; rewards are never taken so we zero them out.  The goal then is to find possible choices.
+;;; We start with the choice from the left (index 0) and consider the choices two at a
+;;; time (double or single rewards).  We can potentially skip, hit double or hit single.
+;;; We can always skip or single hit.  We can add a double hit only if the previous pin was
+;;; a skip as we're trying to hit the previous pin and the current at the same time.
 
 (def rewardv [3, 4, -1, 6, -1, 6, 6, 3, -1, -1, 6, -2])
 ;;; btwn mults [12 -4 -6  -6 -6 36 18 -3   1  -6 -12]
@@ -84,6 +85,7 @@
     [nil 0]
     (let [rexp (expand-zero-reward rv)
           xexpander (mapcat #(expand-pinv rexp %))
+          ;; (rexp 0) is always 0 for convenience
           r1 (rexp 1)]
       (reduce (fn [bestv pv]
                 (let [score (reduce + 0 pv)]
@@ -96,18 +98,20 @@
                         (if (zero? r1) [[0 0]] [[0 0] [0 r1]]))))))
 
 
+;;; for debugging
 (defn calc-all [rv]
   (if (empty? rv)
     [nil 0]
     (let [rexp (zzreward rv)
           xexpander (mapcat #(expand-pinv rexp %))
-          r1 (rexp 1)]
+          r1 (rexp 1)
+          results (iterated (dec (count rv))
+                            (fn [pvs] (into [] xexpander pvs))
+                            (if (zero? r1) [[0 0]] [[0 0] [0 r1]]))]
+      (println "calc top 10 of" (count results))
       (take 10
-      (sort-by (comp - peek)
-      (into [] (comp #_ (map #(remove #{0} %)) #_ (map vec) (map #(conj % (reduce + %))))
-            (iterated (dec (count rv))
-                      (fn [pvs] (into [] xexpander pvs))
-                      (if (zero? r1) [[0 0]] [[0 0] [0 r1]]))))))))
+            (sort-by (comp - peek)
+                     (into [] (map #(conj % (reduce + %))) results))))))
 
 
 ;;; translate back into the notation used in the article (pins numbered 1..N and double hits as
