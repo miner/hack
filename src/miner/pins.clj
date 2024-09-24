@@ -1,5 +1,6 @@
-(ns miner.pins
-  (:require [clojure.data.priority-map :as pm]))
+(ns miner.pins)
+
+;;  (:require [clojure.data.priority-map :as pm]) -- not needed
 
 ;;; Hacker News: Solving the bowling problem with dynamic programming
 ;;; https://news.ycombinator.com/item?id=41512129
@@ -35,8 +36,9 @@
 ;;; btwn mults [12 -4 -6  -6 -6 36 18 -3   1  -6 -12]
 ;;; expanded [0 3 12 4 -4 -1 -6 6 -6 -1 -6 6 36 6 18 3 -3 -1 1 -1 -6 6 -12 -2]
 
-
 (def exx [3 4 -1 6])
+
+
 
 (defn zneg [^long x]
   (if (neg? x) 0 x))
@@ -64,14 +66,13 @@
         n1 (rexp (inc (count pv)))
         pv0 (conj pv 0)]
     (cond-> [(conj pv0 0)]
-      (pos? n1) (conj (conj pv0 n1))
-      (and (pos? nd) (zero? (peek pv)) (zero? (peek (pop pv)))) (conj (-> pv (conj nd) (conj 0))))))
+      (pos? n1)  (conj (conj pv0 n1))
+      (and (pos? nd) (zero? (peek pv)) (zero? (peek (pop pv))))  (conj (-> pv (conj nd) (conj 0))))))
 
 
 
 
 ;; calls (f init) then f on the nested result `n` times.  Zero-th is just init.
-;; condensed loop
 (defn iterated [n f init]
   (if (pos? n)
     (recur (unchecked-dec n) f (f init))
@@ -84,7 +85,7 @@
   (if (empty? rv)
     [nil 0]
     (let [rexp (expand-zero-reward rv)
-          xexpander (mapcat #(expand-pinv rexp %))
+          extend2 (fn [pvs] (into [] (mapcat #(expand-pinv rexp %)) pvs))
           ;; (rexp 0) is always 0 for convenience
           r1 (rexp 1)]
       (reduce (fn [bestv pv]
@@ -94,7 +95,7 @@
                     bestv)))
               [-1]
               (iterated (dec (count rv))
-                        (fn [pvs] (into [] xexpander pvs))
+                        extend2
                         (if (zero? r1) [[0 0]] [[0 0] [0 r1]]))))))
 
 
