@@ -59,9 +59,10 @@
 ;;; next double only if previous was skip
 ;;; but don't add if the item is a zero (skip is already there)
 
-;; every expansion must be two additional elements, double first, single second
+;; every extension must be two additional elements, double first, single second
+;; skip is 0 0 addition, which is always added
 ;; avoid redundant zeros (if the reward is already 0, don't add again)
-(defn expand-pinv [rexp pv]
+(defn extend-pinv [rexp pv]
   (let [nd (rexp (count pv))
         n1 (rexp (inc (count pv)))
         pv0 (conj pv 0)]
@@ -78,14 +79,12 @@
     (recur (unchecked-dec n) f (f init))
     init))
 
-
-;;; iterated instead of forced reduce
-
+;; returns vector of expanded rewards that are chosen, plus the total score
 (defn best-pins [rv]
   (if (empty? rv)
     [nil 0]
     (let [rexp (expand-zero-reward rv)
-          extend2 (fn [pvs] (into [] (mapcat #(expand-pinv rexp %)) pvs))
+          extend2 (fn [pvs] (into [] (mapcat #(extend-pinv rexp %)) pvs))
           ;; (rexp 0) is always 0 for convenience
           r1 (rexp 1)]
       (reduce (fn [bestv pv]
