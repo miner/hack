@@ -15,7 +15,7 @@
 ;;; bowling ball can score r_i by hitting one pin directly, or hit between two pins, taking
 ;;; down both, and scoring multiple of (r_i * r_i+1)
 
-;;; Take as many roles as you want.  Leave some pins if you want.  How do you maximize
+;;; Take as many rolls as you want.  Leave some pins if you want.  How do you maximize
 ;;; accumulated score given reward vector.
 
 ;;; The article explains dynamic programming approach.  Probably more efficient than my
@@ -93,26 +93,11 @@
                         (if (pos? r1) [[0 0] [0 r1]] [[0 0]]))))))
 
 
-;;; for debugging
-(defn calc-all [rv]
-  (if (empty? rv)
-    [nil 0]
-    (let [rexp (zzreward rv)
-          xexpander (mapcat #(expand-pinv rexp %))
-          r1 (rexp 1)
-          results (iterated (dec (count rv))
-                            (fn [pvs] (into [] xexpander pvs))
-                            (if (pos? r1) [[0 0] [0 r1]] [[0 0]]))]
-      (println "calc top 10 of" (count results))
-      (take 10
-            (sort-by (comp - peek)
-                     (into [] (map #(conj % (reduce + %))) results))))))
-
 
 ;;; translate back into the notation used in the article (pins numbered 1..N and double hits as
 ;;; average of two pins
 (defn report-pins [rv]
-  (let [resultv (best-way rv)
+  (let [resultv (best-pins rv)
         score (peek resultv)]
     (println "; Result" resultv)
     (println "; Score" score)
