@@ -26,11 +26,11 @@
 ;;; Expanded reward interleaves the mutliples into the original reward vector.  The single
 ;;; pin rewards are at odd indices and the double hits (multiples) are at even indices.
 ;;; Always start with a 0 as there is no pin to multiply before the first one.  The negative
-;;; rewards are never taken so we zero them out.  The goal then is to find possible choices.
-;;; We start with the choice from the left (index 0) and consider the choices two at a
-;;; time (double or single rewards).  We can potentially skip, hit double or hit single.
-;;; We can always skip or single hit.  We can add a double hit only if the previous pin was
-;;; a skip as we're trying to hit the previous pin and the current at the same time.
+;;; rewards are never taken.  The goal then is to find possible choices.  We start with the
+;;; choice from the left (index 0) and consider the choices two at a time (double or single
+;;; rewards).  We can potentially skip, hit double or hit single.  We can always skip or
+;;; single hit.  We can add a double hit only if the previous pin was a skip as we're trying
+;;; to hit the previous pin and the current at the same time.
 
 (def rewardv [3, 4, -1, 6, -1, 6, 6, 3, -1, -1, 6, -2])
 ;;; btwn mults [12 -4 -6  -6 -6 36 18 -3   1  -6 -12]
@@ -39,18 +39,13 @@
 (def exx [3 4 -1 6])
 
 
-
-(defn zneg [^long x]
-  (if (neg? x) 0 x))
-
 ;; Expanded reward: interleave the multiples. even indices are multiples, odds are single pin
 ;; rewards.  Always start with 0 as there is no double before first pin.
 
-(defn expand-zero-reward [rv]
-  (mapv zneg
-        (reduce (fn [rexp r] (-> rexp (conj (* r (peek rexp))) (conj r)))
-                [0 (rv 0)]
-                (subvec rv 1))))
+(defn expand-reward [rv]
+  (reduce (fn [rexp r] (-> rexp (conj (* r (peek rexp))) (conj r)))
+          [0 (rv 0)]
+          (subvec rv 1)))
 
 
 ;;; three possible extensions
@@ -83,7 +78,7 @@
 (defn best-pins [rv]
   (if (empty? rv)
     [nil 0]
-    (let [rexp (expand-zero-reward rv)
+    (let [rexp (expand-reward rv)
           extend2 (fn [pvs] (into [] (mapcat #(extend-pinv rexp %)) pvs))
           ;; (rexp 0) is always 0 for convenience
           r1 (rexp 1)]
@@ -95,7 +90,7 @@
               [-1]
               (iterated (dec (count rv))
                         extend2
-                        (if (zero? r1) [[0 0]] [[0 0] [0 r1]]))))))
+                        (if (pos? r1) [[0 0] [0 r1]] [[0 0]]))))))
 
 
 ;;; for debugging
@@ -107,7 +102,7 @@
           r1 (rexp 1)
           results (iterated (dec (count rv))
                             (fn [pvs] (into [] xexpander pvs))
-                            (if (zero? r1) [[0 0]] [[0 0] [0 r1]]))]
+                            (if (pos? r1) [[0 0] [0 r1]] [[0 0]]))]
       (println "calc top 10 of" (count results))
       (take 10
             (sort-by (comp - peek)
