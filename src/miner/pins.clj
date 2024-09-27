@@ -99,6 +99,7 @@
 (defn report-pins [rv]
   (let [resultv (best-pins rv)
         score (peek resultv)]
+    (println "; Reward" rv)
     (println "; Result" resultv)
     (println "; Score" score)
     (reduce-kv (fn [res i p]
