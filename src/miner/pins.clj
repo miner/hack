@@ -1,6 +1,6 @@
 (ns miner.pins)
 
-;;  (:require [clojure.data.priority-map :as pm]) -- not needed
+;; (:require [clojure.data.priority-map :as pm]) -- not needed
 
 ;;; Hacker News: Solving the bowling problem with dynamic programming
 ;;; https://news.ycombinator.com/item?id=41512129
@@ -75,7 +75,7 @@
     init))
 
 ;; returns vector of expanded rewards that are chosen, plus the total score
-(defn best-pins [rv]
+(defn brute-best-pins [rv]
   (if (empty? rv)
     [nil 0]
     (let [rexp (expand-reward rv)
@@ -109,4 +109,58 @@
                    res))
                []
                (pop resultv))))
+
+
+;;; idea to be more efficient
+;;; take all the singles, then try to fiddle for good doubles
+;;; should be much smaller search space
+
+(defn zneq [x] (if (neg? x) 0 x))
+
+;;; pv includes score, so we drops with pop
+(defn replace-double-hit [rexp pv i d]
+  (let [prevd (pv (- i 2))]
+    (if (pos? prevd)
+      (let [prev1 (nth rexp (- i 3) 0)]
+        (when (> (+ d prev1) (+ (pv (inc i)) (pv (dec i)) prevd))
+          (cond-> (assoc (pop pv) i d (inc i) 0 (dec i) 0 (- i 2) 0)
+            (pos? prev1) (assoc (- i 3) prev1))))
+      (when (> d (+ (pv (inc i)) (pv (dec i))))
+        (assoc (pop pv) i d (inc i) 0 (dec i) 0)))))
+
+
+;;; potential bug if two doubles are equal val, but are sensitive to the attempted
+;;; insertion order -- say they were right next to each other.  Might have been better to do
+;;; second one first!  Also, should restore single at rexp (- i 3) if you cancel double at (- i
+;;; 2) -- but really that single is part of the calculation for [i d] -- not just d
+
+;;; consider if there might be a cascade of double cancelations?  I don't think so.  We're
+;;; taking the doubles in biggest score order.  But = d might miss???
+
+;;; much faster
+
+(defn heurpins [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [rexp (expand-reward rv)
+          sv (reduce-kv (fn [sv i x] (if (or (even? i) (neg? x)) (conj sv 0) (conj sv x)))
+                        []
+                        rexp)
+          md (reduce (fn [md i] (let [x (rexp i)] (if (pos? x) (assoc md i x) md)))
+                     {}
+                     (range 2 (count rexp) 2))]
+      ;; (rexp 0) is always zero so we can skip it
+
+      ;; (println "rexp" rexp)
+      ;; (println "sv  " sv)
+      ;; (println "md  " md)
+      (reduce-kv (fn [pv i d]
+                   (let [score (peek pv)
+                         dv (replace-double-hit rexp pv i d)
+                         dscore (reduce + dv)]
+                     (if (> dscore score)
+                       (conj dv dscore)
+                       pv)))
+                 (conj sv (reduce + sv))
+                 (sort-by val #(compare %2 %) md)))))
 
