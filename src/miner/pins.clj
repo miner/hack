@@ -117,16 +117,43 @@
 
 (defn zneq [x] (if (neg? x) 0 x))
 
+
+
+;;; BUG -- must clear both sides of double as we check randomly in value order
+
+;;; still wonder about equal doubles?
+
+;;; cases : no adjacent doubles, just compare two singles vs i double
+;; BUG
 ;;; pv includes score, so we drops with pop
-(defn replace-double-hit [rexp pv i d]
-  (let [prevd (pv (- i 2))]
-    (if (pos? prevd)
-      (let [prev1 (nth rexp (- i 3) 0)]
-        (when (> (+ d prev1) (+ (pv (inc i)) (pv (dec i)) prevd))
-          (cond-> (assoc (pop pv) i d (inc i) 0 (dec i) 0 (- i 2) 0)
-            (pos? prev1) (assoc (- i 3) prev1))))
-      (when (> d (+ (pv (inc i)) (pv (dec i))))
-        (assoc (pop pv) i d (inc i) 0 (dec i) 0)))))
+(defn replace-with-double-hit [rexp pv i d]
+  (let [pv (pop pv) ;; drop existing score
+        p1 (pv (dec i))
+        p2 (pv (inc i))
+        d0 (nth pv (- i 2) 0)
+        d1 (nth pv (+ i 2) 0)]
+    (cond (and (zero? d0) (zero? d1))  ;; no conflicting doubles
+              (when (> d (+ p1 p2)) (assoc pv i d (inc i) 0 (dec i) 0))
+          (and (pos? d0) (pos? d1)) ;; two adjacent conflicting doubles
+              ;; I don't think this can happen when it would override
+              (print "FIXME two conflict" i d pv)
+          (pos? d0)  ;; only previous is conflicting
+              (let [s0 (nth rexp (- i 3) 0)
+                    si (nth rexp (inc i) 0)]
+                (when (> (+ d s0) (+ d0 si))
+                  (assoc pv i d (inc i) 0 (dec i) 0 (- i 2) 0 (- i 3) s0)))
+          (pos? d1)  ;; only trailing is conflicting
+              (let [s1 (nth rexp (+ i 3) 0)]
+                (when (> (+ d s1) d1)
+                  (assoc pv i d (inc i) 0 (dec i) 0 (+ i 2) 0 (+ i 3) s1)))
+          )))
+
+
+;;; FIXME the sorting of doubles isn't good enough as three conflicting doubles with larger
+;;; in middle will never try just the two outer ones as the middle will dominate in a head
+;;; to head test.  My conclusion is that you still need to do a search on double conflicts
+;;; definitely good idea to start with all singles
+;;; not sure they should be in one expanded reward, two vectors might be easier
 
 
 ;;; potential bug if two doubles are equal val, but are sensitive to the attempted
@@ -135,7 +162,8 @@
 ;;; 2) -- but really that single is part of the calculation for [i d] -- not just d
 
 ;;; consider if there might be a cascade of double cancelations?  I don't think so.  We're
-;;; taking the doubles in biggest score order.  But = d might miss???
+;;; taking the doubles in biggest score order.  But = d might miss???  Worse, there can be
+;;; multiple conflicting doubles so you need search to resolve, including recovering singles.
 
 ;;; much faster
 
@@ -155,8 +183,9 @@
       ;; (println "sv  " sv)
       ;; (println "md  " md)
       (reduce-kv (fn [pv i d]
+                   ;; (println "hp" i d pv)
                    (let [score (peek pv)
-                         dv (replace-double-hit rexp pv i d)
+                         dv (replace-with-double-hit rexp pv i d)
                          dscore (reduce + dv)]
                      (if (> dscore score)
                        (conj dv dscore)
@@ -164,3 +193,69 @@
                  (conj sv (reduce + sv))
                  (sort-by val #(compare %2 %) md)))))
 
+
+
+(defn rand10 [n] (vec (repeatedly n #(- 10 (rand-int 20)))))
+
+(defn gentest []
+  (remove #(= (brute-best-pins %) (heurpins %)) (repeatedly 100 #(rand10 10))))
+
+(def fails [[-7 -6 5 3 7 2 -3 4 0 10] [-1 -2 4 6 6 6 1 5 10 2] [1 7 2 -2 -8 -3 -6 3 -9 0]
+            [0 7 8 10 4 -2 -1 -4 4 -9] [7 -8 0 -3 -9 -3 5 2 -9 2] [-1 -8 0 0 6 9 4 9 6 5]
+            [-6 1 8 3 -3 -9 -3 4 2 2]])
+
+(defn dconflicts [rv]
+  (let [rexp (expand-reward rv)]
+    (mapv #(max 0 %) (take-nth 2 rexp))))
+
+
+
+[0 42 0 15 21 14 0 0 0 0]
+
+[0 42 0 15 0 14 0 0 0 0]
+[0 42 0  0 21 0 0 0 0 0]
+
+;; double index i maps to pin i and i-1
+(defn deconflict-double-hits [rv]
+  (let [rv1 (subvec rv 1)
+        dv (mapv * rv rv1)]
+    (reduce (fn [dvs d]
+              (into [] (mapcat (fn [dv]
+                                 (if-not (pos? d)
+                                   [(conj dv 0)]
+                                   (if (zero? (peek dv))
+                                     [(conj dv d)]
+                                     [(conj (pop dv) 0 d) (conj dv 0)]))))
+                    dvs))
+            [[0]]
+            dv)))
+
+
+;;; assume deconflicted dv so never two doubles in a row
+(defn merge-svdv [sv dv]
+  (reduce-kv (fn [mv i d]
+               (cond (zero? d) (conj mv 0 (sv i))
+                     (and (zero? (peek mv)) (> d (sv i))) (conj mv d 0)
+                     (> d (+ (peek mv) (sv i))) (conj (pop mv) 0 d 0)
+                     :else (conj mv (sv i))))
+             []
+             dv))
+
+;;; seems to work now
+(defn dpins [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [dvs (deconflict-double-hits rv)
+          zv (mapv #(max 0 %) rv)]
+      (reduce (fn [bestv pv]
+                (let [score (reduce + 0 pv)]
+                  (if (> score (peek bestv))
+                    (conj pv score)
+                    bestv)))
+              [-1]
+              (mapv #(merge-svdv zv %) dvs)))))
+
+
+
+(defn dgentest []
+  (remove #(= (peek (brute-best-pins %)) (peek (dpins %))) (repeatedly 100 #(rand10 10))))
