@@ -97,7 +97,7 @@
 ;;; translate back into the notation used in the article (pins numbered 1..N and double hits as
 ;;; average of two pins
 (defn report-pins [rv]
-  (let [resultv (best-pins rv)
+  (let [resultv (brute-best-pins rv)
         score (peek resultv)]
     (println "; Reward" rv)
     (println "; Result" resultv)
