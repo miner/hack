@@ -119,42 +119,12 @@
 
 
 
-;;; BUG -- must clear both sides of double as we check randomly in value order
 
-;;; still wonder about equal doubles?
-
-;;; cases : no adjacent doubles, just compare two singles vs i double
-;; BUG
-;;; pv includes score, so we drops with pop
-(defn replace-with-double-hit [rexp pv i d]
-  (let [pv (pop pv) ;; drop existing score
-        p1 (pv (dec i))
-        p2 (pv (inc i))
-        d0 (nth pv (- i 2) 0)
-        d1 (nth pv (+ i 2) 0)]
-    (cond (and (zero? d0) (zero? d1))  ;; no conflicting doubles
-              (when (> d (+ p1 p2)) (assoc pv i d (inc i) 0 (dec i) 0))
-          (and (pos? d0) (pos? d1)) ;; two adjacent conflicting doubles
-              ;; I don't think this can happen when it would override
-              (print "FIXME two conflict" i d pv)
-          (pos? d0)  ;; only previous is conflicting
-              (let [s0 (nth rexp (- i 3) 0)
-                    si (nth rexp (inc i) 0)]
-                (when (> (+ d s0) (+ d0 si))
-                  (assoc pv i d (inc i) 0 (dec i) 0 (- i 2) 0 (- i 3) s0)))
-          (pos? d1)  ;; only trailing is conflicting
-              (let [s1 (nth rexp (+ i 3) 0)]
-                (when (> (+ d s1) d1)
-                  (assoc pv i d (inc i) 0 (dec i) 0 (+ i 2) 0 (+ i 3) s1)))
-          )))
-
-
-;;; FIXME the sorting of doubles isn't good enough as three conflicting doubles with larger
-;;; in middle will never try just the two outer ones as the middle will dominate in a head
-;;; to head test.  My conclusion is that you still need to do a search on double conflicts
-;;; definitely good idea to start with all singles
-;;; not sure they should be in one expanded reward, two vectors might be easier
-
+;;; FIXED in dpins -- the sorting of doubles isn't good enough as three conflicting doubles
+;;; with larger in middle will never try just the two outer ones as the middle will dominate
+;;; in a head to head test.  My conclusion is that you still need to do a search on double
+;;; conflicts definitely good idea to start with all singles not sure they should be in one
+;;; expanded reward, two vectors might be easier
 
 ;;; potential bug if two doubles are equal val, but are sensitive to the attempted
 ;;; insertion order -- say they were right next to each other.  Might have been better to do
@@ -165,46 +135,14 @@
 ;;; taking the doubles in biggest score order.  But = d might miss???  Worse, there can be
 ;;; multiple conflicting doubles so you need search to resolve, including recovering singles.
 
-;;; much faster
-
-(defn heurpins [rv]
-  (if (empty? rv)
-    [nil 0]
-    (let [rexp (expand-reward rv)
-          sv (reduce-kv (fn [sv i x] (if (or (even? i) (neg? x)) (conj sv 0) (conj sv x)))
-                        []
-                        rexp)
-          md (reduce (fn [md i] (let [x (rexp i)] (if (pos? x) (assoc md i x) md)))
-                     {}
-                     (range 2 (count rexp) 2))]
-      ;; (rexp 0) is always zero so we can skip it
-
-      ;; (println "rexp" rexp)
-      ;; (println "sv  " sv)
-      ;; (println "md  " md)
-      (reduce-kv (fn [pv i d]
-                   ;; (println "hp" i d pv)
-                   (let [score (peek pv)
-                         dv (replace-with-double-hit rexp pv i d)
-                         dscore (reduce + dv)]
-                     (if (> dscore score)
-                       (conj dv dscore)
-                       pv)))
-                 (conj sv (reduce + sv))
-                 (sort-by val #(compare %2 %) md)))))
-
-
 
 (defn rand10 [n] (vec (repeatedly n #(- 10 (rand-int 20)))))
 
-(defn gentest []
-  (remove #(= (brute-best-pins %) (heurpins %)) (repeatedly 100 #(rand10 10))))
 
 ;;; debugging
 (defn dconflicts [rv]
   (let [rexp (expand-reward rv)]
     (mapv #(max 0 %) (take-nth 2 rexp))))
-
 
 ;; double index i maps to pin i and i-1
 (defn deconflict-double-hits [rv]
