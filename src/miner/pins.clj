@@ -200,44 +200,37 @@
 (defn gentest []
   (remove #(= (brute-best-pins %) (heurpins %)) (repeatedly 100 #(rand10 10))))
 
-(def fails [[-7 -6 5 3 7 2 -3 4 0 10] [-1 -2 4 6 6 6 1 5 10 2] [1 7 2 -2 -8 -3 -6 3 -9 0]
-            [0 7 8 10 4 -2 -1 -4 4 -9] [7 -8 0 -3 -9 -3 5 2 -9 2] [-1 -8 0 0 6 9 4 9 6 5]
-            [-6 1 8 3 -3 -9 -3 4 2 2]])
-
+;;; debugging
 (defn dconflicts [rv]
   (let [rexp (expand-reward rv)]
     (mapv #(max 0 %) (take-nth 2 rexp))))
 
 
-
-[0 42 0 15 21 14 0 0 0 0]
-
-[0 42 0 15 0 14 0 0 0 0]
-[0 42 0  0 21 0 0 0 0 0]
-
 ;; double index i maps to pin i and i-1
 (defn deconflict-double-hits [rv]
-  (let [rv1 (subvec rv 1)
-        dv (mapv * rv rv1)]
-    (reduce (fn [dvs d]
-              (into [] (mapcat (fn [dv]
-                                 (if-not (pos? d)
-                                   [(conj dv 0)]
-                                   (if (zero? (peek dv))
-                                     [(conj dv d)]
-                                     [(conj (pop dv) 0 d) (conj dv 0)]))))
-                    dvs))
-            [[0]]
-            dv)))
+  (reduce (fn [dvs d]
+            (into [] (mapcat (fn [dv]
+                               (if-not (pos? d)
+                                 [(conj dv 0)]
+                                 (if (zero? (peek dv))
+                                   [(conj dv d)]
+                                   [(conj (pop dv) 0 d) (conj dv 0)]))))
+                  dvs))
+          [[0]]
+          (mapv * rv (subvec rv 1))))
 
+
+
+;;; merging seems more expensive that it needs to be
+;;; assumes first double is always zero so there's a peek, that's safe for now
 
 ;;; assume deconflicted dv so never two doubles in a row
 (defn merge-svdv [sv dv]
   (reduce-kv (fn [mv i d]
-               (cond (zero? d) (conj mv 0 (sv i))
-                     (and (zero? (peek mv)) (> d (sv i))) (conj mv d 0)
-                     (> d (+ (peek mv) (sv i))) (conj (pop mv) 0 d 0)
-                     :else (conj mv (sv i))))
+               (cond (zero? d) (conj (conj mv 0) (sv i))
+                     (and (zero? (peek mv)) (> d (sv i))) (conj (conj mv d) 0)
+                     (> d (+ (peek mv) (sv i))) (conj (conj (conj (pop mv) 0) d) 0)
+                     :else (conj (conj mv 0) (sv i))))
              []
              dv))
 
@@ -257,5 +250,10 @@
 
 
 
-(defn dgentest []
-  (remove #(= (peek (brute-best-pins %)) (peek (dpins %))) (repeatedly 100 #(rand10 10))))
+(defn dgentest
+  ([] (dgentest 100))
+  ([n]
+   (remove #(= (peek (brute-best-pins %)) (peek (dpins %))) (repeatedly n #(rand10 10)))))
+
+
+
