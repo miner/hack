@@ -144,6 +144,8 @@
   (let [rexp (expand-reward rv)]
     (mapv #(max 0 %) (take-nth 2 rexp))))
 
+
+
 ;; double index i maps to pin i and i-1
 (defn deconflict-double-hits [rv]
   (reduce (fn [dvs d]
@@ -152,7 +154,7 @@
                                  [(conj dv 0)]
                                  (if (zero? (peek dv))
                                    [(conj dv d)]
-                                   [(conj (pop dv) 0 d) (conj dv 0)]))))
+                                   [(conj (conj (pop dv) 0) d) (conj dv 0)]))))
                   dvs))
           [[0]]
           (mapv * rv (subvec rv 1))))
@@ -163,6 +165,7 @@
 ;;; assumes first double is always zero so there's a peek, that's safe for now
 
 ;;; assume deconflicted dv so never two doubles in a row
+;;; sv and dv should have zeroes instead of negatives
 (defn merge-svdv [sv dv]
   (reduce-kv (fn [mv i d]
                (cond (zero? d) (conj (conj mv 0) (sv i))
@@ -172,6 +175,8 @@
              []
              dv))
 
+
+;;; 100x faster
 ;;; seems to work now
 (defn dpins [rv]
   (if (empty? rv)
