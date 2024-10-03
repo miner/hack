@@ -154,7 +154,7 @@
                                  [(conj dv 0)]
                                  (if (zero? (peek dv))
                                    [(conj dv d)]
-                                   [(conj (conj (pop dv) 0) d) (conj dv 0)]))))
+                                   [(-> (pop dv) (conj 0) (conj d)) (conj dv 0)]))))
                   dvs))
           [[0]]
           (mapv * rv (subvec rv 1))))
@@ -166,12 +166,21 @@
 
 ;;; assume deconflicted dv so never two doubles in a row
 ;;; sv and dv should have zeroes instead of negatives
-(defn merge-svdv [sv dv]
+(defn merge-svdv1 [sv dv]
   (reduce-kv (fn [mv i d]
                (cond (zero? d) (conj (conj mv 0) (sv i))
                      (and (zero? (peek mv)) (> d (sv i))) (conj (conj mv d) 0)
                      (> d (+ (peek mv) (sv i))) (conj (conj (conj (pop mv) 0) d) 0)
                      :else (conj (conj mv 0) (sv i))))
+             []
+             dv))
+
+(defn merge-svdv [sv dv]
+  (reduce-kv (fn [mv i d]
+               (cond (zero? d) (-> mv (conj 0) (conj (sv i)))
+                     (and (zero? (peek mv)) (> d (sv i))) (-> mv (conj d) (conj 0))
+                     (> d (+ (peek mv) (sv i))) (-> (pop mv) (conj 0) (conj d) (conj 0))
+                     :else (-> mv (conj 0) (conj (sv i)))))
              []
              dv))
 
@@ -200,3 +209,93 @@
 
 
 
+;;; deconflict is doing full dv everytime.  It would be faster to make a tree with common
+;;; heads so you only calc that once per fan out.
+
+;;; deconflict is pretty good if there are only a few conflicts.  Not so great if there are
+;;; lots of conflicts as with all positive rewards.
+
+(defn decon-double-tree [rv]
+  (reduce (fn [dvs d]
+            (into [] (mapcat (fn [dv]
+                               (if-not (pos? d)
+                                 [(conj dv 0)]
+                                 (if (zero? (peek dv))
+                                   [(conj dv d)]
+                                   [(-> (pop dv) (conj 0) (conj d)) (conj dv 0)]))))
+                  dvs))
+          [[0]]
+          (mapv * rv (subvec rv 1))))
+
+
+
+[[0 12 0 0 0 0
+  [[ 0 18 0 [[1 0 0] [0 5 0]]]
+   [36  0 0 [[1 0 0] [0 5 0]]]]]]
+
+
+[0 12 0 0 0 0
+  [[ 0 18 0 [[1 0 0] [0 5 0]]]
+   [36  0 0 [[1 0 0] [0 5 0]]]]]
+
+
+[[0 12 0 0 0 0]
+ [ 0 18 0 [1 0 0] [0 5 0]]
+ [36  0 0 [1 0 0] [0 5 0]]]
+
+
+;; forget tree decon.  Try to integrate summing with deconfliction so you only continue on
+;; greatest path.
+
+(defn decon [zv rv]
+  (reduce (fn [dvs d]
+            (into [] (mapcat (fn [dv]
+                               (cond (not (pos? d)) [(conj dv 0)]
+                                     (let [i (count dv)]
+                                       (> d (+ (zv i) (zv (dec i)))))
+                                         (if (zero? (peek dv))
+                                           [(conj dv d) (conj dv 0)]
+                                           [(-> (pop dv) (conj 0) (conj d)) (conj dv 0)])
+                                     :else [(conj dv 0)])))
+                  dvs))
+          [[0]]
+          (mapv * rv (subvec rv 1))))
+
+
+
+;;; merging seems more expensive that it needs to be
+;;; assumes first double is always zero so there's a peek, that's safe for now
+
+;;; assume deconflicted dv so never two doubles in a row
+;;; sv and dv should have zeroes instead of negatives
+(defn merge-zvdv [zv dv]
+  (reduce-kv (fn [mv i d]
+               (cond (zero? d) (conj (conj mv 0) (zv i))
+                     (zero? (peek mv)) (conj (conj mv d) 0)
+                     :else (conj (conj (conj (pop mv) 0) d) 0)))
+             []
+             dv))
+
+;;; but it's slower! ???
+(defn zpins [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [zv (mapv #(max 0 %) rv)]          
+      (reduce (fn [bestv pv]
+                (let [score (reduce + 0 pv)]
+                  (if (> score (peek bestv))
+                    (conj pv score)
+                    bestv)))
+              [-1]
+              (mapv #(merge-zvdv zv %) (decon zv rv))))))
+
+
+
+(defn zgentest
+  ([] (zgentest 100))
+  ([n]
+   (remove #(= (peek (brute-best-pins %)) (peek (zpins %))) (repeatedly n #(rand10 10)))))
+
+;;; UNIMPL
+;;; check d vs singles preconflict
+;;; linear conflict zones instead of tree to control fanout
