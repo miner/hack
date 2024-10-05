@@ -160,7 +160,6 @@
           (mapv * rv (subvec rv 1))))
 
 
-
 ;;; merging seems more expensive that it needs to be
 ;;; assumes first double is always zero so there's a peek, that's safe for now
 
@@ -202,10 +201,33 @@
 
 
 
-(defn dgentest
-  ([] (dgentest 100))
-  ([n]
-   (remove #(= (peek (brute-best-pins %)) (peek (dpins %))) (repeatedly n #(rand10 10)))))
+
+
+
+
+;;; conjecture -- max decon-double is always best solution.  Mostly, but FAILS for a few
+;;; cases so you can't use it!
+
+;;; BUG xdpins  [2 3 -2 -8 -8 2 9 5 7 -3]
+
+;;; buggy with some isses
+;;; about 30% faster than dpins
+(defn xdpins [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [dvs (deconflict-double-hits rv)
+          zv (mapv #(max 0 %) rv)
+          best-dv (reduce (fn [bestv pv]
+                            (let [score (reduce + 0 pv)]
+                              (if (> score (peek bestv))
+                                (conj pv score)
+                                bestv)))
+                               [-1]
+                               dvs)
+          bestv (merge-svdv zv (pop best-dv))]
+      (conj bestv (reduce + 0 bestv)))))
+
+
 
 
 
@@ -229,73 +251,150 @@
 
 
 
-[[0 12 0 0 0 0
-  [[ 0 18 0 [[1 0 0] [0 5 0]]]
-   [36  0 0 [[1 0 0] [0 5 0]]]]]]
-
-
-[0 12 0 0 0 0
-  [[ 0 18 0 [[1 0 0] [0 5 0]]]
-   [36  0 0 [[1 0 0] [0 5 0]]]]]
-
-
-[[0 12 0 0 0 0]
- [ 0 18 0 [1 0 0] [0 5 0]]
- [36  0 0 [1 0 0] [0 5 0]]]
-
-
 ;; forget tree decon.  Try to integrate summing with deconfliction so you only continue on
-;; greatest path.
+;; greatest path.  NOT IMPLEMENTED
 
-(defn decon [zv rv]
-  (reduce (fn [dvs d]
-            (into [] (mapcat (fn [dv]
-                               (cond (not (pos? d)) [(conj dv 0)]
-                                     (let [i (count dv)]
-                                       (> d (+ (zv i) (zv (dec i)))))
-                                         (if (zero? (peek dv))
-                                           [(conj dv d) (conj dv 0)]
-                                           [(-> (pop dv) (conj 0) (conj d)) (conj dv 0)])
-                                     :else [(conj dv 0)])))
-                  dvs))
-          [[0]]
-          (mapv * rv (subvec rv 1))))
 
+
+;;; FAILED EXPERIMENT -- tried to integrate operations of dpins.  not faster, not simpler
+(defn decon [rv]
+  (let [zv (mapv #(max 0 %) rv)]
+    (reduce-kv (fn [dvs j d]
+                 ;;(println "dvs" dvs j d)
+                 (let [i (inc j)]
+                   (into [] (mapcat (fn [dv]
+                                      (cond (not (pos? d)) [(conj dv 0 (zv i))]
+                                            (> d (+ (zv i) (zv (dec i))))
+                                                (cond (and (zero? (peek dv))
+                                                           (zero? (peek (pop dv))))
+                                                          [(conj dv d 0) (conj dv 0 (zv i))]
+                                                      (zero? (peek (pop dv)))
+                                                          [(-> (pop dv) (conj 0) (conj d) (conj 0))
+                                                           (conj dv 0 (zv i))]
+                                                      :else
+                                                          [(-> (pop (pop dv))
+                                                               (conj 0)
+                                                               (conj (zv (- i 2)))
+                                                               (conj d)
+                                                               (conj 0))
+                                                           (conj dv 0 (zv i))])
+                                            :else [(conj dv 0 (zv i))])))
+                         dvs)))
+               [[0 (zv 0)]]
+               (mapv * rv (subvec rv 1)))))
 
 
 ;;; merging seems more expensive that it needs to be
+;;; decided to only merge after picking best dv (after deconfliction) -- see xdpins
+
 ;;; assumes first double is always zero so there's a peek, that's safe for now
 
-;;; assume deconflicted dv so never two doubles in a row
-;;; sv and dv should have zeroes instead of negatives
-(defn merge-zvdv [zv dv]
-  (reduce-kv (fn [mv i d]
-               (cond (zero? d) (conj (conj mv 0) (zv i))
-                     (zero? (peek mv)) (conj (conj mv d) 0)
-                     :else (conj (conj (conj (pop mv) 0) d) 0)))
-             []
-             dv))
-
-;;; but it's slower! ???
+;;; but it's slower! works but not worth it.  Better idea in xdpins but it doesn't work!
 (defn zpins [rv]
   (if (empty? rv)
     [nil 0]
-    (let [zv (mapv #(max 0 %) rv)]          
-      (reduce (fn [bestv pv]
-                (let [score (reduce + 0 pv)]
-                  (if (> score (peek bestv))
-                    (conj pv score)
-                    bestv)))
-              [-1]
-              (mapv #(merge-zvdv zv %) (decon zv rv))))))
+    (reduce (fn [bestv pv]
+              (let [score (reduce + 0 pv)]
+                (if (> score (peek bestv))
+                  (conj pv score)
+                  bestv)))
+            [-1]
+            (decon rv))))
 
 
 
-(defn zgentest
-  ([] (zgentest 100))
-  ([n]
-   (remove #(= (peek (brute-best-pins %)) (peek (zpins %))) (repeatedly n #(rand10 10)))))
 
-;;; UNIMPL
+;;; UNIMPLEMENTED
 ;;; check d vs singles preconflict
 ;;; linear conflict zones instead of tree to control fanout
+
+
+(defn conzone [rv]
+  (reduce (fn [cv d]
+            (let [p (peek cv)]
+              (cond (vector? p) (if (not (pos? d)) (conj cv 0) (conj (pop cv) (conj p d)))
+                    (not (pos? d)) (conj cv 0)
+                    (zero? p) (conj cv d)
+                    :else (conj (pop cv) [p d]))))
+          [0]
+          (mapv * rv (subvec rv 1))))
+
+;;; that gives "zones of conflict" but still needs expansion for deconfliction
+
+;;; deconfliction is basically take-nth 2 from two starts -- NO, you might win by skipping
+;;; two intermediates to get on a better train -- you need to fanout
+
+;;; cv should be all positives
+(defn best-conflict [cv]
+  (case (count cv)
+    (0 1) cv
+    2 (let [[a b] cv] (if (> a b) [a 0] [0 b]))
+    (let [cvs (reduce (fn [cvs d]
+                        (into [] (mapcat (fn [dv]
+                                           (if (zero? d)
+                                             [(conj dv 0)]
+                                             (if (zero? (peek dv))
+                                               [(conj dv d)]
+                                               [(-> (pop dv) (conj 0) (conj d)) (conj dv 0)]))))
+                              cvs))
+                      ;; starting with zero simplifies logic for peeking
+                      [[0]]
+                      cv)]
+      ;;(println "CVS" cvs)
+      (-> (reduce (fn [bestcv cv]
+                    (let [score (reduce + 0 cv)]
+                      (if (> score (peek bestcv))
+                        (conj cv score)
+                        bestcv)))
+                  [-1]
+                  cvs)
+          pop
+          (subvec 1)))))
+
+
+(defn bestcon [rv]
+  (let [cz (reduce (fn [cv d]
+                     (let [p (peek cv)]
+                       (cond (vector? p) (if (not (pos? d))
+                                           (into (pop cv) (conj (best-conflict p) 0))
+                                           (conj (pop cv) (conj p d)))
+                             (not (pos? d)) (conj cv 0)
+                             (zero? p) (conj cv d)
+                             :else (conj (pop cv) [p d]))))
+                   [0]
+                   (mapv * rv (subvec rv 1)))
+        pz (peek cz)]
+    (if (vector? pz)
+      (into (pop cz) (best-conflict pz))
+      cz)))
+
+
+;;; BUGGY -- can't just pick best doubles
+(defn bpins [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [zv (mapv #(max 0 %) rv)
+          bestv (merge-svdv zv (bestcon rv))]
+      (conj bestv (reduce + 0 bestv)))))
+
+
+(def bugs [[2 3 -2 -8 -8 2 9 5 7 -3] [7 2 8 1 -8 -5 8 -7 3 -6] [6 4 10 2 -8 10 8 3 -4 -3]])
+
+
+(defn gentest
+  ([] (gentest dpins 100))
+  ([fpins] (gentest fpins 100))
+  ([fpins n]
+   (println (str fpins))
+   (remove #(= (peek (brute-best-pins %)) (peek (fpins %)))
+           (into bugs (repeatedly n #(rand10 10))))))
+
+
+;;; best doubles doesn't work!  Most of the time it does but sometimes you can get enough
+;;; singles to switch the balance
+
+
+;;; WORKING:  brute-best-pins and dpins and zpins
+;;; FAILING:  xdpins and bpins
+
+
