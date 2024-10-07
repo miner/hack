@@ -165,14 +165,6 @@
 
 ;;; assume deconflicted dv so never two doubles in a row
 ;;; sv and dv should have zeroes instead of negatives
-(defn merge-svdv1 [sv dv]
-  (reduce-kv (fn [mv i d]
-               (cond (zero? d) (conj (conj mv 0) (sv i))
-                     (and (zero? (peek mv)) (> d (sv i))) (conj (conj mv d) 0)
-                     (> d (+ (peek mv) (sv i))) (conj (conj (conj (pop mv) 0) d) 0)
-                     :else (conj (conj mv 0) (sv i))))
-             []
-             dv))
 
 (defn merge-svdv [sv dv]
   (reduce-kv (fn [mv i d]
@@ -184,8 +176,10 @@
              dv))
 
 
+
+
+
 ;;; 100x faster
-;;; seems to work now
 (defn dpins [rv]
   (if (empty? rv)
     [nil 0]
@@ -200,7 +194,76 @@
               (mapv #(merge-svdv zv %) dvs)))))
 
 
+;; I like the transducer version -- basically the same
+(defn xdpins [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [zv (mapv #(max 0 %) rv)]
+      (transduce (map #(merge-svdv zv %))
+                 (fn ([bestv] bestv)
+                   ([bestv pv]
+                    (let [score (reduce + 0 pv)]
+                      (if (> score (peek bestv))
+                        (conj pv score)
+                        bestv))))
+                 [-1]
+                 (deconflict-double-hits rv)))))
 
+
+
+
+
+
+;;; adds extra zero fan out if prev d is 0 -- makes easier merge but much slower overall
+(defn decon-hits [rv]
+  (reduce (fn [dvs d]
+            (into [] (mapcat (fn [dv]
+                               (if-not (pos? d)
+                                 [(conj dv 0)]
+                                 (if (zero? (peek dv))
+                                   ;; extra zero choice
+                                   [(conj dv d) (conj dv 0)]
+                                   [(-> (pop dv) (conj 0) (conj d)) (conj dv 0)]))))
+                  dvs))
+          [[0]]
+          (mapv * rv (subvec rv 1))))
+
+
+
+(defn merge-rvdv [rv dv]
+  (reduce-kv (fn [mv i s]
+               (if (and (zero? (dv i)) (zero? (nth dv (inc i) 0)))
+                 (-> mv (conj 0) (conj (max 0 s)))
+                 (-> mv (conj (dv i)) (conj 0))))
+             []
+             rv))
+
+
+(defn dpins0 [rv]
+  (if (empty? rv)
+    [nil 0]
+      (reduce (fn [bestv pv]
+                (let [score (reduce + 0 pv)]
+                  (if (> score (peek bestv))
+                    (conj pv score)
+                    bestv)))
+              [-1]
+              (mapv #(merge-rvdv rv %) (decon-hits rv)))))
+
+
+
+(defn dpins0x [rv]
+  (if (empty? rv)
+    [nil 0]
+    (transduce (map #(merge-rvdv rv %))
+               (fn ([bestv] bestv)
+                 ([bestv pv]
+                  (let [score (reduce + 0 pv)]
+                    (if (> score (peek bestv))
+                      (conj pv score)
+                      bestv))))
+               [-1]
+               (decon-hits rv))))
 
 
 
@@ -208,11 +271,11 @@
 ;;; conjecture -- max decon-double is always best solution.  Mostly, but FAILS for a few
 ;;; cases so you can't use it!
 
-;;; BUG xdpins  [2 3 -2 -8 -8 2 9 5 7 -3]
+;;; BUG pins  [2 3 -2 -8 -8 2 9 5 7 -3]
 
 ;;; buggy with some isses
 ;;; about 30% faster than dpins
-(defn xdpins [rv]
+(defn buggy-pins [rv]
   (if (empty? rv)
     [nil 0]
     (let [dvs (deconflict-double-hits rv)
@@ -285,11 +348,11 @@
 
 
 ;;; merging seems more expensive that it needs to be
-;;; decided to only merge after picking best dv (after deconfliction) -- see xdpins
+;;; decided to only merge after picking best dv (after deconfliction) -- see buggy-pins
 
 ;;; assumes first double is always zero so there's a peek, that's safe for now
 
-;;; but it's slower! works but not worth it.  Better idea in xdpins but it doesn't work!
+;;; but it's slower! works but not worth it. 
 (defn zpins [rv]
   (if (empty? rv)
     [nil 0]
@@ -395,6 +458,6 @@
 
 
 ;;; WORKING:  brute-best-pins and dpins and zpins
-;;; FAILING:  xdpins and bpins
+;;; FAILING:  buggy-pins and bpins
 
 
