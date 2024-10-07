@@ -96,10 +96,14 @@
 
 ;;; translate back into the notation used in the article (pins numbered 1..N and double hits as
 ;;; average of two pins
-(defn report-pins [rv]
-  (let [resultv (brute-best-pins rv)
+(defn report-pins
+  ([] (report-pins rewardv))
+  ([rv] (report-pins brute-best-pins rv))
+  ([pin-fn rv]
+  (let [resultv (pin-fn rv)
         score (peek resultv)]
-    (println "; Reward" rv)
+    (println ";" (str pin-fn))
+    (println "; Reward" rv "  count =" (count rv))
     (println "; Result" resultv)
     (println "; Score" score)
     (reduce-kv (fn [res i p]
@@ -108,7 +112,7 @@
                      (conj res (if (odd? i) pn (+ 0.5 pn))))
                    res))
                []
-               (pop resultv))))
+               (pop resultv)))))
 
 
 ;;; idea to be more efficient
@@ -174,9 +178,6 @@
                      :else (-> mv (conj 0) (conj (sv i)))))
              []
              dv))
-
-
-
 
 
 ;;; 100x faster
