@@ -47,6 +47,7 @@
           [0 (rv 0)]
           (subvec rv 1)))
 
+(defn zneg [x] (if (neg? x) 0 x))
 
 ;;; three possible extensions
 ;;; always next skip
@@ -96,30 +97,33 @@
 
 ;;; translate back into the notation used in the article (pins numbered 1..N and double hits as
 ;;; average of two pins
-(defn report-pins
-  ([] (report-pins rewardv))
-  ([rv] (report-pins brute-best-pins rv))
-  ([pin-fn rv]
-  (let [resultv (pin-fn rv)
-        score (peek resultv)]
-    (println ";" (str pin-fn))
-    (println "; Reward" rv "  count =" (count rv))
-    (println "; Result" resultv)
-    (println "; Score" score)
-    (reduce-kv (fn [res i p]
+
+(defn zbase1 [pinv]
+  (reduce-kv (fn [res i p]
                  (if (pos? p)
                    (let [pn (quot (inc i) 2)]
                      (conj res (if (odd? i) pn (+ 0.5 pn))))
                    res))
                []
-               (pop resultv)))))
+               (pop pinv)))
+  
+(defn report-pins
+  ([] (report-pins rewardv))
+  ([rv] (report-pins brute-best-pins rv))
+  ([pin-fn rv]
+   (let [resultv (pin-fn rv)
+         score (peek resultv)]
+     (println ";" (str pin-fn))
+     (println "; Reward" rv "  count =" (count rv))
+     (println "; Result" resultv)
+     (println "; Score" score)
+     (zbase1 rv))))
 
 
 ;;; idea to be more efficient
 ;;; take all the singles, then try to fiddle for good doubles
 ;;; should be much smaller search space
 
-(defn zneq [x] (if (neg? x) 0 x))
 
 
 
@@ -209,6 +213,157 @@
                         bestv))))
                  [-1]
                  (deconflict-double-hits rv)))))
+
+
+
+
+(defn xdpins1 [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [sv (mapv zneg rv)
+          merge-sd (fn [dv]
+                     (reduce-kv (fn [mv i d]
+                                  (cond (zero? d) (-> mv (conj 0) (conj (sv i)))
+                                        (and (zero? (peek mv)) (> d (sv i)))
+                                            (-> mv (conj d) (conj 0))
+                                        (> d (+ (peek mv) (sv i)))
+                                            (-> (pop mv) (conj 0) (conj d) (conj 0))
+                                        :else (-> mv (conj 0) (conj (sv i)))))
+                                []
+                                dv))
+          decond (fn [rv]
+                   (reduce (fn [dvs d]
+                             (into [] (mapcat (fn [dv]
+                                                (if-not (pos? d)
+                                                  [(conj dv 0)]
+                                                  (if (zero? (peek dv))
+                                                    [(conj dv d)]
+                                                    [(-> (pop dv) (conj 0) (conj d))
+                                                     (conj dv 0)]))))
+                                   dvs))
+                           [[0]]
+                           (mapv * rv (subvec rv 1))))]
+      (transduce (map merge-sd)
+                 (fn ([bestv] bestv)
+                   ([bestv pv]
+                    (let [score (reduce + 0 pv)]
+                      (if (> score (peek bestv))
+                        (conj pv score)
+                        bestv))))
+                 [-1]
+                 (decond rv)))))
+
+;; faster
+(defn xdpins2 [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [sv (mapv zneg rv)
+          merge-sd (fn [dv]
+                     (reduce-kv (fn [mv i d]
+                                  (cond (zero? d) (-> mv (conj 0) (conj (sv i)))
+                                        (> d (+ (peek mv) (sv i)))
+                                            (-> (pop mv) (conj 0) (conj d) (conj 0))
+                                        :else (-> mv (conj 0) (conj (sv i)))))
+                                []
+                                dv))
+          decond (fn [rv]
+                   (reduce (fn [dvs d]
+                             (into []
+                                   (mapcat (fn [dv]
+                                             (cond (not (pos? d)) [(conj dv 0)]
+                                                   (zero? (peek dv)) [(conj dv d)]
+                                                   (let [i (count dv)]
+                                                     (<= d (+ (sv i) (sv (dec i)))))
+                                                       [(conj dv 0)]
+                                                   :else [(-> (pop dv) (conj 0) (conj d))
+                                                          (conj dv 0)])))
+                                   dvs))
+                           [[0]]
+                           (mapv * rv (subvec rv 1))))]
+      (transduce (map merge-sd)
+                 (fn ([bestv] bestv)
+                   ([bestv pv]
+                    (let [score (reduce + 0 pv)]
+                      (if (> score (peek bestv))
+                        (conj pv score)
+                        bestv))))
+                 [-1]
+                 (decond rv)))))
+
+
+;;; same, not worth it
+(defn xdpins21 [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [sv (mapv zneg rv)
+          expd (fn [dv d]
+                 (cond (not (pos? d)) [(conj dv 0)]
+                       (zero? (peek dv)) [(conj dv d)]
+                       (let [i (count dv)]
+                         (<= d (+ (sv i) (sv (dec i)))))
+                           [(conj dv 0)]
+                       :else [(-> (pop dv) (conj 0) (conj d))
+                              (conj dv 0)]))
+          decond (fn [rv] (reduce (fn [dvs d] (into [] (mapcat #(expd % d)) dvs))
+                                  [[0]]
+                                  (mapv * rv (subvec rv 1))))
+          merge-sd (fn [dv]
+                     (reduce-kv (fn [mv i d]
+                                  (cond (zero? d) (-> mv (conj 0) (conj (sv i)))
+                                        (> d (+ (peek mv) (sv i)))
+                                            (-> (pop mv) (conj 0) (conj d) (conj 0))
+                                        :else (-> mv (conj 0) (conj (sv i)))))
+                                []
+                                dv))]
+      (transduce (map merge-sd)
+                 (fn ([bestv] bestv)
+                   ([bestv pv]
+                    (let [score (reduce + 0 pv)]
+                      (if (> score (peek bestv))
+                        (conj pv score)
+                        bestv))))
+                 [-1]
+                 (decond rv)))))
+
+
+
+
+;; slower slightly
+(defn xdpins3 [rv]
+  (if (empty? rv)
+    [nil 0]
+    (let [sv (mapv zneg rv)
+          merge-sd (fn [dv]
+                     (reduce-kv (fn [mv i d]
+                                  (cond (zero? d) (-> mv (conj 0) (conj (sv i)))
+                                        (> d (+ (peek mv) (sv i)))
+                                           (-> (pop mv) (conj 0) (conj d) (conj 0))
+                                        :else (-> mv (conj 0) (conj (sv i)))))
+                                []
+                                dv))
+          decond (fn [rv]
+                   (reduce (fn [dvs d]
+                             (into []
+                                   (mapcat (fn [dv]
+                                             (cond (not (pos? d)) [(conj dv 0)]
+                                                   (zero? (peek dv)) [(conj dv d)]
+                                                   #_ (let [i (count dv)]
+                                                     (<= d (+ (sv i) (sv (dec i)))))
+                                                   #_   [(conj dv 0)]
+                                                   :else [(-> (pop dv) (conj 0) (conj d))
+                                                          (conj dv 0)])))
+                                   dvs))
+                           [[0]]
+                           (mapv * rv (subvec rv 1))))]
+      (transduce (map merge-sd)
+                 (fn ([bestv] bestv)
+                   ([bestv pv]
+                    (let [score (reduce + 0 pv)]
+                      (if (> score (peek bestv))
+                        (conj pv score)
+                        bestv))))
+                 [-1]
+                 (decond rv)))))
 
 
 
