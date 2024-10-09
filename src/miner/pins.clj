@@ -143,6 +143,10 @@
 ;;; taking the doubles in biggest score order.  But = d might miss???  Worse, there can be
 ;;; multiple conflicting doubles so you need search to resolve, including recovering singles.
 
+;;; by far the best approach is rpins near the end of file.  Need to keep two running totals
+;;; to decide best path.
+;;; lots of slower ideas explored below
+
 
 (defn rand10 [n] (vec (repeatedly n #(- 10 (rand-int 20)))))
 
@@ -184,7 +188,7 @@
              dv))
 
 
-;;; 100x faster
+;;; 100x faster than brute but much slower than rpins at the end of file
 (defn dpins [rv]
   (if (empty? rv)
     [nil 0]
@@ -429,105 +433,9 @@
 
 ;;; BUG pins  [2 3 -2 -8 -8 2 9 5 7 -3]
 
-;;; buggy with some isses
-;;; about 30% faster than dpins
-(defn buggy-pins [rv]
-  (if (empty? rv)
-    [nil 0]
-    (let [dvs (deconflict-double-hits rv)
-          zv (mapv #(max 0 %) rv)
-          best-dv (reduce (fn [bestv pv]
-                            (let [score (reduce + 0 pv)]
-                              (if (> score (peek bestv))
-                                (conj pv score)
-                                bestv)))
-                               [-1]
-                               dvs)
-          bestv (merge-svdv zv (pop best-dv))]
-      (conj bestv (reduce + 0 bestv)))))
 
 
-
-
-
-;;; deconflict is doing full dv everytime.  It would be faster to make a tree with common
-;;; heads so you only calc that once per fan out.
-
-;;; deconflict is pretty good if there are only a few conflicts.  Not so great if there are
-;;; lots of conflicts as with all positive rewards.
-
-(defn decon-double-tree [rv]
-  (reduce (fn [dvs d]
-            (into [] (mapcat (fn [dv]
-                               (if-not (pos? d)
-                                 [(conj dv 0)]
-                                 (if (zero? (peek dv))
-                                   [(conj dv d)]
-                                   [(-> (pop dv) (conj 0) (conj d)) (conj dv 0)]))))
-                  dvs))
-          [[0]]
-          (mapv * rv (subvec rv 1))))
-
-
-
-;; forget tree decon.  Try to integrate summing with deconfliction so you only continue on
-;; greatest path.  NOT IMPLEMENTED
-
-
-
-;;; FAILED EXPERIMENT -- tried to integrate operations of dpins.  not faster, not simpler
-(defn decon [rv]
-  (let [zv (mapv #(max 0 %) rv)]
-    (reduce-kv (fn [dvs j d]
-                 ;;(println "dvs" dvs j d)
-                 (let [i (inc j)]
-                   (into [] (mapcat (fn [dv]
-                                      (cond (not (pos? d)) [(conj dv 0 (zv i))]
-                                            (> d (+ (zv i) (zv (dec i))))
-                                                (cond (and (zero? (peek dv))
-                                                           (zero? (peek (pop dv))))
-                                                          [(conj dv d 0) (conj dv 0 (zv i))]
-                                                      (zero? (peek (pop dv)))
-                                                          [(-> (pop dv) (conj 0) (conj d) (conj 0))
-                                                           (conj dv 0 (zv i))]
-                                                      :else
-                                                          [(-> (pop (pop dv))
-                                                               (conj 0)
-                                                               (conj (zv (- i 2)))
-                                                               (conj d)
-                                                               (conj 0))
-                                                           (conj dv 0 (zv i))])
-                                            :else [(conj dv 0 (zv i))])))
-                         dvs)))
-               [[0 (zv 0)]]
-               (mapv * rv (subvec rv 1)))))
-
-
-;;; merging seems more expensive that it needs to be
-;;; decided to only merge after picking best dv (after deconfliction) -- see buggy-pins
-
-;;; assumes first double is always zero so there's a peek, that's safe for now
-
-;;; but it's slower! works but not worth it. 
-(defn zpins [rv]
-  (if (empty? rv)
-    [nil 0]
-    (reduce (fn [bestv pv]
-              (let [score (reduce + 0 pv)]
-                (if (> score (peek bestv))
-                  (conj pv score)
-                  bestv)))
-            [-1]
-            (decon rv))))
-
-
-
-
-;;; UNIMPLEMENTED
-;;; check d vs singles preconflict
-;;; linear conflict zones instead of tree to control fanout
-
-
+;;; not fully explored but seems like it's not going to win
 (defn conzone [rv]
   (reduce (fn [cv d]
             (let [p (peek cv)]
@@ -588,13 +496,6 @@
       cz)))
 
 
-;;; BUGGY -- can't just pick best doubles
-(defn bpins [rv]
-  (if (empty? rv)
-    [nil 0]
-    (let [zv (mapv #(max 0 %) rv)
-          bestv (merge-svdv zv (bestcon rv))]
-      (conj bestv (reduce + 0 bestv)))))
 
 
 (def bugs [[2 3 -2 -8 -8 2 9 5 7 -3] [7 2 8 1 -8 -5 8 -7 3 -6] [6 4 10 2 -8 10 8 3 -4 -3]])
@@ -617,3 +518,34 @@
 ;;; FAILING:  buggy-pins and bpins
 
 
+
+;;; HN comment
+;   values = [3, 4, -1, 6, -1, 6, 6, 3, -1, -1, 6, -2]
+;   prev_val = prev_score = score = 0
+;   for val in values:
+;     prev_val, prev_score, score = val, score, max(score, score + val, prev_score + val * prev_val)
+;   print(score)  # 64
+
+
+;;; only returns the final score, not the pins chosen
+
+(defn score-pins [rv]
+  (peek (reduce (fn [[pval pscore score] r]
+                  [r score (max score (+ score r) (+ pscore (* r pval)))])
+                [0 0 0]
+                rv)))
+
+;;; Much faster -- big winner
+;;; returns same format as my other versions
+(defn rpins [rv]
+  (let [[score res]
+        (reduce (fn [[score res pscore pval] r]
+                  (let [wsing (+ score r)
+                        d (* r pval)
+                        wdoub (+ pscore d)]
+                    (cond (and (>= score wsing) (>= score wdoub)) [score (conj res 0 0) score r]
+                          (>= wsing wdoub) [wsing (conj res 0 r) score r]
+                          :else [wdoub (conj (pop res) 0 d 0) score r])))
+                [0 [] 0 0]
+                rv)]
+    (conj res score)))
