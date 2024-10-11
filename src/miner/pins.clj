@@ -510,6 +510,14 @@
            (into bugs (repeatedly n #(rand10 10))))))
 
 
+(defn gentest=
+  ([] (gentest dpins 100))
+  ([fpins] (gentest fpins 100))
+  ([fpins n]
+   (println (str fpins))
+   (remove #(= (brute-best-pins %) (fpins %))
+           (into bugs (repeatedly n #(rand10 10))))))
+
 ;;; best doubles doesn't work!  Most of the time it does but sometimes you can get enough
 ;;; singles to switch the balance
 
@@ -535,17 +543,68 @@
                 [0 0 0]
                 rv)))
 
+
+
 ;;; Much faster -- big winner
 ;;; returns same format as my other versions
-(defn rpins [rv]
+(defn rpins-SAVE [rv]
   (let [[score res]
         (reduce (fn [[score res pscore pval] r]
+                  ;;(println "rpins" score res pscore pval r)
                   (let [wsing (+ score r)
                         d (* r pval)
                         wdoub (+ pscore d)]
                     (cond (and (>= score wsing) (>= score wdoub)) [score (conj res 0 0) score r]
                           (>= wsing wdoub) [wsing (conj res 0 r) score r]
-                          :else [wdoub (conj (pop res) 0 d 0) score r])))
-                [0 [] 0 0]
+                          :else (let [i (quot (- (count res) 4) 2)
+                                      res2doub (peek (-> res pop pop pop))
+                                      res1doub (peek (-> res pop))
+                                      r2sing (max 0 (nth rv (- i 2) 0))
+                                      ]
+                                  ;;(println "  res1doub" res1doub "  res2doub" res2doub)
+                                  (if (pos? res2doub) 
+                                    [wdoub (conj (-> res pop pop) 0 0 d 0) score r]
+                                    (if (pos? res1doub)
+                                      [wdoub (conj (-> res pop pop pop ) r2sing 0 0 d 0)
+                                       score r]
+                                      [wdoub (conj (-> res pop pop) 0 0 d 0) score r]))))))
+                [0 [0 0 0 0] 0 0]
                 rv)]
-    (conj res score)))
+    (conj (subvec res 4) score)))
+
+
+;; res is the vector of alternating double-hit / single-hit values chosen for the highest
+;; score.  Same style as my slower experiments.
+
+(defn rpins [rv]
+  (let [[score res]
+        (reduce (fn [[score res pscore pval] r]
+                  ;;(println "rpins" score res pscore pval r)
+                  (let [wsing (+ score r)
+                        d (* r pval)
+                        wdoub (+ pscore d)]
+                    (cond (and (>= score wsing) (>= score wdoub))
+                              [score (conj res 0 0) score r]
+                          (>= wsing wdoub)
+                              [wsing (conj res 0 r) score r]
+                          ;; we want to take wdoub but have to fix up res
+                          :else (cond (zero? (peek (-> res pop))) ; res1doub, previous d
+                                          [wdoub (conj (-> res pop) 0 d 0) score r]
+                                      (pos? (peek (-> res pop pop pop))) ; res2doub
+                                          [wdoub (conj (-> res pop pop) 0 0 d 0) score r]
+                                      :else 
+                                          [wdoub (conj (-> res pop pop pop)
+                                                       (max 0 (nth rv (- (quot (- (count res) 4) 2) 2) 0))
+                                                       0 0 d 0)
+                                           score r]))))
+                [0 [0 0 0 0] 0 0]
+                rv)]
+    (conj (subvec res 4) score)))
+
+
+;;; a different notation could use (doub) as a list, keeping the pin i the same as rewardv
+[0 (4) 0 3 0 (16) 1 14]
+
+
+
+;;; same as rpins but only need to keep res -- scores can be recalculated but sounds slower
