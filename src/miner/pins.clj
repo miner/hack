@@ -603,8 +603,60 @@
 
 
 ;;; a different notation could use (doub) as a list, keeping the pin i the same as rewardv
-[0 (4) 0 3 0 (16) 1 14]
+;;; [0 (4) 0 3 0 (16) 1 14]
 
 
 
 ;;; same as rpins but only need to keep res -- scores can be recalculated but sounds slower
+
+
+
+(defn irpins1 [rv]
+  (let [[score res]
+        (reduce-kv (fn [[score res pscore pval] i r]
+                  ;;(println "rpins" score res pscore pval r)
+                  (let [wsing (+ score r)
+                        d (* r pval)
+                        wdoub (+ pscore d)]
+                    (cond (and (>= score wsing) (>= score wdoub))
+                              [score (conj res 0 0) score r]
+                          (>= wsing wdoub)
+                              [wsing (conj res 0 r) score r]
+                          ;; we want to take wdoub but have to fix up res
+                          :else (cond (zero? (peek (pop res))) ; res1doub, previous d
+                                          [wdoub (conj (pop res) 0 d 0) score r]
+                                      (pos? (peek (-> res pop pop pop))) ; res2doub
+                                          [wdoub (conj (-> res pop pop) 0 0 d 0) score r]
+                                      :else 
+                                          [wdoub (conj (-> res pop pop pop)
+                                                       (max 0 (nth rv (- i 2) 0))
+                                                       0 0 d 0)
+                                           score r]))))
+                [0 [0 0 0 0] 0 0]
+                rv)]
+    (conj (subvec res 4) score)))
+
+;;; new fastest
+(defn irpins [rv]
+  (let [[score res]
+        (reduce-kv (fn [[score res pscore pval] i r]
+                     (let [wsing (+ score r)
+                           d (* r pval)
+                           wdoub (+ pscore d)]
+                       (cond (and (>= score wsing) (>= score wdoub))
+                                 [score (conj res 0 0) score r]
+                             (>= wsing wdoub)
+                                 [wsing (conj res 0 r) score r]
+                             ;; we want to take wdoub but have to fix up res
+                             (zero? (peek (pop res))) ; previous d
+                                 [wdoub (conj (pop res) 0 d 0) score r]
+                             (pos? (peek (-> res pop pop pop))) ; res2doub
+                                 [wdoub (conj (-> res pop pop) 0 0 d 0) score r]
+                             :else [wdoub (conj (-> res pop pop pop)
+                                                (max 0 (nth rv (- i 2) 0))
+                                                0 0 d 0)
+                                    score r])))
+                   [0 [0 0 0 0] 0 0]
+                   rv)]
+    (conj (subvec res 4) score)))
+
