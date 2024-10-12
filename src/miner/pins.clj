@@ -498,25 +498,35 @@
 
 
 
-(def bugs [[2 3 -2 -8 -8 2 9 5 7 -3] [7 2 8 1 -8 -5 8 -7 3 -6] [6 4 10 2 -8 10 8 3 -4 -3]])
+(def bugs [[2 3 -2 -8 -8 2 9 5 7 -3] [7 2 8 1 -8 -5 8 -7 3 -6] [6 4 10 2 -8 10 8 3 -4 -3]
+           [-5 2 0 1 -4 4 -2 -6 -5 -8]])
 
+(defn fname [f]
+  (let [r (re-find #"[$].*[@]" (str f))]
+    (subs r 1 (dec (count r)))))
 
 (defn gentest
   ([] (gentest dpins 100))
   ([fpins] (gentest fpins 100))
   ([fpins n]
-   (println (str fpins))
+   (println (fname fpins))
    (remove #(= (peek (brute-best-pins %)) (peek (fpins %)))
            (into bugs (repeatedly n #(rand10 10))))))
 
 
 (defn gentest=
-  ([] (gentest dpins 100))
-  ([fpins] (gentest fpins 100))
+  ([] (gentest= dpins 100))
+  ([fpins] (gentest= fpins 100))
   ([fpins n]
-   (println (str fpins))
-   (remove #(= (brute-best-pins %) (fpins %))
-           (into bugs (repeatedly n #(rand10 10))))))
+   (println "checking" (fname fpins))
+   (clojure.pprint/pprint (or (seq (take 10 (remove #(= (brute-best-pins %) (fpins %))
+                             (into bugs (repeatedly n #(rand10 10))))))
+               true))))
+
+(defn report-bugs [fpins]
+  (println (fname fpins))
+  (clojure.pprint/pprint (interleave bugs (mapv brute-best-pins bugs) (mapv fpins bugs))))
+
 
 ;;; best doubles doesn't work!  Most of the time it does but sometimes you can get enough
 ;;; singles to switch the balance
@@ -544,6 +554,7 @@
                 rv)))
 
 
+;;; STILL BUGGY with [-5 2 0 1 -4 4 -2 -6 -5 -8]
 
 ;;; Much faster -- big winner
 ;;; returns same format as my other versions
@@ -636,6 +647,11 @@
                 rv)]
     (conj (subvec res 4) score)))
 
+
+;;;; BUG if several doubles in a row, you really need to backtrack multiple times to allow
+;;; 1+3.  Right now, 1 gets wiped out by 2, and then 2 gets wiped out by 3.
+
+
 ;;; new fastest
 (defn irpins [rv]
   (let [[score res]
@@ -643,6 +659,7 @@
                      (let [wsing (+ score r)
                            d (* r pval)
                            wdoub (+ pscore d)]
+                       (println "irpins" score res "i-r" i r)
                        (cond (and (>= score wsing) (>= score wdoub))
                                  [score (conj res 0 0) score r]
                              (>= wsing wdoub)
