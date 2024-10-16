@@ -1,4 +1,4 @@
-(ns miner.pins)
+ (ns miner.pins)
 
 ;; (:require [clojure.data.priority-map :as pm]) -- not needed
 
@@ -64,7 +64,8 @@
         pv0 (conj pv 0)]
     (cond-> [(conj pv0 0)]
       (pos? n1)  (conj (conj pv0 n1))
-      (and (pos? nd) (zero? (peek pv)) (zero? (peek (pop pv))))  (conj (-> pv (conj nd) (conj 0))))))
+      (and (pos? nd) (zero? (peek pv)) (zero? (peek (pop pv))))
+        (conj (-> pv (conj nd) (conj 0))))))
 
 
 
@@ -117,7 +118,7 @@
      (println "; Reward" rv "  count =" (count rv))
      (println "; Result" resultv)
      (println "; Score" score)
-     (zbase1 rv))))
+     (zbase1 resultv))))
 
 
 ;;; idea to be more efficient
@@ -505,6 +506,16 @@
   (let [r (re-find #"[$].*[@]" (str f))]
     (subs r 1 (dec (count r)))))
 
+
+(defn report-bugs
+  ([fpins] (report-bugs fpins bugs))
+  ([fpins bugs]
+   (println (fname fpins))
+   (if (empty? bugs)
+     true
+     (clojure.pprint/pprint (interleave bugs (mapv brute-best-pins bugs) (mapv fpins bugs))))))
+
+
 (defn gentest
   ([] (gentest dpins 100))
   ([fpins] (gentest fpins 100))
@@ -519,16 +530,9 @@
   ([] (gentest= dpins 100))
   ([fpins] (gentest= fpins 100))
   ([fpins n]
-   (println "checking" (fname fpins))
-   (clojure.pprint/pprint (or (seq (take 10 (remove #(= (brute-best-pins %) (fpins %))
-                             (into bugs (repeatedly n #(rand10 10))))))
-               true))))
-
-(defn report-bugs
-  ([fpins] (report-bugs fpins bugs))
-  ([fpins bugs]
-   (println (fname fpins))
-   (clojure.pprint/pprint (interleave bugs (mapv brute-best-pins bugs) (mapv fpins bugs)))))
+   (println "checking=")
+   (report-bugs fpins (take 10 (remove #(= (brute-best-pins %) (fpins %))
+                                       (into bugs (repeatedly n #(rand10 10))))))))
 
 
 ;;; best doubles doesn't work!  Most of the time it does but sometimes you can get enough
