@@ -535,15 +535,6 @@
                                        (into bugs (repeatedly n #(rand10 10))))))))
 
 
-;;; best doubles doesn't work!  Most of the time it does but sometimes you can get enough
-;;; singles to switch the balance
-
-
-;;; WORKING:  brute-best-pins and dpins and zpins
-;;; FAILING:  buggy-pins and bpins
-
-
-
 ;;; HN comment
 ;   values = [3, 4, -1, 6, -1, 6, 6, 3, -1, -1, 6, -2]
 ;   prev_val = prev_score = score = 0
@@ -595,7 +586,7 @@
 ;;; Try combining score and res into same vector -- more compact and nicer but slower to do
 ;;; extra poppping.
 
-(defn irpins5 [rv]
+(defn irpins [rv]
   (peek
    (reduce-kv (fn [[pres res] i r]
                 (let [score (peek res)
@@ -604,11 +595,11 @@
                       d (* r (nth rv (dec i) 0))
                       wdoub (+ pscore d)]
                   (cond (and (>= score wsing) (>= score wdoub))
-                            [res (conj (pop res) 0 0 score)]
+                            [res (reduce conj (pop res) [0 0 score])]
                         (>= wsing wdoub)
-                            [res (conj (pop res) 0 r wsing)]
+                            [res (reduce conj (pop res) [0 r wsing])]
                         ;; take wdoub
-                        :else [res (conj (pop pres) 0 0 d 0 wdoub)])))
+                        :else [res (reduce conj (pop pres) [0 0 d 0 wdoub])])))
               [[0] [0]]
               rv)))
 
