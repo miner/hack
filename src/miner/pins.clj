@@ -567,6 +567,9 @@
 ;;; returns same format as my other versions
 
 ;;; new fastest
+;;; a bit faster to reduce-conj rather than use larger arity conj or into
+;;; a bit faster to pass pval rather than lookup with reduce-kv (nth rv (dec i) 0)
+;;; my theory is any conditional introduction slows down the pipeline
 (defn rpins [rv]
   (let [[score res]
         (reduce (fn [[score res pscore pres pval] r]
@@ -574,54 +577,36 @@
                            d (* r pval)
                            wdoub (+ pscore d)]
                        (cond (and (>= score wsing) (>= score wdoub))
-                                 [score (conj res 0 0) score res r]
+                                 [score (reduce conj res [0 0]) score res r]
                              (>= wsing wdoub)
-                                 [wsing (conj res 0 r) score res r]
+                                 [wsing (reduce conj res [0 r]) score res r]
                              ;; take wdoub
-                             :else [wdoub (conj pres 0 0 d 0) score res r])))
+                             :else [wdoub (reduce conj pres [0 0 d 0]) score res r])))
                    [0 [] 0 [] 0]
                    rv)]
     (conj res score)))
 
 
 
-;; slighlty slower, maybe nicer not to carry previous
-(defn irpins2 [rv]
-  (let [[score res]
-        (reduce-kv (fn [[score res pscore pres] i r]
-                     (let [wsing (+ score r)
-                           d (if (pos? i) (* r (rv (dec i))) 0)
-                           wdoub (+ pscore d)]
-                       ;; (println "irpins" score res "i-r" i r)
-                       (cond (and (>= score wsing) (>= score wdoub))
-                                 [score (conj res 0 0) score res]
-                             (>= wsing wdoub)
-                                 [wsing (conj res 0 r) score res]
-                             ;; take wdoub
-                             :else [wdoub (conj pres 0 0 d 0) score res])))
-                   [0 [] 0 []]
-                   rv)]
-    ;;(assert (= score (reduce + 0 res)))
-    (conj res score)))
+;;; Try combining score and res into same vector -- more compact and nicer but slower to do
+;;; extra poppping.
 
-
-(defn irpins3 [rv]
-  (let [[score res]
-        (reduce-kv (fn [[score res pscore pres] i r]
-                     (let [wsing (+ score r)
-                           d (* r (nth rv (dec i) 0))
-                           wdoub (+ pscore d)]
-                       ;; (println "irpins" score res "i-r" i r)
-                       (cond (and (>= score wsing) (>= score wdoub))
-                                 [score (conj res 0 0) score res]
-                             (>= wsing wdoub)
-                                 [wsing (conj res 0 r) score res]
-                             ;; take wdoub
-                             :else [wdoub (conj pres 0 0 d 0) score res])))
-                   [0 [] 0 []]
-                   rv)]
-    ;;(assert (= score (reduce + 0 res)))
-    (conj res score)))
+(defn irpins5 [rv]
+  (peek
+   (reduce-kv (fn [[pres res] i r]
+                (let [score (peek res)
+                      pscore (peek pres)
+                      wsing (+ score r)
+                      d (* r (nth rv (dec i) 0))
+                      wdoub (+ pscore d)]
+                  (cond (and (>= score wsing) (>= score wdoub))
+                            [res (conj (pop res) 0 0 score)]
+                        (>= wsing wdoub)
+                            [res (conj (pop res) 0 r wsing)]
+                        ;; take wdoub
+                        :else [res (conj (pop pres) 0 0 d 0 wdoub)])))
+              [[0] [0]]
+              rv)))
 
 
 ;;; a different notation could use (doub) as a list, keeping the pin i the same as rewardv
