@@ -23,6 +23,11 @@
 
 ;;; For Clojure, we will use zero-based indexing
 
+;;; Lots of bad ways of doing this.  By far, the best solution I implemented is rpins near
+;;; the end of the file.
+
+
+
 ;;; Expanded reward interleaves the mutliples into the original reward vector.  The single
 ;;; pin rewards are at odd indices and the double hits (multiples) are at even indices.
 ;;; Always start with a 0 as there is no pin to multiply before the first one.  The negative
@@ -296,82 +301,6 @@
                  (decond rv)))))
 
 
-;;; same, not worth it
-(defn xdpins21 [rv]
-  (if (empty? rv)
-    [nil 0]
-    (let [sv (mapv zneg rv)
-          expd (fn [dv d]
-                 (cond (not (pos? d)) [(conj dv 0)]
-                       (zero? (peek dv)) [(conj dv d)]
-                       (let [i (count dv)]
-                         (<= d (+ (sv i) (sv (dec i)))))
-                           [(conj dv 0)]
-                       :else [(-> (pop dv) (conj 0) (conj d))
-                              (conj dv 0)]))
-          decond (fn [rv] (reduce (fn [dvs d] (into [] (mapcat #(expd % d)) dvs))
-                                  [[0]]
-                                  (mapv * rv (subvec rv 1))))
-          merge-sd (fn [dv]
-                     (reduce-kv (fn [mv i d]
-                                  (cond (zero? d) (-> mv (conj 0) (conj (sv i)))
-                                        (> d (+ (peek mv) (sv i)))
-                                            (-> (pop mv) (conj 0) (conj d) (conj 0))
-                                        :else (-> mv (conj 0) (conj (sv i)))))
-                                []
-                                dv))]
-      (transduce (map merge-sd)
-                 (fn ([bestv] bestv)
-                   ([bestv pv]
-                    (let [score (reduce + 0 pv)]
-                      (if (> score (peek bestv))
-                        (conj pv score)
-                        bestv))))
-                 [-1]
-                 (decond rv)))))
-
-
-
-
-;; slower slightly
-(defn xdpins3 [rv]
-  (if (empty? rv)
-    [nil 0]
-    (let [sv (mapv zneg rv)
-          merge-sd (fn [dv]
-                     (reduce-kv (fn [mv i d]
-                                  (cond (zero? d) (-> mv (conj 0) (conj (sv i)))
-                                        (> d (+ (peek mv) (sv i)))
-                                           (-> (pop mv) (conj 0) (conj d) (conj 0))
-                                        :else (-> mv (conj 0) (conj (sv i)))))
-                                []
-                                dv))
-          decond (fn [rv]
-                   (reduce (fn [dvs d]
-                             (into []
-                                   (mapcat (fn [dv]
-                                             (cond (not (pos? d)) [(conj dv 0)]
-                                                   (zero? (peek dv)) [(conj dv d)]
-                                                   #_ (let [i (count dv)]
-                                                     (<= d (+ (sv i) (sv (dec i)))))
-                                                   #_   [(conj dv 0)]
-                                                   :else [(-> (pop dv) (conj 0) (conj d))
-                                                          (conj dv 0)])))
-                                   dvs))
-                           [[0]]
-                           (mapv * rv (subvec rv 1))))]
-      (transduce (map merge-sd)
-                 (fn ([bestv] bestv)
-                   ([bestv pv]
-                    (let [score (reduce + 0 pv)]
-                      (if (> score (peek bestv))
-                        (conj pv score)
-                        bestv))))
-                 [-1]
-                 (decond rv)))))
-
-
-
 
 
 
@@ -535,7 +464,7 @@
                                        (into bugs (repeatedly n #(rand10 10))))))))
 
 
-;;; HN comment
+;;; HN comment -- key insight
 ;   values = [3, 4, -1, 6, -1, 6, 6, 3, -1, -1, 6, -2]
 ;   prev_val = prev_score = score = 0
 ;   for val in values:
@@ -604,7 +533,24 @@
               rv)))
 
 
-;;; a different notation could use (doub) as a list, keeping the pin i the same as rewardv
-;;; [0 (4) 0 3 0 (16) 1 14]
+;;; new result notation, if :> appears it means next value is reward of a double hit between pin
+;;; position of :> and actual reward position.  Peek position is still total result
+;;;
+;;; [:> 12 0 6 0 :> 36 3 :> 1 6 0 64]
 
+(defn lpins [rv]
+  (peek
+   (reduce-kv (fn [[pres res] i r]
+                (let [score (peek res)
+                      wsing (+ score r)
+                      d (* r (nth rv (dec i) 0))
+                      wdoub (+ (peek pres) d)]
+                  (cond (and (>= score wsing) (>= score wdoub))
+                            [res (reduce conj (pop res) [0 score])]
+                        (>= wsing wdoub)
+                            [res (reduce conj (pop res) [r wsing])]
+                        ;; take wdoub
+                        :else [res (reduce conj (pop pres) [:> d wdoub])])))
+              [[0] [0]]
+              rv)))
 
