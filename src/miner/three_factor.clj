@@ -65,8 +65,18 @@
 
 
 ;;; depends on factors being ordered which they are by construction
-;;; new fastest -- faster than drop
+;;; fastest -- big win to prune with :while
 (defn fact3 [product]
+  (let [fs (factors product)]
+    (for [a fs
+          b fs :when (> b a) :let [ab (* a b)] :while (< ab product)
+          c fs :when (> c b) :let [abc (* ab c)] :while (<= abc product)
+          :when (= product abc)]
+      [a b c])))
+
+
+;;; was fastest -- faster than drop
+(defn fact31 [product]
   (let [fs (factors product)]
     (for [a fs
           b fs :when (> b a)
@@ -103,4 +113,13 @@
     (for [a fs
           b (subseq fs > a)
           c (subseq fs > b) :when (= product (* a b c))]
+      [a b c])))
+
+
+(defn fact3y [product]
+  (let [fs (sorted-factors product)]
+    (for [a fs
+          b (subseq fs > a) :let [ab (* a b)] :while (< ab product)
+          c (subseq fs > b) :let [p (* ab c)] :while (<= p product)
+          :when (= p product)]
       [a b c])))
