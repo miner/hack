@@ -49,6 +49,15 @@
 (defn pasctri [init]
   (iterate #(mapv +' (conj (seq %) 0) (conj % 0)) init))
 
+;;; much faster, not as pretty
+(defn pasckv [init]
+  (iterate (fn [rv]
+             (-> (reduce-kv (fn [r i x] (conj r (+' x (rv (inc i)))))
+                            [(first rv)]
+                            (pop rv))
+                 (conj (peek rv))))
+           init))
+
 
 
 (defn test-pasctri [pascfn]
