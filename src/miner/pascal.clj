@@ -46,18 +46,34 @@
 ;;; This version takes an initial row instead of assuming [1].
 
 ;;; init should be a vector, the initial row
-(defn pasctri [init]
-  (iterate #(mapv +' (conj (seq %) 0) (conj % 0)) init))
+(defn pasctri
+  ([] (pasctri [1]))
+  ([init]
+   (iterate #(mapv +' (conj (seq %) 0) (conj % 0)) init)))
 
 ;;; much faster, not as pretty
-(defn pasckv [init]
-  (iterate (fn [rv]
-             (-> (reduce-kv (fn [r i x] (conj r (+' x (rv (inc i)))))
-                            [(first rv)]
-                            (pop rv))
-                 (conj (peek rv))))
-           init))
+(defn pascalkv
+  ([] (pascalkv [1]))
+  ([init]
+   (iterate (fn [rv]
+              (-> (reduce-kv (fn [r i x] (conj r (+' x (rv (inc i)))))
+                             [(first rv)]
+                             (pop rv))
+                  (conj (peek rv))))
+            init)))
 
+
+;;; a bit slower than reduce-kv
+(defn xpascal
+  ([] (xpascal [1]))
+  ([init]
+   (iterate (fn [rv]
+              (transduce conj
+                         (fn ([r x] (conj r (+' x (rv (count r)))))
+                              ([r] (conj r (peek rv))))
+                         [(first rv)]
+                         (pop rv)))
+            init)))
 
 
 (defn test-pasctri [pascfn]
@@ -69,7 +85,8 @@
 
 
 ;;; I didn't like this proposal as it uses explicit recursion and calls partition.
-;;; But the JVM seems to do a good job on it so performance is pretty good.
+;;; But the JVM seems to do a good job on it so performance is pretty good.  But pascalkv is
+;;; much better.
 (defn bad-pascal
   ([row] (lazy-seq (cons row (bad-pascal row :next))))
   ([row _]
