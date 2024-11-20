@@ -123,11 +123,24 @@
    (map #(subvec v % (+ % n)) (range 0 (- (count v) (dec n)) step)))
   ;;; questionable padding
   ([n step pad v]
-   (let [cnt (count v)
-         r (rem cnt step)
-         vp (if (zero? r) v (into v (take (- step r)) pad))]
-     (map #(subvec vp % (+ % n)) (range 0 (- (count v) (dec n)) step)))
+   (println "Pad not working")
+   (subpartition n step v)))
 
+
+;;; still need to test with step > n
+
+;;; pad usage
+(defn padcnt [n step cnt]
+  (cond (zero? cnt) 0
+        (< cnt n) (- n cnt)
+        :else (- step (rem (- cnt n) step))))
+
+
+        
+(defn pv [n step cnt]
+  (last (partitionv n step (vec (range -1 (- n) -1)) (vec (range cnt)))))
+
+   
 
 (defn max-prod [width data-vec]
   (reduce (fn [r sv]

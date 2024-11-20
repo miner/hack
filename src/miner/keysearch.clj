@@ -46,20 +46,21 @@
   (reduce-kv (fn [r k v]
                (cond-> r
                    (kpred? k) (conj [k v])
-                   (map? v) (into (jhrk kpred? v))))
+                   (map? v) (into (jhr kpred? v))))
              []
              m))
 
-
+;;; FASTEST but not always???
+;;; for big input concat is faster -- I guess it's better than copying into
 (defn jhrc [kpred? m]
   (reduce-kv (fn [r k v]
                (let [r (if (kpred? k) (conj r [k v]) r)]
-                 (if (map? v) (concat (jhrk kpred? v) r) r)))
+                 (if (map? v) (concat (jhrc kpred? v) r) r)))
              []
              m))
 
 
-;;; suggested answer.  tree-seq does a depth-first search
+;;; Inspired by suggested answer.  tree-seq does a depth-first search
 ;;; changed to return vector, use mapcat.
 ;;; always descend map values even if key matched.
 ;;; staying lazy with sequence.
@@ -94,3 +95,70 @@
 (defn k234? [k]
   (or (= k "k23") (= k "k24")))
 
+
+(comment
+(def ag [:a :b :c :d :e :f :g])
+(def ag1 (zipmap ag (range)))
+(def ag2 (reduce (fn [m k] (assoc m k ag1)) {} ag))
+(def ag3 (reduce (fn [m k] (assoc m k ag2)) {} ag))
+)
+
+(def nnn
+  {:a
+   {:a {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :b {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :c {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :d {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :e {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :f {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :g {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6}},
+   :b
+   {:a {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :b {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :c {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :d {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6 :k 1},
+    :e {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :f {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :g {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6}},
+   :c
+   {:a {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :b {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :c {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :d {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :e {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :f {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6 :k 2},
+    :g {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6}},
+   :k 0
+   :d
+   {:a {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :k {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6 :k 3},
+    :c {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :d {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :e {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :f {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :g {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6}},
+   :e
+   {:a {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :b {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :c {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :d {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :e {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :f {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :g {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6}},
+   :f
+   {:a {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :b {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :c {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :d {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :e {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :f {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :g {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6}},
+   :g
+   {:k 4
+    :a {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :b {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :c {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :d {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :e {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :f {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6},
+    :g {:a 0, :b 1, :c 2, :d 3, :e 4, :f 5, :g 6}}})
