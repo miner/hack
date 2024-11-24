@@ -113,32 +113,11 @@
 ;;; Makes me think it would be nice to have a partition variant that returns subvectors.
 ;;; Fast if you have an original vector.
 
-
-;;; FIXME bad math on pad.  Need to consider step and n (width) -- need to get same result
-;;; as partitionv
-
-(defn subpartitionv1
-  ([n v] (subpartitionv1 n n v))
-  ([n step v]
-   (map #(subvec v % (+ % n)) (range 0 (- (count v) (dec n)) step)))
-  ;;; questionable padding
-  ([n step pad v]
-   (concat (subpartitionv1 n step v)
-           (let [cnt (count v)
-                 pcnt (cond (zero? cnt) 0
-                            (< cnt n) (- n cnt)
-                            :else  (- step (rem (- cnt n) step)))]
-             (when (and (pos? pcnt) (< pcnt n))
-               (list (into (subvec v (- cnt (- n pcnt))) (take pcnt) pad)))))))
-
-
-
-
+;;; copied from partition.clj 
 (defn subpartitionv
   ([n v] (subpartitionv n n v))
   ([n step v]
    (map #(subvec v % (+ % n)) (range 0 (- (count v) (dec n)) step)))
-  ;;; questionable padding
   ([n step pad v]
    (let [cnt (count v)]
      (cond (zero? cnt) ()
@@ -146,42 +125,10 @@
            :else (concat (subpartitionv n step v)
                          (lazy-seq
                           (let [padlen (- step (rem (- cnt n) step))]
-                            (when (and (pos? padlen) (< padlen n))
+                            (when (< padlen n)
                               (list (into (subvec v (- cnt (- n padlen)))
                                           (take padlen) pad))))))))))
 
-(defn test-subp [subp]
-  (let [v20 (vec (range 20))
-        pad [-1 -2 -3 -4 -5]]
-    (assert (= (partitionv 3 1 pad []) (subpartitionv 3 1 pad [])))
-    (assert (= (partitionv 3 1 pad [1]) (subpartitionv 3 1 pad [1])))
-    (assert (= (partitionv 3 1 pad v20) (subpartitionv 3 1 pad v20)))
-    (assert (= (partitionv 3 2 pad v20) (subpartitionv 3 2 pad v20)))
-    (assert (= (partitionv 3 2 nil v20) (subpartitionv 3 2 nil v20)))
-    (assert (= (partitionv 3 12 pad v20) (subpartitionv 3 12 pad v20)))
-    true))
-
-
-    
-
-
-
-;;; testing only pad usage
-(defn padcnt [n step cnt]
-  (cond (zero? cnt) 0
-        (< cnt n) (- n cnt)
-        :else (- step (rem (- cnt n) step))))
-
-
-
-;;;; QUESTION  what's the diff between (partitionv-all ...) and (partitionv with nil pad)
-;;;; ???
-;;; ask Clojure
-        
-(defn pv [n step cnt]
-  (last (partitionv n step (vec (range -1 (- n) -1)) (vec (range cnt)))))
-
-   
 
 (defn max-prod [width data-vec]
   (reduce (fn [r sv]
