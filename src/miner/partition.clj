@@ -1,24 +1,7 @@
 (ns miner.partition)
 
-
 ;;; euler08.clj solution makes me think it would be nice to have a partition variant that
 ;;; returns subvectors.  Fast if you have an original vector.
-
-
-(defn subpartitionv1
-  ([n v] (subpartitionv1 n n v))
-  ([n step v]
-   (map #(subvec v % (+ % n)) (range 0 (- (count v) (dec n)) step)))
-  ([n step pad v]
-   (concat (subpartitionv1 n step v)
-           (let [cnt (count v)
-                 pcnt (cond (zero? cnt) 0
-                            (< cnt n) (- n cnt)
-                            :else  (- step (rem (- cnt n) step)))]
-             (when (< pcnt n)
-               (list (into (subvec v (- cnt (- n pcnt))) (take pcnt) pad)))))))
-
-;;; FIXME:  (pos? padlen) probably not necessary
 
 ;;; Good
 (defn subpartitionv
@@ -36,35 +19,8 @@
                               (list (into (subvec v (- cnt (- n padlen)))
                                           (take padlen) pad))))))))))
 
-(defn subpartitionv3
-  ([n v] (subpartitionv3 n n v))
-  ([n step v]
-   (map #(subvec v % (+ % n)) (range 0 (- (count v) (dec n)) step)))
-  ([n step pad v]
-   (let [cnt (count v)]
-     (cond (zero? cnt) ()
-           (<= cnt n) (list (into v (take (- n cnt)) pad))
-           :else (concat (subpartitionv3 n step v)
-                         (let [padlen (- step (rem (- cnt n) step))]
-                           (when (< padlen n)
-                             (lazy-seq
-                              (list (into (subvec v (- cnt (- n padlen)))
-                                          (take padlen) pad))))))))))
+;;; lazy-seq doesn't seems to help much with just the last item but it doesn't hurt
 
-;;; lazy-seq doesn't help much with just the last item
-(defn subpartitionv4
-  ([n v] (subpartitionv4 n n v))
-  ([n step v]
-   (map #(subvec v % (+ % n)) (range 0 (- (count v) (dec n)) step)))
-  ([n step pad v]
-   (let [cnt (count v)]
-     (cond (zero? cnt) ()
-           (<= cnt n) (list (into v (take (- n cnt)) pad))
-           :else (concat (subpartitionv4 n step v)
-                         (let [padlen (- step (rem (- cnt n) step))]
-                           (when (< padlen n)
-                              (list (into (subvec v (- cnt (- n padlen)))
-                                          (take padlen) pad)))))))))
 
 
 (def v20 (vec (range 20)))
@@ -99,18 +55,13 @@
   true)
 
 
-;;; testing only pad usage
-(defn padcnt [n step cnt]
-  (cond (zero? cnt) 0
-        (< cnt n) (- n cnt)
-        :else (- step (rem (- cnt n) step))))
 
-(defn pcnt [n step cnt]
+(defn padcnt [n step cnt]
   (cond (zero? cnt) 0
         (< cnt n) (- n cnt)
         :else (let [r (rem (- cnt n) step)
                     p (- step r)
-                    pd (when (and (pos? p) (< p n)) p)]
+                    pd (when (< p n) p)]
                 [cnt r p pd])))
 
 
@@ -120,5 +71,23 @@
 ;;; ask Clojure
         
 (defn pv [n step cnt]
-  (last (partitionv n step (vec (range -1 (- n) -1)) (vec (range cnt)))))
+  (last (partitionv n step (range 1 (inc step)) (vec (repeat cnt 0)))))
 
+
+(defn pstepcnt [step cnt]
+  (into [[:step step :cnt cnt]]
+        (for [n (range 1 (+ cnt step))]
+          (cond (zero? cnt) 0
+                (< cnt n) (- n cnt)
+                :else (let [r (rem (- cnt n) step)
+                            p (- step r)]
+                        (when (< p n) p))))))
+
+(defn pncnt [n cnt]
+  (into [[:n n :cnt cnt]]
+        (for [step (range 1 (* 2 n))]
+          (cond (zero? cnt) 0
+                (< cnt n) (- n cnt)
+                :else (let [r (rem (- cnt n) step)
+                            p (- step r)]
+                        (when (< p n) p))))))
