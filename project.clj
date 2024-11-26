@@ -1,6 +1,6 @@
-(defproject hack "0.3.0-SNAPSHOT" 
+(defproject hack "0.4.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.57.3"]
+  :dependencies [[djblue/portal "0.58.3"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.285"]
                  [com.taoensso/telemere "1.0.0-beta11"]
@@ -17,6 +17,7 @@
                  [org.clojure/tools.macro "0.2.1"]
                  [org.clojure/data.priority-map "1.2.0"]
                  [instaparse "1.5.0"]
+                 [nrepl/nrepl "1.3"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "1.1.0"]
                  [quil "4.3.1563"]
@@ -37,8 +38,8 @@
                  [digest "1.4.10"]
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
-                 [org.clojars.quoll/tiara "0.3.6"]
-                 [com.github.nubank/morse "2023.10.06.02"]
+                 [org.clojars.quoll/tiara "0.3.7"]
+                 ;; [com.github.nubank/morse "2023.10.06.02"]
                  [clj-commons/fs "1.6.311"]]
   :global-vars {*warn-on-reflection* true
                 ;; *unchecked-math* :warn-on-boxed
@@ -48,8 +49,8 @@
                                    ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
-             :clj18 {:dependencies [   
-                                    [org.clojure/clojure "1.8.0"]
+             :clj18 {:dependencies [[org.clojure/clojure "1.8.0"]
+                                    [nrepl "1.3"]
                                     ]}
 
              :clj17 {:dependencies [   
@@ -64,9 +65,11 @@
              :snapshot {:dependencies [[org.clojure/clojure "1.12.0-master-snapshot"]]}
              }
   :jvm-opts ["-Djdk.attach.allowAttachSelf"]
-  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"
+  :repositoriesXXX {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"
                  ;; for Morse
                  "jitpack" "https://jitpack.io"}
+
+  ;;  :repositories [["releases" {:url "https://repo.clojars.org"}]]
 
   ;; :bootclasspath true
   ;; :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
