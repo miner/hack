@@ -102,6 +102,10 @@ clojure.core/partitionv-all
 
 (comment 
 
+;;; Issuse seems to be when N > 2*STEP.  Just the way it is.  Not likely to change, just
+;;; something to be aware of.
+  
+
 (partition-all 5 2 (range 10))
 ((0 1 2 3 4) (2 3 4 5 6) (4 5 6 7 8) (6 7 8 9) (8 9))
 ;; notice second to last partition (6 7 8 9) has only four elements.  Why not stop there?
@@ -119,7 +123,43 @@ clojure.core/partitionv-all
 (partition 3 1 nil  (range 5))
 ((0 1 2) (1 2 3) (2 3 4) (3 4))
 
-;;; Issuse seems to be when N > 2*STEP
+
+;;; more dramatic example. 
+(map count (partition-all 7 1  (range 10)))
+(7 7 7 7 6 5 4 3 2 1)
+
+;;; my preference
+(map count (partition 7 1 nil (range 10)))
+(7 7 7 7 6)
+
+;;; as expected
+(map count (partition 7 1 (range 10)))
+(7 7 7 7)
+
+
+;; interested progression of tails
+(map count (partition-all 7 7 (range 10)))
+(7 3)
+
+(map count (partition-all 7 6 (range 10)))
+(7 4)
+
+(map count (partition-all 7 5 (range 10)))
+(7 5)
+
+(map count (partition-all 7 4 (range 10)))
+(7 6 2)
+
+(map count (partition-all 7 3 (range 10)))
+(7 7 4 1)
+
+(map count (partition-all 7 2 (range 10)))
+(7 7 6 4 2)
+
+(map count (partition-all 7 1 (range 10)))
+(7 7 7 7 6 5 4 3 2 1)
+
+
 
 (partition-all 5 7 (range 20))
 ((0 1 2 3 4) (7 8 9 10 11) (14 15 16 17 18))
@@ -127,6 +167,16 @@ clojure.core/partitionv-all
 
 ;; end comment
 )
+
+(defn demo7 []
+  (let [r (range 1 10)]
+    (doseq [i r]
+      (println)
+      (println "(map count (partition-all 7" i "(range 1 10)))")
+      (println (map count (partition-all 7 i r)))
+      (println "(map count (partition 7" i "nil (range 1 10)))")
+      (println (map count (partition 7 i nil r)))))
+  (println))
 
 (defn test-pall []
   (dotimes [i 10]
