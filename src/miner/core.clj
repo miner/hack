@@ -26,6 +26,15 @@
    (or (= x y)
        (<= (abs- x y) (* m (clojure.math/ulp x))))))
 
+;;; returns a fn taking single arg, which returns arg if it's truthy and satisfies pred,
+;;; otherwise nil.   Other possible names `iff`, `only-when`.  Not sure about the `curried`
+;;; arg.
+
+(defn whenp
+  ([pred] (fn [x] (when (and x (pred x)) x)))
+  ([pred x] (when (pred x) x)))
+
+
 (defn hexstr [n]
   (let [hs (clojure.string/upper-case (Long/toHexString n))
         len (count hs)
@@ -133,27 +142,7 @@
 
 ;; SEM need a whole file of transient work-arounds!
 
+;;; rarely needed, but maybe good for basic pair (like a dotted pair in Lisp)
+(defn map-entry [k v]
+  (clojure.lang.MapEntry/create k v))
 
-
-;;; Fix for partitionv in 1.12.0-alpha1.  See CLJ-2715.  My patch just added the missing
-;;; `list`.  This version calculates the amount of padding needed, and avoids the call to
-;;; `concat`.  Perhaps faster with less garbage, but I didn't do any performance testing.
-
-
-(defn partv
-  ([n coll]
-   (partv n n coll))
-  ([n step coll]
-   (lazy-seq
-     (when-let [s (seq coll)]
-       (let [p (into [] (take n) s)]
-         (when (= n (count p))
-           (cons p (partv n step (nthrest s step))))))))
-  ([n step pad coll]
-   (lazy-seq
-     (when-let [s (seq coll)]
-       (let [p (into [] (take n) s)
-             need (- n (count p))]
-         (if (zero? need)
-           (cons p (partv n step pad (nthrest s step)))
-           (list (into p (take need) pad))))))))
