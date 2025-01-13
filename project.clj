@@ -1,6 +1,6 @@
 (defproject hack "0.4.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.58.3"]
+  :dependencies [[djblue/portal "0.58.5"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.285"]
                  [com.taoensso/telemere "1.0.0-beta11"]
@@ -13,11 +13,11 @@
                  [org.clojure/data.int-map "1.3.0"]
                  [org.clojure/data.avl "0.2.0"]
                  [org.clojure/core.rrb-vector "0.2.0"]
-                 [org.clojure/core.async "1.6.681"]
+                 [org.clojure/core.async "1.7.701"]
                  [org.clojure/tools.macro "0.2.1"]
                  [org.clojure/data.priority-map "1.2.0"]
                  [instaparse "1.5.0"]
-                 [nrepl/nrepl "1.3"]
+                 [nrepl/nrepl "1.3.1"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "1.1.0"]
                  [quil "4.3.1563"]
@@ -50,14 +50,14 @@
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
              :clj18 {:dependencies [[org.clojure/clojure "1.8.0"]
-                                    [nrepl "1.3"]
+                                    [nrepl "1.3.1"]
                                     ]}
 
              :clj17 {:dependencies [   
                                     [org.clojure/clojure "1.7.0"]
                                     ]}
              :rebl {:dependencies [
-                                   [org.clojure/core.async "1.6.681"]
+                                   [org.clojure/core.async "1.7.701"]
                                    [REBL "0.9.220"]
                                    ]
                     :main cognitect.rebl}
