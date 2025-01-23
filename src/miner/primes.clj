@@ -6,8 +6,33 @@
 ;;; see also sieve.clj for the best way to do primes
 ;;; see also dijkstra_primes.clj for an interesting algorithm
 
+
+;;; 01/22/25 10:29 by miner -- see also Hacker News discussion of interesting, palindromic
+;;; or memorable primes.  Lots of good ones.  https://news.ycombinator.com/item?id=42748691
+
 (ns miner.primes)
 
+;;; just a few
+(def memorable-primes
+  [34567876543
+   33321112333
+   11114741111
+   35753335753
+   131
+   13331
+   31337
+   8675309 ;; Jenny
+   3212123
+   18181
+   30103
+   ;; last two are bigints
+   11111111111111111111111N ;; 23 ones
+   12345678910987654321N  ;; 1 through 10 and down again
+   ])
+
+(def jenny 8675309)
+
+   
 (defn factor? [n potential]
   (zero? (rem n potential)))
 
@@ -22,6 +47,13 @@
   (let [factors-below-sqrt (filter #(factor? n %) (range 1 (inc (Math/sqrt n))))
         factors-above-sqrt (map #(/ n %) factors-below-sqrt)]
     (concat factors-below-sqrt factors-above-sqrt)))
+
+;;; faster with vectors, inlined factor test, eager with transducer
+(defn factorv [n]
+  (let [factors-below-sqrt (filterv #(zero? (rem n %)) (range 1 (inc (Math/sqrt n))))]
+    (into factors-below-sqrt (map #(/ n %)) factors-below-sqrt)))
+
+
 
 (def get-factors (memoize factors))
 
@@ -95,9 +127,17 @@
 ;;; See Java  BigInteger.isProbablePrime  -- but kind of slow, 3x primef? shown above, which is
 ;;; not considered fast.
 
-(defn probable-prime? [n]
-  (.isProbablePrime (java.math.BigInteger/valueOf ^long n) 5))
+;;; Works well when numbers get big.  If it returns false, the number is definitely
+;;; composite.  If it returns true, the number is probably prime but still might be
+;;; composite.  Optional second arg is "uncertainty" tolerance: 0 always returns
+;;; true (totally unreliable); a more positive unc yields a more reliable true result.
+;;; Technically, the probability of a correct true is (1 - 2^-u).  A false result is always
+;;; correct.
 
+
+(defn probable-prime?
+  ([n] (probable-prime? n 5))
+  ([n unc] (java.math.BigInteger/.isProbablePrime (biginteger n) unc)))
 
 ;; fastest for single p test
 ;; inc-inc slightly faster than +2
