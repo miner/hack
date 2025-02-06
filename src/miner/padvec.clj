@@ -3,7 +3,8 @@
 
 
 ;;; original: https://www.emcken.dk/programming/2025/02/01/about-fixing-the-right-problem/
-
+;;; first noticed that pad-vector could be better.  Then decided on a better approach for
+;;; sorting the map.
 
 (defn pad-vector
   [v len pad-val]
