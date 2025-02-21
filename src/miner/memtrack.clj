@@ -29,9 +29,11 @@
 
 
 (comment
+
+  ;(require '[clj-memory-meter.core :as mm])
   
   (require '[clj-memory-meter.trace :as cmm.trace])
-  (require '[clojure.data.combinatorics :as combo])
+  (require '[clojure.math.combinatorics :as mc])
 
 (cmm.trace/trace-var #'matches?)
 (cmm.trace/trace-var #'subsets-eager)
@@ -128,3 +130,15 @@
 
 )
 
+
+(defn subsets-mc [coll]
+  (map add-deadweight (map set (mc/subsets coll))))
+
+
+(comment
+(cmm.trace/trace-var #'subsets-mc)
+
+(cmm.trace/with-relative-usage
+  (count-when matches? (subsets-mc (range 2 9))))
+
+)
