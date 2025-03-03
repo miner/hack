@@ -238,7 +238,9 @@ infinite sequences."
    (assert (= (gcd 1023 858) 33))
    true))
 
-
+(defn coprime? [a b]
+  (= (gcd a b) 1))
+  
 
 ;; not the best thing to use on known vectors
 (defn first= [xs y]
