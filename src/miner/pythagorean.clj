@@ -176,6 +176,10 @@
 (defn pytrip? [[a b c]]
   (= (* c c) (+ (* a a) (* b b))))
 
+(defn primtrip? [[a b c :as trip]]
+  (and (pytrip? trip)
+       (coprime? a c)))
+
 (defn canonical-pytrip [[a b c :as trip]]
   (if (< a b)
     trip
@@ -189,6 +193,11 @@
 ;;; not sure about limit for m but it seems OK, maybe could be half that?
 ;;; We use a local coprime? that assume positive inputs.
 ;;; It's a bit faster to integrate the odd? test into the n range rather than test later.
+;;; Note: mx is a limit on the sides, but you need a large value to guarantee that all the
+;;; smaller values have been generated.  That might matter if you're trying to generate and
+;;; sort into a specific order.  If you just want any reasonable triples, pick a samll mx
+;;; like 100 or 300.
+
 (defn euclid-py-triples [mx]
   (let [coprime? (fn [a b]
                    (if (zero? b)
@@ -206,24 +215,51 @@
         [b a c]))))
 
 
-
-;;; Tree form, basically matrix multiplication
-;;; https://en.wikipedia.org/wiki/Tree_of_primitive_Pythagorean_triples
-
-;;; not so great for generating in order but if you take enough you can filter and sort
-
-(defn berrgren-step [[a b c]]
-  [[(+ a (* -2 b) (* 2 c)) (+ (* 2 a) (- b) (* 2 c)) (+ (* 2 a) (* -2 b) (* 3 c))]
-   [(+ a (* 2 b) (* 2 c))  (+ (* 2 a) b (* 2 c))  (+ (* 2 a) (* 2 b) (* 3 c))]
-   [(+ (- a) (* 2 b) (* 2 c))  (+ (* -2 a) b (* 2 c))  (+ (* -2 a) (* 2 b) (* 3 c))]])
-
-
-(defn berrgren [cnt]
-  (loop [res [] layer [[3 4 5]]]
-    (if (>= (+ (count res) (count layer)) cnt)
-      (into (mapv canonical-pytrip res) (map canonical-pytrip) layer)
-      (recur (into res layer) (mapcat berrgren-step layer)))))
-
 ;;; make test fn for filtering triple such that all elements are less than or equal to N
 (defn py-lte [n]
   (fn [[a b c]] (and (<= c n) (<= a n) (<= b n))))
+
+
+
+
+;;; Tree form, using matrix multiplication
+;;; https://en.wikipedia.org/wiki/Tree_of_primitive_Pythagorean_triples
+
+;;; lazy but not in convenient order and not canonical triples (fixable)
+;;; However, it's interesting that they prove the algoright covers all primitive triples
+;;; (eventually).  If you pick a large cnt and filter with py-lte and map canonical-ptyrip
+;;; and sort, you can probably get a reasonable result.
+
+;;; berrgren-step is basically a matrix multiplication
+;;; berrgren-layer expands the previous layer, lazy and infinite so you need to `take`
+
+;; could change to canonical triples with this xform, but still unconventional order.
+;; (comp cat (map canonical-pytrip))
+
+(defn berrgren [cnt]
+  (let [berrgren-step
+        (fn [[a b c]]
+          [[(+ a (* -2 b) (* 2 c)) (+ (* 2 a) (- b) (* 2 c)) (+ (* 2 a) (* -2 b) (* 3 c))]
+           [(+ a (* 2 b) (* 2 c))  (+ (* 2 a) b (* 2 c))  (+ (* 2 a) (* 2 b) (* 3 c))]
+           [(+ (- a) (* 2 b) (* 2 c))  (+ (* -2 a) b (* 2 c))  (+ (* -2 a) (* 2 b) (* 3 c))]])
+        berrgren-layer (fn [layer] (sequence (mapcat berrgren-step) layer)) ]
+    (sequence (comp cat (take cnt)) (iterate berrgren-layer [[3 4 5]]))))
+
+
+(defn infinite-berrgren []
+  (let [berrgren-step
+        (fn [[a b c]]
+          [[(+ a (* -2 b) (* 2 c)) (+ (* 2 a) (- b) (* 2 c)) (+ (* 2 a) (* -2 b) (* 3 c))]
+           [(+ a (* 2 b) (* 2 c))  (+ (* 2 a) b (* 2 c))  (+ (* 2 a) (* 2 b) (* 3 c))]
+           [(+ (- a) (* 2 b) (* 2 c))  (+ (* -2 a) b (* 2 c))  (+ (* -2 a) (* 2 b) (* 3 c))]])
+        berrgren-layer (fn [layer] (sequence (mapcat berrgren-step) layer)) ]
+    (sequence cat (iterate berrgren-layer [[3 4 5]]))))
+
+
+
+
+;;; much more info
+;;; https://r-knott.surrey.ac.uk/Pythag/pythag.html
+
+;;; lots of integer sequences
+;;; https://oeis.org/search?q=pythagorean&language=english&go=Search
