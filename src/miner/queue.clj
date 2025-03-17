@@ -50,11 +50,11 @@
   (v 0))
 
 (defn pop-head [v]
-  (subvec 1))
+  (subvec v 1))
 
 (defn conj-head [v x]
   ;; not good
   (into [x] v))
 
-
+;;; see also deque.clj for some other ideas.
 
