@@ -84,8 +84,8 @@
 
 ;;; SEM: why do that hybrid map/record?  If you have a record, always use it and return
 ;;; another record.  OK, it looks like I misunderstood the pop-front and pop-back which
-;;; return stylized maps -- I think they should just pop and return the new Deque.  Use
-;;; peek* first if you want the element.
+;;; return stylized maps for multiple values -- I think they should just pop and return the
+;;; new Deque.  Use peek* first if you want the element.
 
 ;;; In this case, it's probably easier to use a canonical map.  My idea would be to use
 ;;; distinquished namespaced keys.  Assuming no hostile data, this should be a reasonable
@@ -147,3 +147,38 @@
 
 (defn dq-seq [dq]
   (concat (::front dq) (::rear dq)))
+
+
+(comment  All the supers of a vector   (supers (class [1]))
+  clojure.lang.IObj
+  clojure.lang.IKVReduce
+  clojure.lang.AFn
+  clojure.lang.IReduce
+  java.util.concurrent.Callable
+  clojure.lang.IPersistentCollection
+  java.lang.Iterable
+  java.util.SequencedCollection
+  clojure.lang.Seqable
+  clojure.lang.IPersistentVector
+  clojure.lang.Indexed
+  clojure.lang.Counted
+  clojure.lang.IEditableCollection
+  clojure.lang.Sequential
+  clojure.lang.IHashEq
+  clojure.lang.IPersistentStack
+  java.lang.Object
+  clojure.lang.IReduceInit
+  java.io.Serializable
+  java.lang.Comparable
+  clojure.lang.APersistentVector
+  clojure.lang.ILookup
+  java.util.Collection
+  java.util.RandomAccess
+  java.util.List
+  clojure.lang.Associative
+  clojure.lang.IMeta
+  clojure.lang.IDrop
+  clojure.lang.Reversible
+  java.lang.Runnable
+  clojure.lang.IFn
+)
