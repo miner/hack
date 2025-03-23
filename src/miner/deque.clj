@@ -82,9 +82,8 @@
 )
 
 
-;;; SEM: why do that hybrid map/record?  If you have a record, always use it and return
-;;; another record.  OK, it looks like I misunderstood the pop-front and pop-back which
-;;; return stylized maps for multiple values -- I think they should just pop and return the
+;;; SEM: At first, I misunderstood the pop-front and pop-back which
+;;; return stylized maps for multiple values.  I think they should just pop and return the
 ;;; new Deque.  Use peek* first if you want the element.
 
 ;;; In this case, it's probably easier to use a canonical map.  My idea would be to use
@@ -94,6 +93,12 @@
 ;;;
 ;;; Not saying this is a good idea.  A serious implementation would be more like
 ;;; Clojure's internal PersistentQueue.java.  Or maybe use rrb-vector and get fast concat.
+
+;;; Thinking a bit more, it would be a better example to make a record with the normal
+;;; Clojure collection protocols implemented.  Maybe add a bit more to allow peek-, pop-,
+;;; and conj-front.  A deftype would be more proper as we don't need map-sytle access, but
+;;; it's convenient for the implementation, at least for my current rdq code which is
+;;; map-based.
 
 
 ;;; ::front is always a list, ::rear is always a vector
@@ -182,3 +187,167 @@
   java.lang.Runnable
   clojure.lang.IFn
 )
+
+
+
+
+;;; new idea -- keep two vectors with front considered reversed, rear normal vector
+
+;;; make it a record so it can participate in the usual collection protocols
+;;; treat like a vector but add something like a reverse stack pop, push, peek at front
+;;; maybe a new protocol for front access
+
+(defn rdq [coll]
+  {::rfront [] ::v (vec coll)})
+  
+(defn rdq? [rdq]
+  (and (map? rdq)
+       (contains? rdq ::rfront)
+       (contains? rdq ::v)))
+
+(defn rdq-empty? [dq]
+  (and (zero? (count (::v rdq))) (zero? (count (::rfront rdq)))))
+
+(defn rdq-count [rdq]
+  (+ (count (::rfront rdq)) (count (::v rdq))))
+
+(defn rdq-pop-front [rdq]
+  (if (pos? (count (::rfront rdq)))
+    (update rdq ::rfront pop)
+    (update rdq ::v subvec 1)))
+
+(defn rdq-pop-back [rdq]
+  (if (pos? (count (::v rdq)))
+    (update rdq ::v pop)
+	(update rdq ::rfront subvec 1)))
+
+
+(defn rdq-peek-front [rdq]
+  (if (pos? (count (::rfront rdq)))
+	(peek (::rfront rdq))
+	(nth (::v rdq) 0 nil)))
+
+
+(defn rdq-peek-back [dq]
+    (if (pos? (count (::v dq)))
+      (peek (::v dq))
+	  (nth (::rfront rdq) 0 nil)))
+
+(defn rdq-push-front [rdq x]
+  (update rdq ::rfront conj x))
+
+(defn rdq-push-back [rdq x]
+  (update rdq ::v conj x))
+
+(defn rdq-seq [rdq]
+  (concat (rseq (::rfront rdq)) (::v rdq)))
+
+
+(deftype Deq [rfront v]
+  clojure.lang.IFn
+    (applyTo [this args] (assert (= (count args) 1)) (nth this (first args)))
+    (invoke [this n] (.nth this n))
+
+  clojure.lang.IPersistentCollection
+    (cons [this a] (Deq. rfront (conj v a)))
+    ;;(count [this] duplicate)
+    (empty [this] (Deq. [] []))
+    (equiv [this x] (or (identical? this x) (= (seq this) (seq x))))
+
+  clojure.lang.IKVReduce
+  (kvreduce [this f init]
+    (let [rfcnt (count rfront)]
+      (reduce-kv (fn [res k x] (f res (+ k rfcnt) x))
+                 (reduce (fn [r i] (f r i (rfront (- (dec rfcnt) i))))
+                         init
+                         (range rfcnt))
+                 v)))
+
+ clojure.lang.Counted
+  (count [this] (+ (count rfront) (count v)))
+
+  clojure.lang.IReduce
+    (reduce [this f] (reduce f (concat (rseq rfront) v)))
+
+  clojure.lang.IHashEq
+     (hasheq [this] (hash (seq this)))
+
+  ;;clojure.lang.IEditableCollection
+  ;;  (asTransient [this] xxx)
+
+  clojure.lang.Seqable
+    (seq [this] (concat (rseq rfront) v))
+
+  clojure.lang.IPersistentVector
+  (assocN [this n x]
+    (let [rfcnt (count rfront)]
+      (if (< n rfcnt)
+        (Deq. (assoc rfront (- (dec rfcnt) n) x) v)
+        (Deq. rfront (assoc v (- n rfcnt) x)))))
+
+    ;; wrong end anyway (cons [this a] (assoc :rfront conj a))
+    (length [this] (+ (count rfront) (count v)))
+
+  java.lang.Comparable
+    (compareTo [this x] (compare (concat (rseq rfront) v) (seq x)))
+
+  clojure.lang.IReduceInit
+    (reduce [this f init] (reduce f init (concat (rseq rfront) v)))
+
+  clojure.lang.Indexed
+  (nth [this n]
+    (let [fcnt (count rfront)]
+      (if (< n fcnt)
+        (nth rfront (- (dec fcnt) n))
+        (nth v (- n fcnt)))))
+  (nth [this n default]
+    (if (< n (count this))
+      (nth this n)
+      default))
+
+  clojure.lang.IDrop
+  (drop [this n]
+    (let [rfcnt (count rfront)]
+      (if (< n rfcnt)
+        (Deq. (subvec rfront 0 (- rfcnt n)) v)
+        (if (< n (count this))
+          (Deq. [] (subvec v (- n rfcnt)))
+          (Deq. [] [])))))
+
+  clojure.lang.Associative
+  (assoc [this n x]
+    (let [fcnt (count rfront)]
+      (if (< n fcnt)
+        (Deq. (assoc rfront (- (dec fcnt) n) x) v)
+
+****        WIP HERE   ****
+
+        (update this :v assoc (- n fcnt) x))))
+
+
+
+
+  (containsKey [this i] (and (int? i) (< i (count this))))
+  (entryAt [this i]
+    (when (and (int? i) (< i (count this)))
+      [i (nth this i)]))
+
+  clojure.lang.IPersistentStack
+  (peek [this] (if (pos? (count v))
+                 (peek v)
+                 (nth rfront (dec (count rfront)) nil)))
+  (pop [this] (if (pos? (count (:v this)))
+                (update this :v pop)
+                (update this :rfront subvec 1)))
+
+  clojure.lang.Reversible
+    (rseq [this] (concat (rseq v) rfront))
+
+    ;;; automatic for defrecord -- can't override and shouldn't -- need deftype
+  clojure.lang.ILookup
+     (valAt [this i] (nth this i))
+     (valAt [this i default] (nth this i default))
+  )
+
+
+
