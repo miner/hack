@@ -8,9 +8,8 @@
 ;;  Think of a long integer as a sorted-set of 0-63.  If your problem maps into a small set,
 ;;  it can be much faster than using a generic Clojure set.
 
-;;  You can depend on the "bfirst" being the smallest bit index, and "blast" being the
-;;  greatest.  "bpop" disjoins the bfirst element (smallest).  "bseq" yields a seq in
-;;  ascending order.  "brseq" gives you reverse order.
+;;  "bpeek" returns index of lowest set bit.  "bpop" disjoins the lowest bit.  "bseq" yields
+;;  a seq in ascending order of bit indices.  "brseq" gives you reverse order.
 
 
 (def ^:const b-all -1)
@@ -57,19 +56,18 @@
 (defn bcomplement [n]
   (bit-xor n b-all))
 
-;; FIXME: Do you care about order?  low to high seems more natural
-;; FIXME: What about lazy?  Probably don't care as they're small
+;; low to high seems the natural order
+;; lazy impl was slow and didn't seem worth it
 
-
-;; min bit
-(defn bfirst [n]
-  (when-not (zero? n)
-    (Long/numberOfTrailingZeros n)))
-
-;; max bit
-(defn blast [n]
+;; max bit index
+(defn bmax [n]
   (when-not (zero? n)
     (- 63 (Long/numberOfLeadingZeros n))))
+
+;; min bit
+(defn bpeek [n]
+  (when-not (zero? n)
+    (Long/numberOfTrailingZeros n)))
 
 (defn bpop [n]
   (bit-xor n (Long/lowestOneBit n)))
@@ -107,14 +105,14 @@
 ;; lazy but slow, better to be eager for small things
 #_
 (defn lbseq [n]
-  (sequence (comp (take-while (complement zero?)) (map bfirst)) (iterate bpop n)))
+  (sequence (comp (take-while (complement zero?)) (map bpeek)) (iterate bpop n)))
 
 #_
 (defn xbvec [n]
-  (into [] (comp (take-while (complement zero?)) (map bfirst)) (iterate bpop n)))
+  (into [] (comp (take-while (complement zero?)) (map bpeek)) (iterate bpop n)))
 
 ;; convert to conventional Clojure Set of longs (indices of marked bits)
-(defn bset [n]
+(defn bset->set [n]
   (loop [n n bs (transient #{})]
     (if (zero? n)
       (persistent! bs)
@@ -133,6 +131,7 @@
 (defn breduce [f init n]
   (reduce f init (bseq n)))
 
+;; no prefix, but you could add "2r" if you need it
 (defn bstr
   ([n] (Long/toBinaryString n))
   ([width n]
@@ -144,22 +143,14 @@
             bs)
        bs))))
 
+
+;; I like the 0x prefix. `width` refers to hex digits, not including 0x prefix
 (defn hexstr
-  ([n] (clojure.string/upper-case (Long/toHexString n)))
+  ([n] (str "0x" (clojure.string/upper-case (Long/toHexString n))))
   ([width n]
    {:pre [(<= 0 width 16)]}
    (let [hs (hexstr n)
-         pad (- width (count hs))]
-     (if (pos? pad)
-       (str (subs "0000000000000000" 0 pad) hs)
-       hs))))
-
-(defn hexstr2
-  ([n] (clojure.string/upper-case (Long/toHexString n)))
-  ([width n]
-   {:pre [(<= 0 width 16)]}
-   (let [hs (hexstr2 n)
-         len (count hs)]
+         len (- (count hs) 2)]
      (if (> width len)
-       (str (subs "0000000000000000" 0 (- width len)) hs)
+       (str "0x" (subs "0000000000000000" 0 (- width len)) (subs hs 2))
        hs))))
