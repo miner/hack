@@ -118,3 +118,28 @@ if a is a 'submap' of b."
          false hnest1 hnest
          false hnestx hnest)))
 
+
+;;; years later, this concept reappears (not exactly the same but pretty close). I would use
+;;; reduce-kv again.
+;;; https://camdez.com/blog/2025/04/21/clojure-submaps/
+
+(defn submap?
+  "Are all of the key-value pairs in `m1` also in `m2`?"
+  [m1 m2]
+  (= m1 (select-keys m2 (keys m1))))
+  
+#_ (submap {:a 1, :b 2} {:a 1, :b 2, :c 3}) ; => true
+#_ (submap {:a 1, :b 2} {:a 1, :b 4, :c 3}) ; => false
+
+
+(defn submap2? [m1 m2]
+  (reduce-kv (fn [r k v]
+               (if (and r (= v (get m2 k)))
+                 r
+                 (reduced false)))
+             true
+             m1))
+
+(defn test-submap [submap?]
+  (and (submap? {:a 1, :b 2} {:a 1, :b 2, :c 3})
+       (not (submap? {:a 1, :b 2} {:a 1, :b 4, :c 3}))))
