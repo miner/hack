@@ -7,26 +7,11 @@
 ;;; simulate flipping every 1, 2, 3, etc. doors.  Cheating is refered to as "optimized".
 
 
-;;; Alternative Optimized / functional
-
-(defn open-doors [] (->> (iterate inc 1) (map #(* % %)) (take-while #(<= % 100))))
-
-(defn print-open-doors []
-  (println 
-    "Open doors after 100 passes:"
-    (apply str (interpose ", " (open-doors)))))
-
-
-;;; cheating with math -- much faster version
-(defn sem-open-doors-opt []
-  (mapv #(* % %) (range 1 11)))
-
-
 
 ;;; Note: problem statement used 1-based indexing.  Clojure is more natural with 0-based so I will
 ;;; fix at the end.
 
-(defn sem-open-doors []
+(defn sem-open-doors1 []
   (let [res (reduce (fn [doors ith]
                       (reduce (fn [ds n] (update ds n not)) doors (range ith 100 (inc ith))))
                     (vec (repeat 100 false))
@@ -47,7 +32,7 @@
 
 ;;; try with state as set of open doors (one-based), but not faster
 
-(defn sem-od6 []
+(defn sem-open-doors2 []
    (reduce (fn [doors ith]
              (reduce (fn [ds i] (if (ds i) (disj ds i) (conj ds i)))
                      doors
@@ -56,7 +41,7 @@
            (range 1 101)))
 
 ;;; a little bit faster with transients
-(defn sem-od7 []
+(defn sem-open-doors3 []
   (persistent!
    (reduce (fn [doors ith]
              (reduce (fn [ds i] (if (ds i) (disj! ds i) (conj! ds i)))
@@ -64,6 +49,18 @@
                      (range ith 101 ith)))
            (transient #{})
            (range 1 101))))
+
+
+
+;;; not so great, really needs the transient to be fast
+(defn sem-odds2 []
+   (reduce (fn [doors ith]
+             (reduce (fn [ds i]
+                       (if (ds i) (disj ds i) (conj ds i)))
+                     doors
+                     (range ith 101 ith)))
+           (im/dense-int-set)
+           (range 1 101)))
 
 
 ;;; FASTEST by far
@@ -83,12 +80,12 @@
 
 
 ;;; state is vector of integer toggles -- even closed, odd open
+;;; making it 1-based indexing, ignoring index 0
+;;; OK but not fast
+
 (defn sem-odi []
   (let [res (reduce (fn [doors ith]
-                      (reduce (fn [ds n] (update ds n inc)) doors (range ith 100 (inc ith))))
-                    (vec (repeat 100 0))
-                    (range 100))]
-    (filterv #(odd? (res (dec %))) (range 1 101))))
-
-
-
+                      (reduce (fn [ds n] (update ds n inc)) doors (range ith 101 ith)))
+                    (vec (repeat 101 0))
+                    (range 1 101))]
+    (filterv #(odd? (res %)) (range 1 101))))
