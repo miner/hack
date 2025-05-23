@@ -143,7 +143,7 @@
 ;;; https://www.youtube.com/watch?v=qRI1Ved0SfE&t=24913s
 
 
-;;; I must have remembered it wrong because it doesn't give the right answer.
+;;; I might have remembered it wrong so this needs testing.  Consult with wiki.
 
 (def f+
   (fn f [m n]
@@ -169,20 +169,18 @@
 (defn fack [i]
   (cond (zero? i) f+
         (= i 1) f*
+        (= i 2) f**
         :else (fn f [m n]
                 (if (or (zero? m) (zero? n))
                   (inc n)
                   ((fack (dec i)) m (f m (dec n)))))))
 
-;; WRONG ANSWER
-(defn dfack-BUGGY [m n]
-  ((fack m) m n))
 
-
-
+;;; wikipedia explains Friedman's point about +, *, **, etc operations
   
 ;;; Wikipedia to the rescue
 ;;; https://en.wikipedia.org/wiki/Ackermann_function
+
 
 ;;; SEM: slight tweak to iter with local name for a bit of performance
 
@@ -202,6 +200,13 @@
 (defn ackc [m n]
   ((cack m) n))
 
+
+;; calls (f init) then f on the nested result `n` times, returning final result.  Zero-th is
+;; just init.
+(defn iterated [n f init]
+  (if (pos? n)
+    (recur (unchecked-dec n) f (f init))
+    init))
 
 
 (defn ackf [m n]
