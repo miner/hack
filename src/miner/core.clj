@@ -13,6 +13,9 @@
 
 ;;; Many semi-useful things moved into the halfbaked lib (now on clojars)
 
+(defn at-least? [cnt coll]
+  (>= (bounded-count cnt coll) cnt))
+
 ;;; Clojure 1.11 will add a bunch of Math functions including `abs`
 ;;; absolute value
 (defn abs-
