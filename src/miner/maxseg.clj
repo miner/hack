@@ -226,14 +226,18 @@
 (defn add [a b]
   (if b (+ a b) a))
 
+
+;;; remove negs and combine into one nil
 (defn rnegv [s]
   (reduce (fn [rv x]
             (let [prev (peek rv)]
               (cond (and (nil? prev) (neg? x)) rv
                     (neg? x) (conj rv nil)
                     :else (conj rv x))))
-          [(when-not (neg? (first s)) (first s))]
-          (rest s)))
+          []
+          (drop-while neg? s)))
+
+
 
 (defn pholes [s]
   (let [vvv (rnegv s)
