@@ -91,7 +91,7 @@
 ;;; 5
 
 ;;; codes an automat processing a bit mask (vector of 1/0s) and then boils it down to
-;;; this amazing consise function.  Read the original file for a detailed explanation.
+;;; this amazingly consise function.  Read the original file for a detailed explanation.
 
 (defn maximum-non-segment-sum-concise [s]
   (loop [s s, q1 Double/NEGATIVE_INFINITY, q2 Double/NEGATIVE_INFINITY,
@@ -117,3 +117,135 @@
       (recur (next s) (long (max n (+ n q11))) (long (max q11 q12))
              (long (max (+ q12 n) q13 (+ q13 n))))
       q13)))
+
+
+(defn posis [s]
+  (let [vvv (vec s)
+        itot (reduce-kv (fn [itotal i x]
+                 (if (pos? x)
+                   (conj (conj (pop itotal) i) (+ (peek itotal) x))
+                   itotal))
+               [0]
+               vvv)
+        is (pop itot)
+        tot (peek itot)]
+    itot))
+
+
+
+;;  (and (> (bounded-count 3 s) 2)
+
+(defn conseq? [s]
+  (when-let [s (seq s)]
+    (boolean (reduce (fn [r i] (if (= r i) (inc i) (reduced false)))
+                     (inc (first s))
+                     (rest s)))))
+
+(defn add-outsider [vvv pv]
+  (let [before (range (dec (nth pv 0)))
+        after (range (+ (peek pv) 2) (count vvv))]
+    (when (or (seq before) (seq after))
+      (let [outsider (apply max-key vvv (concat before after))]
+        (reduce + 0 (mapv vvv (conj pv outsider)))))))
+
+
+(defn punch-hole [vvv pv]
+  (let [icnt (count pv)]
+    (when (>= icnt 3)
+      (let [hole (apply min-key vvv (subvec pv 1 (dec icnt)))]
+        (reduce (fn [r p]
+                  (if (= p hole)
+                    r
+                    (+ r (vvv p))))
+                0
+                pv)))))
+
+
+;;; but you can also punch a hole and maybe still add an outsider
+;;; also trim to add outsiders
+
+;;; almost but not there for trimming
+(defn maxn1 [s]
+  (let [vvv (vec s)
+        pv (reduce-kv (fn [rs i x]
+                        (if (not (neg? x))
+                          (conj rs i)
+                          rs))
+                      []
+                      vvv)]
+      (if (conseq? pv)
+        (do (println "conseq" pv)
+            (let [outsider (add-outsider vvv pv)
+                  holed (punch-hole vvv pv)]
+              ;; still need to consider trim + outsider
+              (println "outsider" outsider "holed" holed)
+              (if (and holed outsider)
+                (max holed outsider)
+                (or holed outsider))))
+
+        (do (println "pv" pv)
+            (reduce + (mapv vvv pv))))))
+
+
+
+
+(defn maxn [s]
+  (let [vvv (vec s)
+        pv (reduce-kv (fn [rs i x]
+                        (if (not (neg? x))
+                          (conj rs i)
+                          rs))
+                      []
+                      vvv)]
+      (if (conseq? pv)
+        (do #_ (println "conseq" pv)
+            (if-let [holed (punch-hole vvv pv)]
+              holed
+              (let [outsider (add-outsider vvv pv)
+                    out1 (add-outsider vvv (subvec pv 1))
+                    out2 (add-outsider vvv (subvec pv 0 (dec (count pv))))]
+                ;; still need to consider trim + outsider
+                ;; some trims might be better than outsider!
+                (max (or outsider -999) (or out1 -999) (or out2 -999)))))
+
+        (do #_ (println "pv" pv)
+            (reduce + (mapv vvv pv))))))
+
+(defn holes [s]
+  (let [vvv (vec s)
+        cnt (count vvv)]        
+    (for [h (range 1 (dec cnt))]
+      (assoc vvv h nil))))
+
+
+;;; assumes that nils have been combined by rnegv
+(defn hole? [v]
+  (boolean (some (fn [[a b c]] (and (nil? b) a c)) (partition 3 1 v))))
+
+
+(defn add [a b]
+  (if b (+ a b) a))
+
+(defn rnegv [s]
+  (reduce (fn [rv x]
+            (let [prev (peek rv)]
+              (cond (and (nil? prev) (neg? x)) rv
+                    (neg? x) (conj rv nil)
+                    :else (conj rv x))))
+          [(when-not (neg? (first s)) (first s))]
+          (rest s)))
+
+(defn pholes [s]
+  (let [vvv (rnegv s)
+        sum (reduce add 0 vvv)
+        cnt (count vvv)]
+    (if (hole? vvv)
+      (conj vvv sum)
+      (apply max-key peek
+             (for [h (range cnt)
+                   :when (vvv h)
+                   :let [hv (assoc vvv h nil)]
+                   :when (hole? hv)]
+               (conj hv (- sum (vvv h))))))))
+
+
