@@ -1,6 +1,7 @@
 (ns miner.bitset)
 
-;; SEM experiment.  Using a long as a "set" of bits containing 0-63.
+;; SEM experiment.  Using a long as a "set" of bits containing 0-63.  See also Long/SIZE
+;; (64) and Long/MAX_VALUE for limits.
 ;; For serious work, look at java.util.BitSet but beware that it's mutable and not thread-safe.
 
 ;; set-like functions but with names beginning with b.
@@ -53,8 +54,7 @@
 
 (def bintersection bit-and)
 
-(defn bcomplement [n]
-  (bit-xor n b-all))
+(def bcomplement bit-not)
 
 ;; low to high seems the natural order
 ;; lazy impl was slow and didn't seem worth it
@@ -62,7 +62,7 @@
 ;; max bit index
 (defn bmax [n]
   (when-not (zero? n)
-    (- 63 (Long/numberOfLeadingZeros n))))
+    (- (dec Long/SIZE) (Long/numberOfLeadingZeros n))))
 
 ;; min bit
 (defn bpeek [n]
@@ -135,7 +135,7 @@
 (defn bstr
   ([n] (Long/toBinaryString n))
   ([width n]
-   {:pre [(<= 0 width 64)]}
+   {:pre [(< -1 width Long/SIZE)]}
    (let [bs (bstr n)
          pad (- width (count bs))]
      (if (pos? pad)

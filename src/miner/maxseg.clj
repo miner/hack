@@ -93,6 +93,7 @@
 ;;; codes an automat processing a bit mask (vector of 1/0s) and then boils it down to
 ;;; this amazingly consise function.  Read the original file for a detailed explanation.
 
+
 (defn maximum-non-segment-sum-concise [s]
   (loop [s s, q1 Double/NEGATIVE_INFINITY, q2 Double/NEGATIVE_INFINITY,
          q3 Double/NEGATIVE_INFINITY]
@@ -117,6 +118,11 @@
       (recur (next s) (long (max n (+ n q11))) (long (max q11 q12))
              (long (max (+ q12 n) q13 (+ q13 n))))
       q13)))
+
+
+;;; ----------------------------------------------------------------------
+;;; SEM: everything below here is me just flailing with the non-seg problem.  Nothing really
+;;; useful.  Go back to the original to see the right way to approach this problem.
 
 
 (defn posis [s]
@@ -223,6 +229,11 @@
   (boolean (some (fn [[a b c]] (and (nil? b) a c)) (partition 3 1 v))))
 
 
+;;; should make a variant of hole? that works like bhole? and can tolerate multiple nil/negs
+
+
+
+
 (defn add [a b]
   (if b (+ a b) a))
 
@@ -251,5 +262,102 @@
                    :let [hv (assoc vvv h nil)]
                    :when (hole? hv)]
                (conj hv (- sum (vvv h))))))))
+
+
+
+;;; punching holes is doomed as you can always have multiple holes
+(defn hole-pats-BAD [cnt]
+  (let [vvv (vec (range cnt))]
+    (concat 
+     (for [h (range 1 (dec cnt))]
+       (assoc vvv h nil))
+     (for [h (range 1 (- cnt 2))]
+       (assoc vvv h nil (inc h) nil)))))
+
+
+(defn grow [pat]
+  [(conj pat 0)
+   (conj pat 1)
+   (into [0] pat)
+   (into [1] pat)])
+
+;;; works only for single hole, need to expand for multiple holes together
+;;; doesn't seem practical
+(defn grow-holes [cnt]
+  (loop [hs [[1 0 1]]]
+    (if (= (count (peek hs)) cnt)
+      hs
+      (recur (into [] (mapcat grow) hs)))))
+
+
+;;; generating from long bits
+;;; st -> false, 1, nil, true
+(defn bhole? [cnt n]
+  (true? (reduce (fn [st i]
+            (let [b (bit-test n i)]
+            (if (false? st)
+              (if b 1 false)
+              (if (= st 1)
+                (if b 1 nil)
+                (if (nil? st)
+                  (if b (reduced true) nil)
+                  false)))))
+          false
+          (range cnt))))
+
+
+;;; another idea for bhole?
+;;; for bit seq a to b (inclusive), a and b must be set, and popcount of (a+1)...(b-1) must
+;;; be less than (b-a-2)
+;;; so first find lowest one bit (a)
+;;; highest one bit (b)
+;;; then popcount between
+
+
+;;; bithole? is faster and simpler than bhole?
+
+(defn bithole? [n]
+  (and (> (Long/highestOneBit n) (bit-shift-left (Long/lowestOneBit n) 1))
+       (< (+ (Long/bitCount n)
+             (Long/numberOfTrailingZeros n)
+             (Long/numberOfLeadingZeros n))
+          Long/SIZE)))
+
+
+
+;;; not practical for larger counts, need 2^cnt bmasks
+
+;;; cnt is the number of items
+;;; 2r101 = 5, which is the smallest non-seg bit pattern
+(defn bholes1 [cnt]
+    (for [n (range 2r101 (bit-shift-left 1 cnt))
+          :when (bhole? cnt n)]
+      n))
+
+;;; faster with bithole? but not practical
+(defn bholes2 [cnt]
+    (for [n (range 2r101 (bit-shift-left 1 cnt))
+          :when (bithole? n)]
+      n))
+
+;;; faster but not lazy
+(defn bholes [cnt]
+  (filterv bithole? (range (bit-shift-left 1 cnt))))
+
+
+(defn bscore [vvv bmask]
+  (reduce-kv (fn [r i x]
+               (if (bit-test bmask i)
+                 (+ r x)
+                 r))
+             0
+             vvv))
+
+;;; not practical!
+(defn bmaxn [s]
+  (let [vvv (vec s)
+        cnt (count vvv)]
+    (reduce max 0 (map #(bscore vvv %) (bholes cnt)))))
+
 
 
