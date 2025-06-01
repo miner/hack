@@ -198,11 +198,13 @@
 
 ;;; note: we did not need to use :start as you can always :begin with any item
 (defn update-state [stm x]
-  (cond-> (update stm :begin maxnil x)
-    (:begin stm)  (update :hole maxnil (:begin stm))
-    (:begin stm)  (update :begin maxnil (+ (:begin stm) x))
-    (:hole stm)   (update :ok maxnil (+ (:hole stm) x))
-    (and (:ok stm) (pos? x))  (update :ok max (+ (:ok stm) x))))
+  (let [{:keys [begin hole ok]} stm]
+    (cond-> (update stm :begin maxnil x)
+      begin  (update :hole maxnil begin)
+      begin  (update :begin maxnil (+ begin x))
+      hole   (update :ok maxnil (+ hole x))
+      (and ok (pos? x))  (update :ok max (+ ok x)))))
+
 
 (defn umaxn [s]
   (:ok (reduce update-state {} s)))
