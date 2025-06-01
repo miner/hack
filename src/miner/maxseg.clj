@@ -211,6 +211,21 @@
 
 
 
+;;; all-in-one version
+(defn umaxn1 [s]
+  (let [maxnil (fn [a b] (if (nil? a) b (max a b)))]
+    (:ok (reduce (fn [{:keys [begin hole ok] :as stm} x]
+                   (cond-> (update stm :begin maxnil x)
+                     begin  (update :hole maxnil begin)
+                     begin  (update :begin maxnil (+ begin x))
+                     hole   (update :ok maxnil (+ hole x))
+                     (and ok (pos? x))  (update :ok max (+ ok x))))
+                 {}
+                 s))))
+
+
+
+
 
 ;;; ----------------------------------------------------------------------
 ;;; SEM: a bunch of junk below here is me just flailing with the non-seg problem.
