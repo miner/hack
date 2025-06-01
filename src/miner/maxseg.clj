@@ -212,7 +212,7 @@
 
 
 ;;; all-in-one version
-(defn umaxn1 [s]
+(defn max-non-seg-sum [s]
   (let [maxnil (fn [a b] (if (nil? a) b (max a b)))]
     (:ok (reduce (fn [{:keys [begin hole ok] :as stm} x]
                    (cond-> (update stm :begin maxnil x)
@@ -490,3 +490,4 @@
 
 ;;; Remember most of this stuff is junk.  Look at my umaxn for my best answer.  The official
 ;;; "consise" is amazingly optimized.  I did not figure that out exactly.
+
