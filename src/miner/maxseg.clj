@@ -27,6 +27,7 @@
 (def r100 (range 100))
 
 
+
 ;;; much slower, calculates a bunch of subvec sums
 (defn maxss1 [s]
   (let [v (vec s)
@@ -106,6 +107,23 @@
 ;;;=> 5
 
 
+(def tricky [-3 -4 3 4 5 6 7])
+
+(def tricky2 [-3 -4 3 4 5 6 7 -5 -1 -4 1])
+
+(def tricky3 [1 3 4 5 6 7 -5 -1 -4])
+
+;;; for max non-segment
+(defn test-mnon [mnon]
+  (assert (= (mnon tricky) 22))
+  (assert (= (mnon tricky2) 26))
+  (assert (= (mnon tricky3) 25))
+  true)
+
+
+
+
+
 ;;; SEM: if you only want ints, I think Integer/MIN_VALUE would look better.  Can't use
 ;;; Long/MIN_VALUE because it might overflow if you try adding a negative.  Also, avoid
 ;;; auto-boxing.  OK, I get why they used NEGATIVE_INFINITY to be more correct.  By mine is
@@ -120,10 +138,81 @@
       q13)))
 
 
-;;; ----------------------------------------------------------------------
-;;; SEM: everything below here is me just flailing with the non-seg problem.  Nothing really
-;;; useful.  Go back to the original to see the right way to approach this problem.
 
+
+;;; Book:  "Pearls of Functional Algorithm Design"
+;;; 11 - Not the maximum segment sum
+
+;;; ----------------------------------------------------------------------
+;;; https://stackoverflow.com/questions/21033548/maximum-non-segment-sum
+
+;;; Haskell answer I don't understand
+;;; q0 (start)
+;;; q1 (segmentEndingHere), state q2 (segmentNotEndingHere), or state q3 (nonSegment)
+
+;;; my interpretation
+;;; scan each number
+;;; you can take it or not, which changes state, and makes a partial sum
+;;; best move to extend from highest partial sum (like A*)
+;;; but maybe calc all legal and hold paths (like breadth first search)
+;;; ended up calc state and keep total, not path
+;;; umaxn is even better as it keeps the best of each kw state in a map as it goes.
+
+;;; another idea is you can know "best possible remaining score" from each position and
+;;; pursue best then check if there was a hole.  (Didn't do this.)
+
+
+;;; My best effort is umaxn which is based on the finite-state machine approach.
+
+
+;;; use kw for states -- :start :begin :hole :ok
+;;; case on st
+;;; keep multiple states
+;;; mapcat step with x
+
+(defn expand-state [[score st :as sst] x]
+  (case st
+    :start (list [(+ score x) :begin] sst)
+    :begin (list [(+ score x) :begin] [score :hole])
+    :hole (list [(+ score x) :ok] sst)
+    :ok (if (pos? x) (list [(+ score x) :ok]) (list sst))))
+
+(defn rmaxn [s]
+  (reduce max Long/MIN_VALUE
+          (mapv first
+               (filterv #(= :ok (peek %))
+                        (reduce (fn [states x]
+                                  (mapcat #(expand-state % x) states))
+                               [[0 :start]]
+                               s)))))
+
+;;; new idea -- keep state in map with keys and scores.  Similar logic but only keep best of
+;;; whatever kw state.  Works and much faster.  However, a bit tricky on the update logic as
+;;; some transitions hit the same kw so you can't assume only one change per item.  I think
+;;; this map-style state works because the transitions are simple and linear.  It probably
+;;; wouldn't work if states could cycle.  So this is specialized for the particular problem.
+;;; My much slower mapcat vector states used in rmaxn is a more general approach.
+
+(defn maxnil [a b]
+  (if (nil? a) b (max a b)))
+
+;;; note: we did not need to use :start as you can always :begin with any item
+(defn update-state [stm x]
+  (cond-> (update stm :begin maxnil x)
+    (:begin stm)  (update :hole maxnil (:begin stm))
+    (:begin stm)  (update :begin maxnil (+ (:begin stm) x))
+    (:hole stm)   (update :ok maxnil (+ (:hole stm) x))
+    (and (:ok stm) (pos? x))  (update :ok max (+ (:ok stm) x))))
+
+(defn umaxn [s]
+  (:ok (reduce update-state {} s)))
+
+
+
+
+;;; ----------------------------------------------------------------------
+;;; SEM: a bunch of junk below here is me just flailing with the non-seg problem.
+;;; Go back to the original to see the right way to approach this problem.
 
 (defn posis [s]
   (let [vvv (vec s)
@@ -136,7 +225,6 @@
         is (pop itot)
         tot (peek itot)]
     itot))
-
 
 
 ;;  (and (> (bounded-count 3 s) 2)
@@ -194,8 +282,8 @@
 
 
 
-
-(defn maxn [s]
+;;; buggy -- almost but misses some tricks -- do not use
+(defn maxn-buggy [s]
   (let [vvv (vec s)
         pv (reduce-kv (fn [rs i x]
                         (if (not (neg? x))
@@ -224,7 +312,7 @@
       (assoc vvv h nil))))
 
 
-;;; assumes that nils have been combined by rnegv
+;;; assumes that nils have been combined by rnegv  -- not a great idea
 (defn hole? [v]
   (boolean (some (fn [[a b c]] (and (nil? b) a c)) (partition 3 1 v))))
 
@@ -361,3 +449,27 @@
 
 
 
+;;; false at start, find a pos => 1, then nil, then pos => true
+(defn has-hole? [v]
+  (boolean (reduce (fn [st x]
+                     (if (false? st)
+                       (if (nil? x) false 1)
+                       (if (nil? st)
+                         (if (nil? x) nil (reduced true))
+                         ;; 1 st
+                         (if (nil? x) nil st))))
+                   false
+                   v)))
+
+(defn best-case-nss [s]
+  (let [bestv (reduce (fn [vvv x] (conj vvv (when (pos? x) x))) [] s)]
+    (if (has-hole? bestv)
+      (conj bestv (reduce + 0 (remove nil? bestv)))
+      (conj bestv nil))))
+
+
+;;; be careful: 0 is ambiguous, you can start with actual 0 or you can ignore with 0
+;;; replacing a negative.  Can't use sign for state because of 0
+
+;;; Remember most of this stuff is junk.  Look at my umaxn for my best answer.  The official
+;;; "consise" is amazingly optimized.  I did not figure that out exactly.
