@@ -210,21 +210,20 @@
   (:ok (reduce update-state {} s)))
 
 
-
+;;; Now, this is my favorite.  Not as fast as "concise" version, but pretty good.
 ;;; all-in-one version
+
 (defn max-non-seg-sum [s]
-  (let [maxnil (fn [a b] (if (nil? a) b (max a b)))]
+  (let [maxnil (fn [a b] (if (nil? a) b (max a b)))
+        update-max (fn [m k x] (update m k maxnil x))]
     (:ok (reduce (fn [{:keys [begin hole ok] :as stm} x]
-                   (cond-> (update stm :begin maxnil x)
-                     begin  (update :hole maxnil begin)
-                     begin  (update :begin maxnil (+ begin x))
-                     hole   (update :ok maxnil (+ hole x))
+                   (cond-> (update-max stm :begin x)
+                     begin  (update-max :hole begin)
+                     begin  (update-max :begin (+ begin x))
+                     hole   (update-max :ok (+ hole x))
                      (and ok (pos? x))  (update :ok max (+ ok x))))
                  {}
                  s))))
-
-
-
 
 
 ;;; ----------------------------------------------------------------------
