@@ -118,6 +118,10 @@
   (assert (= (mnon tricky) 22))
   (assert (= (mnon tricky2) 26))
   (assert (= (mnon tricky3) 25))
+  (assert (nil? (mnon [])))
+  (assert (nil? (mnon [1])))
+  (assert (= (mnon [-1 2 3 -4]) 2))
+  (assert (= (mnon (range 10)) 44))
   true)
 
 
@@ -131,11 +135,12 @@
 
 
 (defn max-non [s]
-  (loop [s s, q11 Integer/MIN_VALUE, q12 Integer/MIN_VALUE, q13 Integer/MIN_VALUE]
-    (if-let [n (first s)]
-      (recur (next s) (long (max n (+ n q11))) (long (max q11 q12))
-             (long (max (+ q12 n) q13 (+ q13 n))))
-      q13)))
+  (when (>= (bounded-count 3 s) 3)
+    (loop [s s, q11 Integer/MIN_VALUE, q12 Integer/MIN_VALUE, q13 Integer/MIN_VALUE]
+      (if-let [n (first s)]
+        (recur (next s) (long (max n (+ n q11))) (long (max q11 q12))
+               (long (max (+ q12 n) q13 (+ q13 n))))
+        q13))))
 
 
 
@@ -225,6 +230,31 @@
                  {}
                  s))))
 
+;;; optimizing but limited to values greater than Integer/MIN_VALUE.  Might be better to use
+;;; Double/NEGATIVE_INFINITY as done by Engelberg.
+
+(defn mnss [s]
+  (when (>= (bounded-count 3 s) 3)
+    (let [res (peek (reduce (fn [[begin hole ok] x]
+                              [(max begin x (+ begin x))
+                               (max begin hole)
+                               (max ok (+ ok x) (+ hole x))])
+                            [Integer/MIN_VALUE Integer/MIN_VALUE Integer/MIN_VALUE]
+                            s))]
+      (when (> res Integer/MIN_VALUE)
+        res))))
+
+(defn mnss2 [s]
+  (let [res (peek (reduce (fn [[begin hole ok] x]
+                            [(max begin x (+ begin x))
+                             (max begin hole)
+                             (max ok (+ ok x) (+ hole x))])
+                          [Double/NEGATIVE_INFINITY Double/NEGATIVE_INFINITY
+                           Double/NEGATIVE_INFINITY]
+                          s))]
+    (when-not (infinite? res)
+      res)))
+
 
 ;;; ----------------------------------------------------------------------
 ;;; SEM: a bunch of junk below here is me just flailing with the non-seg problem.
@@ -233,11 +263,11 @@
 (defn posis [s]
   (let [vvv (vec s)
         itot (reduce-kv (fn [itotal i x]
-                 (if (pos? x)
-                   (conj (conj (pop itotal) i) (+ (peek itotal) x))
-                   itotal))
-               [0]
-               vvv)
+                          (if (pos? x)
+                            (conj (conj (pop itotal) i) (+ (peek itotal) x))
+                            itotal))
+                        [0]
+                        vvv)
         is (pop itot)
         tot (peek itot)]
     itot))

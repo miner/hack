@@ -30,13 +30,11 @@
        (<= (abs- x y) (* m (clojure.math/ulp x))))))
 
 ;;; returns a fn taking single arg, which returns arg if it's truthy and satisfies pred,
-;;; otherwise nil.   Other possible names `iff`, `only-when`.  Not sure about the `curried`
-;;; arg.
+;;; otherwise nil.   Other possible names `iff`, `only-when`, `insofaras`.
 
 (defn whenp
   ([pred] (fn [x] (when (and x (pred x)) x)))
-  ([pred x] (when (pred x) x)))
-
+  ([pred x] (when (and x (pred x)) x)))
 
 (defn hexstr [n]
   (let [hs (clojure.string/upper-case (Long/toHexString n))
@@ -148,4 +146,15 @@
 ;;; rarely needed, but maybe good for basic pair (like a dotted pair in Lisp)
 (defn map-entry [k v]
   (clojure.lang.MapEntry/create k v))
+
+
+;;; https://stackoverflow.com/questions/10192602/return-first-item-in-a-map-list-sequence-that-satisfies-a-predicate
+
+;;; faster than (first (filter ...)), no chunking problem, 
+(defn first-when
+  "Returns first item from `coll` for which `(pred item)` returns truthy.
+   Returns `not-found` (default `nil`) if no such item is found."
+  ([pred coll] (seek pred coll nil))
+  ([pred coll not-found]
+   (reduce (fn [_ x] (if (pred x) (reduced x) not-found)) not-found coll)))
 
