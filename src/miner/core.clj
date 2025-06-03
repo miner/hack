@@ -29,12 +29,18 @@
    (or (= x y)
        (<= (abs- x y) (* m (clojure.math/ulp x))))))
 
-;;; returns a fn taking single arg, which returns arg if it's truthy and satisfies pred,
-;;; otherwise nil.   Other possible names `iff`, `only-when`, `insofaras`.
-
 (defn whenp
-  ([pred] (fn [x] (when (and x (pred x)) x)))
-  ([pred x] (when (and x (pred x)) x)))
+  "Returns a fn which takes single argument, and returns that argument if it's truthy
+  and satisfies pred, otherwise nil."
+  [pred]
+  (fn [x] (when (and x (pred x)) x)))
+
+;;; "In accordance with", useful with some-> or testing a result without have to wrap in a let.
+(defn per
+  "Returns `x` when x is truthy and `(pred x)` returns truthy for all preds."
+  ([x pred] (when (and x (pred x)) x))
+  ([x pred & preds] (when (and x (every? #(% x) preds)) x)))
+
 
 (defn hexstr [n]
   (let [hs (clojure.string/upper-case (Long/toHexString n))
