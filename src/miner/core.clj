@@ -112,8 +112,8 @@
 (defn peek! [tv]
   (nth tv (dec (count tv))))
 
-;; See CLJ-1872 for empty? breakage on transient
-(defn empty?! [tv] (zero? (count tv)))
+;; See CLJ-1872 for empty? breakage on transient, fixed in Clojure 1.12.0
+;; (defn empty?! [tv] (zero? (count tv)))
 
 (defn map! [f tv]
   (reduce #(assoc! % %2 (f (nth % %2))) tv (range (count tv))))
@@ -160,7 +160,7 @@
 (defn first-when
   "Returns first item from `coll` for which `(pred item)` returns truthy.
    Returns `not-found` (default `nil`) if no such item is found."
-  ([pred coll] (seek pred coll nil))
+  ([pred coll] (first-when pred coll nil))
   ([pred coll not-found]
    (reduce (fn [_ x] (if (pred x) (reduced x) not-found)) not-found coll)))
 
