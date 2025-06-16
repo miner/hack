@@ -2,6 +2,8 @@
 
 ;;; https://github.com/Engelberg/automata/blob/master/src/automata/core.clj
 
+;;; talk: https://www.youtube.com/watch?v=AEhULv4ruL4
+;;; "Solving Problems with Automata - Mark Engelberg & Alex Engelberg"
 
 ;; THE CLASSIC INTERVIEW PROBLEM - MAXIMUM SEGMENT SUM A popular problem is to find an O(n)
 ;; algorithm for computing the maximum sum achievable by adding up some contiguous
