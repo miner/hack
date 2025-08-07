@@ -168,6 +168,9 @@
           :else game)))
         
 
+(defn play-finalize [pit game]
+  (play-when-final (play-last pit game)))
+
 (defn play-pit [game pit]
   (if (:final game)
     game
@@ -180,10 +183,14 @@
                      (dissoc :bonus)
                      (assoc-in [:pits pit] 0)
                      (update :turns conj pit))]
-          (cond (zero? seeds) (play-when-final (play-last (if (zero? p) 13 (dec p)) g))
+          (cond (zero? seeds) (play-finalize (if (zero? p) 13 (dec p)) g)
                 (= p oppst) (recur (inc p) seeds g)
                 (= p 14) (recur 0 seeds g)
                 :else (recur (inc p) (dec seeds) (update-in g [:pits p] inc))))))))
+
+
+
+
 
 
 ;; util
