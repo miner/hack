@@ -126,7 +126,7 @@
 (def init-game {:turns [] :pits (-> [] (into (repeat 6 4)) (conj 0)
                                     (into (repeat 6 4)) (conj 0))})
 
-(defn finished? [game]
+(defn NOT_USED_finished? [game]
   (or (every? zero? (subvec (:pits game) 0 6))
       (every? zero? (subvec (:pits game) 7 13))))
 
@@ -134,35 +134,39 @@
 (def opp-pit (merge (zipmap [0 1 2 3 4 5] [12 11 10 9 8 7])
                     (zipmap [12 11 10 9 8 7] [0 1 2 3 4 5])))
 
-(def home-store (into (into {nil 6} (map #(vector % 6) (range 6)))
-                      (map #(vector % 13) (range 7 13))))
+(def home-store (into (into {nil 6} (map #(vector % 6) (range 7)))
+                      (map #(vector % 13) (range 7 14))))
 
-(def opp-store  (into (into {nil 13} (map #(vector % 13) (range 6)))
-                      (map #(vector % 6) (range 7 13))))
+(def opp-store  (into (into {nil 13} (map #(vector % 13) (range 7)))
+                      (map #(vector % 6) (range 7 14))))
 
 (defn play-last [pit game]
   (let [opp (opp-pit pit)
         opp-cnt (if opp (get-in game [:pits opp]) 0)
         store (home-store (peek (:turns game)))]
     (cond (= pit store) (assoc game :bonus true)
-          (and (= 1 (get-in game [:pits pit])) (pos? opp-cnt))
+          (and (or (and (= store 6) (< pit 6))
+                   (and (= store 13) (<= 7 pit 12)))
+               (= 1 (get-in game [:pits pit])) (pos? opp-cnt))
               (-> game
+                  (assoc :capture pit)
                   (assoc-in [:pits pit] 0)
                   (assoc-in [:pits opp] 0)
                   (update-in [:pits store] + (inc opp-cnt)))
           :else game)))
 
-;;; bug should only check opp
+
 (defn play-when-final [game]
-  (let [sv6 (subvec (:pits game) 0 6)
-        sv13 (subvec (:pits game) 7 13)]
-    (if (or (every? zero? sv6) (every? zero? sv13))
+  (let [sv7 (subvec (:pits game) 0 7)
+        sv14 (subvec (:pits game) 7 14)]
+    (if (or (every? zero? (pop sv7)) (every? zero? (pop sv14)))
       (-> game
           (dissoc :pits)
-          (assoc :final [(reduce + (get-in game [:pits 6]) sv6)
-                         (reduce + (get-in game [:pits 13]) sv13)]))
+          (dissoc :bonus)
+          (assoc :final [(reduce + 0 sv7)
+                         (reduce + 0 sv14)]))
       game)))
-        
+
 
 (defn check-final [pit game]
   (play-when-final (play-last pit game)))
@@ -188,6 +192,7 @@
         (loop [p (inc14 oppst pit)
                seeds seedcnt
                g (-> game
+                     (dissoc :capture)
                      (dissoc :bonus)
                      (assoc-in [:pits pit] 0)
                      (update :turns conj pit))]
@@ -197,6 +202,13 @@
 
 
 
+(defn play-deep-pits [game rng]
+  (if (empty? rng)
+    [game]
+    (let [gs (keep #(play-pit game %) rng)]
+      (concat (remove :bonus gs)
+              (mapcat (fn [g] (play-all-pits g rng)) (filter :bonus gs))))))
+
 
 
 
@@ -205,21 +217,6 @@
   (if-let [prev (peek (:turns game))]
     (home-store (if (:bonus game) prev (opp-pit prev)))
     6))
-
-(defn pick-turn1 [g]
-  (let [homest (which-turn g)
-        house-nums (if (= homest 6) (range 0 6) (range 7 13))
-        results (keep #(play-pit g %) house-nums)
-        score-diff (if (= homest 6)
-                     #(if-let [[a b] (:final %)] (- a b) -49)
-                     #(if-let [[a b] (:final %)] (- b a) -49))
-        wins (filter #(pos? (score-diff %)) results)]
-   (if (seq wins)
-     (apply max-key #(get-in % [:pits homest]) wins)
-     (let [res (remove :final results)]
-       (if (seq res)
-         (apply max-key #(get-in % [:pits homest]) res)
-         (rand-nth results))))))
 
 (defn sum-pits [g home]
   (let [pitv (if (= home 6) (subvec (:pits g) 0 7) (subvec (:pits g) 7 14))]
@@ -252,8 +249,58 @@
 
 ;;; two opponents could use different strategies
 
+;;; need better picker.  multiples scores, and tie-breakers
+
+(defn max-score [scorefn coll]
+  (reduce (fn [xs-high x]
+            (let [high (peek xs-high)
+                  sc (scorefn x)]
+              (if (> sc high)
+                [x sc]
+                (if (= sc high)
+                  (conj (pop xs-high) x sc)
+                  xs-high))))
+          [Long/MIN_VALUE]
+          coll))
+
+(defn maximize [coll score-fns]
+  (let [cnt (count coll)]
+    (case cnt
+      0 nil
+      1 (first coll)
+      (if-let [score-fn (first score-fns)]
+        (let [xshigh (max-score score-fn coll)]
+          (recur (pop xshigh) (rest score-fns)))
+        (first coll)))))
+  
+
+
+
+(defn do-turn [game]
+  (let [homest (which-turn game)
+        rng (if (= homest 6) (range 6) (range 7 13))
+        res (play-deep-pits game rng)]
+    (maximize res (if (= homest 6)
+                    [#(if-let [[a b] (:final %)] (- a b) -49)
+                     #(get-in % [:pits 6])
+                     #(reduce + (subvec (:pits %) 0 7))]
+                    [#(if-let [[a b] (:final %)] (- b a) -49)
+                     #(get-in % [:pits 13])
+                     #(reduce + (subvec (:pits %) 7 14))]))))
+
 
 (defn run-game []
+  (loop [g init-game cnt 300]
+    (if (zero? cnt)
+      [:time-out g]
+      (if (:final g)
+        g
+        (recur (do-turn g) (dec cnt))))))
+
+
+
+
+(defn run-game1 []
   (loop [g init-game cnt 300]
     (if (zero? cnt)
       [:time-out g]
