@@ -152,41 +152,48 @@
                   (update-in [:pits store] + (inc opp-cnt)))
           :else game)))
 
+;;; bug should only check opp
 (defn play-when-final [game]
   (let [sv6 (subvec (:pits game) 0 6)
         sv13 (subvec (:pits game) 7 13)]
-    (cond (every? zero? sv6)
-              (-> game
-                  (dissoc :pits)
-                  (assoc :final [(get-in game [:pits 6])
-                                 (reduce + (get-in game [:pits 13]) sv13)]))
-          (every? zero? sv13)
-              (-> game
-                  (dissoc :pits)
-                  (assoc :final [(reduce + (get-in game [:pits 6]) sv6)
-                                 (get-in game [:pits 13])]))
-          :else game)))
+    (if (or (every? zero? sv6) (every? zero? sv13))
+      (-> game
+          (dissoc :pits)
+          (assoc :final [(reduce + (get-in game [:pits 6]) sv6)
+                         (reduce + (get-in game [:pits 13]) sv13)]))
+      game)))
         
 
-(defn play-finalize [pit game]
+(defn check-final [pit game]
   (play-when-final (play-last pit game)))
 
+(defn inc14 [oppst n]
+  (let [n1 (inc n)
+        nxt (if (= oppst n1) (inc n1) n1)]
+    (if (> nxt 13) 0 nxt)))
+
+(defn dec14 [oppst n]
+  (let [prev (if (zero? n) 13 (dec n))]
+    (if (= prev oppst)
+      (dec prev)
+      prev)))
+
 (defn play-pit [game pit]
+  (assert (int? pit))
   (if (:final game)
     game
     (let [oppst (opp-store pit)
           seedcnt (get-in game [:pits pit])]
       (when (pos? seedcnt)
-        (loop [p (inc pit)
+        (loop [p (inc14 oppst pit)
                seeds seedcnt
                g (-> game
                      (dissoc :bonus)
                      (assoc-in [:pits pit] 0)
                      (update :turns conj pit))]
-          (cond (zero? seeds) (play-finalize (if (zero? p) 13 (dec p)) g)
-                (= p oppst) (recur (inc p) seeds g)
-                (= p 14) (recur 0 seeds g)
-                :else (recur (inc p) (dec seeds) (update-in g [:pits p] inc))))))))
+          (if (zero? seeds)
+            (check-final (dec14 oppst p) g)
+            (recur (inc14 oppst p) (dec seeds) (update-in g [:pits p] inc))))))))
 
 
 
@@ -195,8 +202,69 @@
 
 ;; util
 (defn which-turn [game]
-  (let [prev (peek (:turns game))]
-    (home-store (if (:bonus game) prev (opp-pit prev)))))
+  (if-let [prev (peek (:turns game))]
+    (home-store (if (:bonus game) prev (opp-pit prev)))
+    6))
+
+(defn pick-turn1 [g]
+  (let [homest (which-turn g)
+        house-nums (if (= homest 6) (range 0 6) (range 7 13))
+        results (keep #(play-pit g %) house-nums)
+        score-diff (if (= homest 6)
+                     #(if-let [[a b] (:final %)] (- a b) -49)
+                     #(if-let [[a b] (:final %)] (- b a) -49))
+        wins (filter #(pos? (score-diff %)) results)]
+   (if (seq wins)
+     (apply max-key #(get-in % [:pits homest]) wins)
+     (let [res (remove :final results)]
+       (if (seq res)
+         (apply max-key #(get-in % [:pits homest]) res)
+         (rand-nth results))))))
+
+(defn sum-pits [g home]
+  (let [pitv (if (= home 6) (subvec (:pits g) 0 7) (subvec (:pits g) 7 14))]
+    (reduce + 0 pitv)))
+    
+
+(defn pick-turn [g]
+  (let [homest (which-turn g)
+        house-nums (if (= homest 6) (range 0 6) (range 7 13))
+        allpits (if (= homest 6) (range 0 7) (range 7 14))
+        results (keep #(play-pit g %) house-nums)
+        score-diff (if (= homest 6)
+                     #(if-let [[a b] (:final %)] (- a b) -49)
+                     #(if-let [[a b] (:final %)] (- b a) -49))
+        sum-score #(sum-pits % homest)
+        wins (filter #(pos? (score-diff %)) results)]
+   (if (seq wins)
+     (apply max-key score-diff wins)
+     (let [res (remove :final results)
+           extras (filter :bonus res)]
+       (if (seq extras)
+         (apply max-key sum-score extras)
+         (if (seq res)
+           (apply max-key sum-score res)
+           (rand-nth results)))))))
+
+;;; strategy: might be better to pick best home score as opponent can't capture that.  Also,
+;;; minimize the opponent's opportunity, not just max your own score.  So you need to model
+;;; what the opponent would do.
+
+;;; two opponents could use different strategies
+
+
+(defn run-game []
+  (loop [g init-game cnt 300]
+    (if (zero? cnt)
+      [:time-out g]
+      (if (:final g)
+        g
+        (recur (pick-turn g) (dec cnt))))))
+
+
+
+
+
 
 (defn best-start []
   (loop [res [] gs [(assoc init-game :bonus true)]]
