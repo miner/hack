@@ -276,17 +276,17 @@
 
 
 
-(defn do-turn [game]
+(defn best-turn [game]
   (let [homest (which-turn game)
         rng (if (= homest 6) (range 6) (range 7 13))
-        res (play-deep-pits game rng)]
-    (maximize res (if (= homest 6)
-                    [#(if-let [[a b] (:final %)] (- a b) -49)
-                     #(get-in % [:pits 6])
-                     #(reduce + (subvec (:pits %) 0 7))]
-                    [#(if-let [[a b] (:final %)] (- b a) -49)
-                     #(get-in % [:pits 13])
-                     #(reduce + (subvec (:pits %) 7 14))]))))
+        possibles (play-deep-pits game rng)]
+    (maximize possibles (if (= homest 6)
+                          [#(if-let [[a b] (:final %)] (if (> a b) (- a b) -49) -49)
+                           #(reduce + (subvec (:pits %) 0 7))
+                           #(get-in % [:pits 6]) ]
+                          [#(if-let [[a b] (:final %)] (if (> b a) (- b a) -49) -49)
+                           #(reduce + (subvec (:pits %) 7 14))
+                           #(get-in % [:pits 13]) ]))))
 
 
 (defn run-game []
@@ -295,7 +295,7 @@
       [:time-out g]
       (if (:final g)
         g
-        (recur (do-turn g) (dec cnt))))))
+        (recur (best-turn g) (dec cnt))))))
 
 
 
