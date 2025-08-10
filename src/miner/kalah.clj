@@ -171,25 +171,39 @@
 (defn check-final [pit game]
   (play-when-final (play-last pit game)))
 
-(defn inc14 [oppst n]
-  (let [n1 (inc n)
-        nxt (if (= oppst n1) (inc n1) n1)]
-    (if (> nxt 13) 0 nxt)))
+(defn inc6 [^long n]
+  (case n
+    12 0
+    13 0
+    (inc n)))
 
-(defn dec14 [oppst n]
-  (let [prev (if (zero? n) 13 (dec n))]
-    (if (= prev oppst)
-      (dec prev)
-      prev)))
+(defn dec6 [^long n]
+  (case n
+    0 12
+    (dec n)))
+
+(defn inc13 [^long n]
+  (case n
+    5 7
+    13 0
+    (inc n)))
+
+(defn dec13 [^long n]
+  (case n
+    0 13
+    7 5
+    (dec n)))
+
 
 (defn play-pit [game pit]
   (assert (int? pit))
   (if (:final game)
     game
-    (let [oppst (opp-store pit)
+    (let [incx (if (< pit 6) inc6 inc13)
+          decx (if (< pit 6) dec6 dec13)
           seedcnt (get-in game [:pits pit])]
       (when (pos? seedcnt)
-        (loop [p (inc14 oppst pit)
+        (loop [p (incx pit)
                seeds seedcnt
                g (-> game
                      (dissoc :capture)
@@ -197,20 +211,25 @@
                      (assoc-in [:pits pit] 0)
                      (update :turns conj pit))]
           (if (zero? seeds)
-            (check-final (dec14 oppst p) g)
-            (recur (inc14 oppst p) (dec seeds) (update-in g [:pits p] inc))))))))
+            (check-final (decx p) g)
+            (recur (incx p) (dec seeds) (update-in g [:pits p] inc))))))))
 
 
-
-(defn play-deep-pits [game rng]
+(defn play-deep-pits1 [game rng]
   (if (empty? rng)
     [game]
     (let [gs (keep #(play-pit game %) rng)]
       (concat (remove :bonus gs)
-              (mapcat (fn [g] (play-all-pits g rng)) (filter :bonus gs))))))
+              (mapcat (fn [g] (play-deep-pits1 g rng)) (filter :bonus gs))))))
 
 
-
+(defn play-deep-pits [game rng]
+  (reduce (fn [res g]
+            (if (:bonus g)
+              (into res (play-deep-pits g rng))
+              (conj res g)))
+          nil
+          (keep #(play-pit game %) rng)))
 
 ;; util
 (defn which-turn [game]
@@ -333,18 +352,22 @@
 
     
 
-(defn play-all-round [g]
-  (let [prev (peek (:turns g))
-        rng (if-not prev
-              (range 6)
-              (if (:bonus g)
-                (if (< prev 6) (range 6) (range 7 13))
-                (if (< prev 6) (range 7 13) (range 6))))]
-  (keep #(play-pit g %) rng)))
 
 
+(defn play-deep-round [game]
+  (if (:final game)
+    game
+    (let [prev (peek (:turns game))
+          rng (if (and prev (< prev 6)) (range 7 13) (range 6))]
+      (reduce (fn [res g]
+                (if (:bonus g)
+                  (into res (play-deep-pits g rng))
+                  (conj res g)))
+              nil
+              (keep #(play-pit game %) rng)))))
 
-(defn play-deep-round [g]
+
+(defn play-deep-round1 [g]
   (let [prev (peek (:turns g))
         rng (if-not prev
               (range 6)
@@ -378,3 +401,89 @@
 
 ;;; not practical to go beyond 5 deep rounds
 ;;; looks like you need to prune
+
+;;; look for minimax
+
+(defn kheuristic1 [g homest]
+  (if-let [[a b] (:final g)]
+    (if (= a b)
+      0
+      (if (= homest 6)
+        (if (> a b) (* 100 (- a b)) -99)
+        (if (> b a) (* 100 (- b a)) -99)))
+    (let [pits (:pits g)
+          sv7 (subvec pits 0 7)
+          sv13 (subvec pits 7 13)
+          score7 (reduce + (* 3 (peek sv7)) sv7)
+          score13 (reduce + (* 3 (peek sv13)) sv13)]
+      (if (= homest 6)
+        (- score7 score13)
+        (- score13 score7)))))
+
+
+(defn kh6 [g]
+  (if-let [[a b] (:final g)]
+    (* 1000 (- a b))
+    (let [pits (:pits g)
+          sv7 (subvec pits 0 7)
+          sv13 (subvec pits 7 13)
+          score7 (reduce + (* 2 (peek sv7)) sv7)
+          score13 (reduce + (* 2 (peek sv13)) sv13)]
+      (- score7 score13))))
+
+(def kh13 (comp - kh6))
+
+(defn kheuristic [g]
+  (let [last-pit (or (peek (:turns g)) 0)
+        kh (kh6 g)]
+    (if (< last-pit 6)
+      kh
+      (- kh))))
+
+        
+;;; default depth 4 is pretty fast but result is [41 7]
+;;; default depth 5 is slow but closer result [22 26]
+
+
+;;; alpha-beta from  https://clojurepatterns.com/17/3/23/
+;;; slightly hacked by SEM
+(defn alpha-beta-fn [terminal-node? heuristic-fn generate-children]
+  (fn alpha-beta
+    ([node] (alpha-beta node 4 Long/MIN_VALUE Long/MAX_VALUE true))
+    ([node depth alpha beta maximizing?]
+    (if (or (zero? depth) (terminal-node? node))
+      (heuristic-fn node)
+      (if maximizing?
+        (loop [value Long/MIN_VALUE
+               children (generate-children node)]
+          (if (empty? children)
+            value
+            (let [child (first children)
+                  value (max value (alpha-beta child (dec depth) alpha beta false))]
+              (if (>= value beta)
+                value
+                (recur (long (max alpha value)) (rest children))))))
+        (loop [value Long/MAX_VALUE
+               children (generate-children node)]
+          (if (empty? children)
+            value
+            (let [child (first children)
+                  value (min value (alpha-beta child (dec depth) alpha beta true))]
+              (if (<= value alpha)
+                value
+                (recur (long (min beta value)) (rest children)))))))))))
+
+
+(def kalah-ab (alpha-beta-fn :final kheuristic play-deep-round))
+
+(defn run-kalah []
+  (loop [g (apply max-key kalah-ab (play-deep-round init-game))
+         limit 200]
+    (if (zero? limit)
+      [:limit g]
+      (if (:final g)
+        g
+        (recur (apply max-key kalah-ab (play-deep-round g)) (dec limit))))))
+
+
+
