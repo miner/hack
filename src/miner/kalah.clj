@@ -367,48 +367,19 @@
               (keep #(play-pit game %) rng)))))
 
 
-(defn play-deep-round1 [g]
-  (let [prev (peek (:turns g))
-        rng (if-not prev
-              (range 6)
-              (if (:bonus g)
-                (if (< prev 6) (range 6) (range 7 13))
-                (if (< prev 6) (range 7 13) (range 6))))
-        round (keep #(play-pit g %) rng)]
-    (into (remove :bonus round) (mapcat play-deep-round (filter :bonus round)))))
-
-
-(defn play-deep-best [g]
-  (let [all (play-deep-round g)
-        homest (home-store (peek (:turns g)))]
-    (apply max-key #(get-in % [:pits homest]) all)))
-
-
-
-
-(defn play-deep-few
-  ([] (play-deep-few [init-game]))
-  ([gs]
-   (concat (filter :final gs)
-           (mapcat (fn [g]
-                     (let [all (play-deep-round g)
-                           homest (home-store (peek (:turns g)))]
-                       (concat (filter :final all)
-                               (take 3 (sort-by #(- (get-in % [:pits homest]))
-                                                (remove :final all))))))
-                   (remove :final gs)))))
-
 
 ;;; not practical to go beyond 5 deep rounds
 ;;; looks like you need to prune
 
 ;;; look for minimax
 
-(defn kheuristic1 [g homest]
+;;; not great but good at depth 6, similar to kheuristic
+(defn kheuristic1 [g]
+  (let [last-turn (or (peek (:turns g)) 0)]
   (if-let [[a b] (:final g)]
     (if (= a b)
       0
-      (if (= homest 6)
+      (if (< last-turn 6)
         (if (> a b) (* 100 (- a b)) -99)
         (if (> b a) (* 100 (- b a)) -99)))
     (let [pits (:pits g)
@@ -416,9 +387,9 @@
           sv13 (subvec pits 7 13)
           score7 (reduce + (* 3 (peek sv7)) sv7)
           score13 (reduce + (* 3 (peek sv13)) sv13)]
-      (if (= homest 6)
+      (if (< last-turn 6)
         (- score7 score13)
-        (- score13 score7)))))
+        (- score13 score7))))))
 
 
 (defn kh6 [g]
@@ -431,8 +402,11 @@
           score13 (reduce + (* 2 (peek sv13)) sv13)]
       (- score7 score13))))
 
-(def kh13 (comp - kh6))
+        
+;;; default depth 4 is pretty fast but result is [41 7]
+;;; default depth 5 is slow but closer result [22 26]
 
+;;; best so far, depth 4 is good enough
 (defn kheuristic [g]
   (let [last-pit (or (peek (:turns g)) 0)
         kh (kh6 g)]
@@ -440,16 +414,50 @@
       kh
       (- kh))))
 
-        
-;;; default depth 4 is pretty fast but result is [41 7]
-;;; default depth 5 is slow but closer result [22 26]
+
+;; ok but not great
+(defn kheuristic2 [g]
+  (let [last-turn (or (peek (:turns g)) 0)]
+    (if-let [[a b] (:final g)]
+      (if (< last-turn 6) (* 1000 (- a b)) (* 1000 (- b a)))
+    (let [pits (:pits g)
+          sv (if (< last-turn 6)
+               (subvec pits 0 7)
+               (subvec pits 7 13))]
+      (+ (count (filter zero? sv)) (reduce + (* 5 (peek sv)) sv))))))
+
+;;; slower
+(defn kheuristic3 [g]
+  (let [last-turn (or (peek (:turns g)) 0)]
+    (if-let [[a b] (:final g)]
+      (if (< last-turn 6) (* 1000 (- a b)) (* 1000 (- b a)))
+    (let [pits (:pits g)
+          sv (if (< last-turn 6)
+               (subvec pits 0 7)
+               (subvec pits 7 13))
+          opp (if (< last-turn 6)
+                (pits 13)
+                (pits 6))]
+      (+ (count (filter zero? (pop sv)))
+         (- opp)
+         (reduce + (* 5 (peek sv)) sv))))))
+
+;; not very good
+(defn kheuristic4 [g]
+  (let [last-turn (or (peek (:turns g)) 0)]
+    (if-let [[a b] (:final g)]
+      (if (< last-turn 6) (* 1000 (- a b)) (* 1000 (- b a)))
+      (let [pits (:pits g)]
+        (if (< last-turn 6)
+          (- (pits 6) (pits 13))
+          (- (pits 13) (pits 6)))))))
 
 
 ;;; alpha-beta from  https://clojurepatterns.com/17/3/23/
 ;;; slightly hacked by SEM
-(defn alpha-beta-fn [terminal-node? heuristic-fn generate-children]
+(defn alpha-beta-fn [terminal-node? heuristic-fn generate-children search-depth]
   (fn alpha-beta
-    ([node] (alpha-beta node 4 Long/MIN_VALUE Long/MAX_VALUE true))
+    ([node] (alpha-beta node search-depth Long/MIN_VALUE Long/MAX_VALUE true))
     ([node depth alpha beta maximizing?]
     (if (or (zero? depth) (terminal-node? node))
       (heuristic-fn node)
@@ -474,16 +482,22 @@
                 (recur (long (min beta value)) (rest children)))))))))))
 
 
-(def kalah-ab (alpha-beta-fn :final kheuristic play-deep-round))
 
-(defn run-kalah []
-  (loop [g (apply max-key kalah-ab (play-deep-round init-game))
-         limit 200]
-    (if (zero? limit)
-      [:limit g]
-      (if (:final g)
-        g
-        (recur (apply max-key kalah-ab (play-deep-round g)) (dec limit))))))
+;;; depth 4 gets nearly same result as depth 6
+;;; need a faster heuristic
+
+(defn run-kalah
+  ([] (run-kalah 4))
+  ([depth]
+   (let [kalah-ab (alpha-beta-fn :final kheuristic1 play-deep-round depth)]
+    (loop [g (apply max-key kalah-ab (play-deep-round init-game))
+           limit 200]
+      (if (zero? limit)
+        [:limit g]
+        (if (:final g)
+          g
+          (recur (apply max-key kalah-ab (play-deep-round g)) (dec limit))))))))
+
 
 
 
