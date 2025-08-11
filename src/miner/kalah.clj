@@ -489,7 +489,7 @@
 (defn run-kalah
   ([] (run-kalah 4))
   ([depth]
-   (let [kalah-ab (alpha-beta-fn :final kheuristic1 play-deep-round depth)]
+   (let [kalah-ab (alpha-beta-fn :final kheuristic play-deep-round depth)]
     (loop [g (apply max-key kalah-ab (play-deep-round init-game))
            limit 200]
       (if (zero? limit)
