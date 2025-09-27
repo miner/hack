@@ -30,8 +30,8 @@
 
 
 ;;; x and y are zero-based, but algebraic notation is 1-based
-(defn alg0 [x0 y0]
-  (str (nth "abcdefgh" x0) (inc y0)))
+(defn alg0 [file0 rank0]
+  (str (nth "abcdefgh" file0) (inc rank0)))
 
 (defn xy0 [alg]
   (assert (and (string? alg) (= (count alg) 2)))
@@ -47,25 +47,22 @@
           (dec (parse-long (subs alg 1)))))
 
 (defn xy1 [alg]
-  (assert (and (string? alg) (= (count alg) 2)))
   (vector (ah18 (nth alg 0))
           (ah18 (nth alg 1))))
 
-(defn alg1 [x1 y1]
-  (assert (and (<= 1 x1 8) (<= 1 y1 8)))
-  (str (char (bit-or 2r1100000 x1))
-       y1))
+(defn alg? [alg]
+  (and (string? alg) (= (count alg) 2) (every? ah18? alg)))
 
 
-;;; lrf is long encoded rank and file according to algebraic chars
-;;; "e5" ==> high byte is \e (file) + low byte 5 (rank)
+
+
+;;; lrf is long encoded rank and file in low byte according to algebraic chars
+;;; "c5" ==> byte file/rank with high 4 bits = 3 for \c (file) + low 4 bits = 5 (rank)
 ;;; capitals are translated to canonical lower in storage so E5 => e5
 
 (defn lrf [algstr]
-  (assert (and (string? algstr) (= (count algstr) 2)))
   (bit-or (ah18 (nth algstr 0))
           (bit-shift-left (ah18 (nth algstr 1)) 4)))
-
 
 (defn rank0 [lrf]
   (dec (bit-and 2r1111 (bit-shift-right lrf 4))))
@@ -74,7 +71,7 @@
   (dec (bit-and 2r1111 lrf)))
 
 (defn alg [lrf]
-  (str (char (bit-or 2r1100000 (bit-and 2r11111 lrf)))
+  (str (char (bit-or 2r1100000 (bit-and 2r1111 lrf)))
        (char (bit-or 2r110000 (bit-shift-right lrf 4)))))
 
 
@@ -84,7 +81,7 @@
    (cond (string? lrf-str-vec) (str/lower-case lrf-str-vec)
          (int? lrf-str-vec) (alg lrf-str-vec)
          (vector? lrf-str-vec) (apply alg0 lrf-str-vec)))
-  ([x0 y0] (alg0 x0 y0)))
+  ([file0 rank0] (alg0 file0 rank0)))
 
 
 (def a1 (lrf "a1"))
@@ -95,11 +92,11 @@
 
 (defn lrf-up [lrf]
   (when (< (rank0 lrf) 7)
-    (+ lrf 0x100)))
+    (+ lrf 0x10)))
 
 (defn lrf-down [lrf]
   (when (pos? (rank0 lrf))
-    (- lrf 0x100)))
+    (- lrf 0x10)))
 
 (defn lrf-left [lrf]
   (when (pos? (file0 lrf))
