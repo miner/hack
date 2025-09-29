@@ -1,9 +1,9 @@
 (defproject hack "0.4.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.59.1"]
+  :dependencies [[djblue/portal "0.61.0"]
                  [dom-top "1.0.9"]
                  [com.datomic/local "1.0.291"]
-                 [com.taoensso/telemere "1.0.1"]
+                 [com.taoensso/telemere "1.1.0"]
                  ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
@@ -17,7 +17,7 @@
                  [org.clojure/tools.macro "0.2.1"]
                  [org.clojure/data.priority-map "1.2.0"]
                  [instaparse "1.5.0"]
-                 [nrepl/nrepl "1.3.1"]
+                 [nrepl/nrepl "1.4.0"]
                  ;;[clj-webdriver "0.5.1"]
                  [org.clojure/core.logic "1.1.0"]
                  [quil "4.3.1563"]
@@ -40,17 +40,17 @@
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [org.clojars.quoll/tiara "0.4.0"]
                  ;; [com.github.nubank/morse "2023.10.06.02"]
-                 [clj-commons/fs "1.6.311"]]
+                 [clj-commons/fs "1.6.312"]]
   :global-vars {*warn-on-reflection* true
                 ;; *unchecked-math* :warn-on-boxed
                 }
   :profiles {:dev  {:source-paths ["src" "dev"]
-                    :dependencies [[org.clojure/clojure "1.12.2"]
+                    :dependencies [[org.clojure/clojure "1.12.3"]
                                    ;; [org.clojure/core.async "1.5.640"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
              :clj18 {:dependencies [[org.clojure/clojure "1.8.0"]
-                                    [nrepl "1.3.1"]
+                                    [nrepl "1.4.0"]
                                     ]}
 
              :clj17 {:dependencies [   
