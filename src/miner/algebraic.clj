@@ -57,9 +57,11 @@
 
 
 
-;;; lfr is long encoded rank and file in low byte according to algebraic chars, but zero based.
-;;; "c5" ==> is 0/4 file/rank with high 3 bits = 2 for \c (file) + low 3 bits = 4 (rank).
-;;; capitals are translated to canonical lower in storage so E5 => e5
+;;; lfr is long encoded file and rank in low byte according to algebraic chars, but zero based.
+;;; "c5" ==> is 2r100010 with low 3 bits = 2 for \c (file), and higher 3 bits = 4 for \5 (rank).
+;;; Capitals are translated to canonical lower in storage so E5 => e5.  We want rank as the
+;;; major order (bits 5,4,3) and file as the minor (bits 2,1,0) so that the natural integer
+;;; encoding of 0 - 63 goes a1, b1, c1, ... h1, a2, b2, c2, ... h8.
 
 (defn lfr [algstr]
   (bit-or (ah0 (nth algstr 0))
