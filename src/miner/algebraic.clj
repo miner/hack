@@ -18,6 +18,10 @@
 (defn ah18 [ch]
   (bit-and 2r1111 (long ch)))
 
+;;; returns 0-7 which fits in 3 bits
+(defn ah0 [ch]
+  (dec (ah18 ch)))
+
 
 (defn ah18? [ch]
   (let [res (ah18 ch)]
@@ -46,9 +50,6 @@
             (\h \H) 7)
           (dec (parse-long (subs alg 1)))))
 
-(defn xy1 [alg]
-  (vector (ah18 (nth alg 0))
-          (ah18 (nth alg 1))))
 
 (defn alg? [alg]
   (and (string? alg) (= (count alg) 2) (every? ah18? alg)))
@@ -56,52 +57,53 @@
 
 
 
-;;; lrf is long encoded rank and file in low byte according to algebraic chars
-;;; "c5" ==> byte file/rank with high 4 bits = 3 for \c (file) + low 4 bits = 5 (rank)
+;;; lfr is long encoded rank and file in low byte according to algebraic chars, but zero based.
+;;; "c5" ==> is 0/4 file/rank with high 3 bits = 2 for \c (file) + low 3 bits = 4 (rank).
 ;;; capitals are translated to canonical lower in storage so E5 => e5
 
-(defn lrf [algstr]
-  (bit-or (ah18 (nth algstr 0))
-          (bit-shift-left (ah18 (nth algstr 1)) 4)))
+(defn lfr [algstr]
+  (bit-or (ah0 (nth algstr 0))
+          (bit-shift-left (ah0 (nth algstr 1)) 3)))
 
-(defn rank0 [lrf]
-  (dec (bit-and 2r1111 (bit-shift-right lrf 4))))
+(defn rank0 [lfr]
+  (bit-shift-right lfr 3))
 
-(defn file0 [lrf]
-  (dec (bit-and 2r1111 lrf)))
+(defn file0 [lfr]
+  (bit-and 2r111 lfr))
 
-(defn alg [lrf]
-  (str (char (bit-or 2r1100000 (bit-and 2r1111 lrf)))
-       (char (bit-or 2r110000 (bit-shift-right lrf 4)))))
+(defn alg [lfr]
+  (str (char (bit-or 2r1100000 (inc (bit-and 2r111 lfr))))
+       (char (bit-or 2r110000 (inc (bit-shift-right lfr 3))))))
 
 
 ;;; FIXME looser than necessary
 (defn algstr
-  ([lrf-str-vec]
-   (cond (string? lrf-str-vec) (str/lower-case lrf-str-vec)
-         (int? lrf-str-vec) (alg lrf-str-vec)
-         (vector? lrf-str-vec) (apply alg0 lrf-str-vec)))
+  ([lfr-str-vec]
+   (cond (string? lfr-str-vec) (str/lower-case lfr-str-vec)
+         (int? lfr-str-vec) (alg lfr-str-vec)
+         (vector? lfr-str-vec) (apply alg0 lfr-str-vec)))
   ([file0 rank0] (alg0 file0 rank0)))
 
 
-(def a1 (lrf "a1"))
-(def h8 (lrf "h8"))
-(def e5 (lrf "e5"))
-(def c7 (lrf "c7"))
+(def a1 (lfr "a1"))
+(def h8 (lfr "h8"))
+(def e5 (lfr "e5"))
+(def c7 (lfr "c7"))
 
 
-(defn lrf-up [lrf]
-  (when (< (rank0 lrf) 7)
-    (+ lrf 0x10)))
+(defn lfr-up [lfr]
+  (when (< (rank0 lfr) 7)
+    (+ lfr 2r1000)))
 
-(defn lrf-down [lrf]
-  (when (pos? (rank0 lrf))
-    (- lrf 0x10)))
 
-(defn lrf-left [lrf]
-  (when (pos? (file0 lrf))
-    (dec lrf)))
+(defn lfr-down [lfr]
+  (when (pos? (rank0 lfr))
+    (- lfr 2r1000)))
 
-(defn lrf-right [lrf]
-  (when (< (file0 lrf) 7)
-    (inc lrf)))
+(defn lfr-left [lfr]
+  (when (pos? (file0 lfr))
+    (dec lfr)))
+
+(defn lfr-right [lfr]
+  (when (< (file0 lfr) 7)
+    (inc lfr)))   
