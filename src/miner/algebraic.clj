@@ -14,7 +14,8 @@
 ;;; rank number. For example, the initial square of White's king is designated as "e1".
 
 
-;;; converts \a-\h \A-\H to 1-8, and \0-\9 to 0-9
+;;; converts \a-\h and \A-\H to 1-8, and \1-\8 to 1-8. (Really \0-\9 to 0-9, but that's beyond
+;;; the expected input.)  Takes advantage of ASCII layout.
 (defn ah18 [ch]
   (bit-and 2r1111 (long ch)))
 
@@ -27,16 +28,19 @@
   (let [res (ah18 ch)]
     (and (<= 1 res 8)
          (let [x (long ch)]
-           (or (<= (long \a) x (long \z))
-               (<= (long \A) x (long \Z))
-               (<= (long \1) x (long \8)))))))
+           (or (<= (long \1) x (long \8))
+               (<= (long \a) x (long \h))
+               (<= (long \A) x (long \H)))))))
+
+(defn alg? [alg]
+  (and (string? alg) (= (count alg) 2) (every? ah18? alg)))
 
 
-
-;;; x and y are zero-based, but algebraic notation is 1-based
+;;; file0 and rank0 are zero-based, but algebraic notation is 1-based
 (defn alg0 [file0 rank0]
   (str (nth "abcdefgh" file0) (inc rank0)))
 
+;;; not used
 (defn xy0 [alg]
   (assert (and (string? alg) (= (count alg) 2)))
   (vector (case (nth alg 0)
@@ -49,11 +53,6 @@
             (\g \G) 6
             (\h \H) 7)
           (dec (parse-long (subs alg 1)))))
-
-
-(defn alg? [alg]
-  (and (string? alg) (= (count alg) 2) (every? ah18? alg)))
-
 
 
 
@@ -96,7 +95,6 @@
 (defn lfr-up [lfr]
   (when (< (rank0 lfr) 7)
     (+ lfr 2r1000)))
-
 
 (defn lfr-down [lfr]
   (when (pos? (rank0 lfr))
