@@ -26,6 +26,11 @@
   (and (< (start hoi2) (end hoi1))
        (< (start hoi1) (end hoi2))))
 
+(defn overlap [hoi1 hoi2]
+  (when (overlap? hoi1 hoi2)
+    (vector (max (start hoi1) (start hoi2))
+            (min (end hoi1) (end hoi2)))))
+
 (defn in? [hoi x]
   (and (>= x (start hoi))
        (< x (end hoi))))
