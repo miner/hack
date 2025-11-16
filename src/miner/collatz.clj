@@ -204,3 +204,28 @@
                      (even? c) (quot c 2)
                      :else (inc (* 3 c))))]
     (sequence (take-while some?) (iterate step n))))
+
+
+
+
+;;; https://projecteuler.net/problem=14
+
+;;; Which starting number, under one million, produces the longest chain?
+;;; NOTE: Once the chain starts the terms are allowed to go above one million.
+
+(defn czlen [init]
+  (loop [cnt 1 i init]
+    (if (= i 1)
+      cnt
+      (recur (inc cnt) (if (even? i) (quot i 2) (inc (* 3 i)))))))
+  
+(defn euler14 []
+  (peek (reduce (fn [[len n :as state] i]
+                  (let [cz (czlen i)]
+                    (if (> cz len)
+                      [cz i]
+                      state)))
+                [1 1]
+                (range 2 1000000))))
+
+                
