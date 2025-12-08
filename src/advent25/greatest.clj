@@ -15,8 +15,8 @@
 
 
 ;;; SEM: main insight is that leftmost digits matter most so drop while lower than next
-;;; until you've hit your limit.  Consider leftmost window of dropcnt+1.  Must keep max
-;;; of first dropcnt+1.  Then start new window after kept digit.
+;;; until you've hit your limit.  Consider leftmost window of dropcnt+1.  Must keep first
+;;; max of dropcnt+1 window.  Then start new window after kept digit.
 
 ;;; faster to subvec and manage dropping precisely
 
