@@ -9,7 +9,7 @@
 
 ;;; see also an existing Clojure port:
 ;;; https://github.com/logseq/clj-fractional-indexing
-
+;;; but it is buggy!
 
 ;;; motivated by using strings, note \~ is greater than \z if you need a char endpoint
 ;;; nil or \space sorts first
@@ -134,7 +134,7 @@
 
   )
 
-
+#_ ;; UNFINISHED  BUGGY
 (defn midpoint [a b]
   (if (and (nil? a) (nil? b))
     "a0"
@@ -158,7 +158,7 @@
               (subs b 0 1)
               (str (base-62-map digit-a) (midpoint (subs a 1) nil))))))))
 
-
+))))
 
 
 ;;; save for ref  --- buggy
