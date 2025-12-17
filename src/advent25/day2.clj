@@ -90,21 +90,45 @@
 
 ;;; all even rep counts are covered by part1 test
 
-;;; odd reps  3,5,7,etc
-;;; quick test if count supports cnt 9  works with 3wide x 3
-;;; quick test front and back? then every
+;;; odd reps  3,5,7,etc -- actually only need prime reps
 
-(defn gen-inv3 [ith]
-  (when (pos? ith)
-    (parse-long (str ith ith ith))))
+;;; my approach is based on choosing repition counts and deriving necessary pattern width
+;;; only need to consider prime repitition counts.  For example, 9 rep would already be
+;;; covered by 3 rep, and all even reps are covered by 2 rep.
+
+
+;;; probably would be faster with more transducers and eager calcs
 
 (defn gen-inv-ith [rep pat]
   (when (and (pos? rep) (pos? pat))
-    (parse-long (apply str (repeat rep pat)))))
+    (parse-long (str/join (repeat rep pat)))))
 
 
-(defn inv2 [n]
+;; good starting point.  But it might be less than seed.
+(defn start-ith [rep seed]
+  (let [s (str seed)
+        cnt (count s)
+        r (rem cnt rep)
+        w (quot cnt rep)]
+    ;;(println "si" rep seed w r)
+    (if (and (zero? r) (pos? w))
+      (parse-long (subs s 0 w))
+      (parse-long (str/join (cons "1" (repeat w "0")))))))
 
-  )
 
-  
+(defn inv-btw-rep [rep a b]
+  (let [i (start-ith rep a)]
+    ;;(println "ibr" rep a b i)
+    (take-while #(<= % b) (drop-while #(< % a) (map #(gen-inv-ith rep %)
+                                                    (iterate inc i))))))
+
+(defn primes-below [limit]
+  (take-while #(< % limit) [2 3 5 7 11 13 17 19 23 29 31 37 41 43]))
+
+(defn inv-btw2 [a b]
+  (let [p (count (str b))]
+    (distinct (sequence (mapcat #(inv-btw-rep % a b)) (primes-below (inc p))))))
+
+
+(defn day2-2 [s]
+  (reduce + (sequence (mapcat #(apply inv-btw2 %) (parse-input s)))))
