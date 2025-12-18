@@ -1,5 +1,4 @@
 (ns advent25.day4
-  (:require [clojure.java.io :as io])
   (:require [clojure.string :as str]))
 
 
