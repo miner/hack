@@ -48,3 +48,19 @@
 
 ;;; Much slower approach:
 ;;; https://github.com/jflinchbaugh/aoc2025/blob/220792c8c2133fd0009015e61d9f6ca6ecf0f44a/src/aoc2025/day_3.clj#L6
+
+
+;;; what about finding the smallest number instead of greatest?
+;;; Twist: no leading zeros allowed.  Change the test-xp function as you loop
+
+(defn least-num [digits keeping]
+  (let [low-nz (fn [x p] (and (< x p) (pos? x)))]
+    (loop [dv (vec digits) dropping (- (count dv) keeping) res [] testxp low-nz]
+      (cond (= (count res) keeping)  res
+            (pos? dropping)
+                ;; dg is [drop-count greatest] for the leftmost window on dv
+                (let [[d l] (reduce-kv (fn [dl i x] (if (testxp x (peek dl)) [i x] dl))
+                                       [-1 10]
+                                       (subvec dv 0 (inc dropping)))]
+                  (recur (subvec dv (inc d)) (- dropping d) (conj res l) <))
+            :else (into res dv)))))
