@@ -1,4 +1,5 @@
 (ns advent25.greatest
+   (:require [clojure.string :as str])
  (:require [clojure.math.combinatorics :as combo]))
 
 ;;; I still need to read actual Advent of Code 2025.  This is just from a Reddit post asked
@@ -50,17 +51,60 @@
 ;;; https://github.com/jflinchbaugh/aoc2025/blob/220792c8c2133fd0009015e61d9f6ca6ecf0f44a/src/aoc2025/day_3.clj#L6
 
 
+
+;;; 12/21/25  06:57 by miner -- related problem with a twist.
+
 ;;; what about finding the smallest number instead of greatest?
 ;;; Twist: no leading zeros allowed.  Change the test-xp function as you loop
 
-(defn least-num [digits keeping]
-  (let [low-nz (fn [x p] (and (< x p) (pos? x)))]
-    (loop [dv (vec digits) dropping (- (count dv) keeping) res [] testxp low-nz]
-      (cond (= (count res) keeping)  res
-            (pos? dropping)
-                ;; dg is [drop-count greatest] for the leftmost window on dv
-                (let [[d l] (reduce-kv (fn [dl i x] (if (testxp x (peek dl)) [i x] dl))
-                                       [-1 10]
-                                       (subvec dv 0 (inc dropping)))]
-                  (recur (subvec dv (inc d)) (- dropping d) (conj res l) <))
-            :else (into res dv)))))
+(defn digitize [n]
+  (assert (not (neg? n)))
+  (mapv #(bit-and 2r1111 (long %)) (str n)))
+
+;; faster
+(defn dv->long [dv]
+  (when dv
+    (reduce (fn [r d] (+ d (* 10 r)))
+            0
+            dv)))
+
+
+
+;; Inside the loop, [d lo] is drop-count 'd' to get to lowest digit 'lo' for the leftmost
+;; window on dv.
+
+(defn least-num [n keeping]
+  (assert (and (not (neg? n)) (pos? keeping)))
+  (loop [dv (digitize n)
+         dropping (- (count dv) keeping)
+         res []
+         xltp (if (= keeping 1) < (fn [x p] (and (< x p) (pos? x))))]
+    (cond (= (count res) keeping)  (dv->long res)
+          (pos? dropping) (let [[d lo] (reduce-kv (fn [dl i x] (if (xltp x (peek dl)) [i x] dl))
+                                                  [-1 10]
+                                                  (subvec dv 0 (inc dropping)))]
+                            (recur (subvec dv (inc d)) (- dropping d) (conj res lo) <))
+          :else (when (= (+ (count res) (count dv)) keeping)
+                  (dv->long (into res dv))))))
+
+          
+;;; bug keeping 1 is special, can return 0
+;;; bug keeping 0 should be nil
+
+
+
+
+
+;; slower
+(defn longv2 [dv]
+  (parse-long (apply str dv)))
+
+;; a bit slower and less clear
+(defn dgt [n]
+  (assert (not (neg? n)))
+  (if (zero? n)
+    [0]
+    (loop [n n res ()]
+      (if (zero? n)
+        (vec res)
+        (recur (quot n 10) (conj res (rem n 10)))))))
