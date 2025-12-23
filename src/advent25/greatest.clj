@@ -61,6 +61,7 @@
   (assert (not (neg? n)))
   (mapv #(bit-and 2r1111 (long %)) (str n)))
 
+
 ;; faster
 (defn dv->long [dv]
   (when dv
@@ -87,10 +88,22 @@
           :else (when (= (+ (count res) (count dv)) keeping)
                   (dv->long (into res dv))))))
 
-          
-;;; bug keeping 1 is special, can return 0
-;;; bug keeping 0 should be nil
 
+(defn smoke-lnum
+  ([] (smoke-lnum least-num))
+  ([least-num]
+   (assert (= (least-num 9279999456300142031 15) 279456300142031))
+   (assert (= (least-num 0 1) 0))
+   (assert (= (least-num 901 1) 0))
+   (assert (= (least-num 901 2) 90))
+   (assert (= (least-num 901 3) 901))
+   (assert (nil? (least-num 901 4)))
+   (assert (= (mapv #(least-num 90817 %) (range 1 7)) [0 17 817 9017 90817 nil]))
+   (assert (= (mapv #(least-num 9876019002 %) (range 1 13))
+              [0 10 100 1002 19002 601002 6019002 76019002 876019002 9876019002 nil nil]))
+   true))
+
+          
 
 
 
@@ -108,3 +121,14 @@
       (if (zero? n)
         (vec res)
         (recur (quot n 10) (conj res (rem n 10)))))))
+
+;; slower
+(defn digitize2 [n]
+  (assert (not (neg? n)))
+  (if (zero? n)
+    [0]
+    (loop [res nil n n]
+      (if (zero? n)
+        (vec res)
+        (recur (conj res (rem n 10)) (quot n 10))))))
+
