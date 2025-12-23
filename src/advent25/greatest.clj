@@ -64,11 +64,7 @@
 
 ;; faster
 (defn dv->long [dv]
-  (when dv
-    (reduce (fn [r d] (+ d (* 10 r)))
-            0
-            dv)))
-
+  (reduce (fn [r d] (+ d (* 10 r))) 0 dv))
 
 
 ;; Inside the loop, [d lo] is drop-count 'd' to get to lowest digit 'lo' for the leftmost
@@ -79,9 +75,10 @@
   (loop [dv (digitize n)
          dropping (- (count dv) keeping)
          res []
-         xltp (if (= keeping 1) < (fn [x p] (and (< x p) (pos? x))))]
+         ;; ltxp is the less-than test where x is the element dv and p is the previous lowest
+         ltxp (if (= keeping 1) < (fn [x p] (and (< x p) (pos? x))))]
     (cond (= (count res) keeping)  (dv->long res)
-          (pos? dropping) (let [[d lo] (reduce-kv (fn [dl i x] (if (xltp x (peek dl)) [i x] dl))
+          (pos? dropping) (let [[d lo] (reduce-kv (fn [dl i x] (if (ltxp x (peek dl)) [i x] dl))
                                                   [-1 10]
                                                   (subvec dv 0 (inc dropping)))]
                             (recur (subvec dv (inc d)) (- dropping d) (conj res lo) <))
