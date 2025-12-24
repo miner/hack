@@ -2,12 +2,17 @@
    (:require [clojure.string :as str])
  (:require [clojure.math.combinatorics :as combo]))
 
-;;; I still need to read actual Advent of Code 2025.  This is just from a Reddit post asked
-;;; about this problem.
+;;; Meta Note:  this is a nicely commented notebook on AOC 2025:
+;;; https://narimiran.github.io/aoc2025/
+
+
+;;; I had not read the actual Advent of Code 2025 when I saw this Reddit post asked
+;;; about this problem.  See my dayX.clj files for my AOC work after looking at the real
+;;; problems.
 
 ;;; https://www.reddit.com/r/Clojure/comments/1pe6c05/getting_combinations_from_a_nonunique_list_while/
 
-;;; given sequences of potential digits, keep `keeping`, disgarding others but preserving
+;;; given sequences of potential digits, keep `keeping`, discarding others but preserving
 ;;; original order to form largest number.
 
 
@@ -129,3 +134,7 @@
         (vec res)
         (recur (conj res (rem n 10)) (quot n 10))))))
 
+;; about the same speed as digitize but not as nice
+(defn digitize3 [n]
+  (mapv #(case % \0 0 \1 1 \2 2 \3 3 \4 4 \5 5 \6 6 \7 7 \8 8 \9 9 nil)
+        (str n)))
