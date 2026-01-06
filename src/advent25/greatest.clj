@@ -1,6 +1,7 @@
 (ns advent25.greatest
-   (:require [clojure.string :as str])
- (:require [clojure.math.combinatorics :as combo]))
+  (:require [clojure.string :as str])
+  (:require [clojure.math :as m])
+  (:require [clojure.math.combinatorics :as combo]))
 
 ;;; Meta Note:  this is a nicely commented notebook on AOC 2025:
 ;;; https://narimiran.github.io/aoc2025/
@@ -63,8 +64,8 @@
 ;;; Twist: no leading zeros allowed.  Change the test-xp function as you loop
 
 (defn digitize [n]
-  (assert (not (neg? n)))
-  (mapv #(bit-and 2r1111 (long %)) (str n)))
+  ;(assert (not (neg? n)))
+  (mapv #(bit-and 0xF (long %)) (str n)))
 
 
 ;; faster
@@ -115,18 +116,8 @@
   (parse-long (apply str dv)))
 
 ;; a bit slower and less clear
-(defn dgt [n]
-  (assert (not (neg? n)))
-  (if (zero? n)
-    [0]
-    (loop [n n res ()]
-      (if (zero? n)
-        (vec res)
-        (recur (quot n 10) (conj res (rem n 10)))))))
-
-;; slower
 (defn digitize2 [n]
-  (assert (not (neg? n)))
+  ;(assert (not (neg? n)))
   (if (zero? n)
     [0]
     (loop [res nil n n]
@@ -138,3 +129,59 @@
 (defn digitize3 [n]
   (mapv #(case % \0 0 \1 1 \2 2 \3 3 \4 4 \5 5 \6 6 \7 7 \8 8 \9 9 nil)
         (str n)))
+
+;; not faster to def
+;; (def ^:const basc0 (byte \0))
+
+;; fastest
+(defn digitize4 [n]
+  (mapv #(- (byte %) (byte \0)) (str n)))
+
+;; slower
+(defn digitize5 [n]
+  (mapv #(bit-and (byte 0xF) %) (.getBytes (str n))))
+
+(defn dig6 [n]
+  (into [] (map #(bit-and 0xF (long %))) (str n)))
+
+
+(defn dig7 [n]
+  (reduce (fn [r c] (conj r (bit-and 0xF (long c))))
+          []
+          (str n)))
+
+;;; surprisingly, dig71 is much faster than dig7 -- only diff is the seq
+(defn dig71 [n]
+  (reduce (fn [r c] (conj r (bit-and 0xF (long c))))
+          []
+          (seq (str n))))
+
+;; slow, and transduce is even slower
+(defn dig8 [n]
+  (let [s (str n)]
+    (reduce (fn [r i] (conj r (bit-and 0xF (long (nth s i)))))
+            []
+            (range (count s)))))
+
+
+(defn dig9 [n]
+  (mapv #(bit-and 0xF (long %)) (str n)))
+
+
+(defn dig-count [n]
+  ;;(assert (not (neg? n)))
+  (if (zero? n)
+    1
+    (inc (long (m/floor (m/log10 n))))))
+
+;;; not so great
+(defn rleast [n drop]
+  (loop [res [n]]
+    (let [p (peek res)]
+      (if (and (some? p) (pos? p))
+        (let [keeping (- (dig-count p) drop)]
+          (if (pos? keeping)
+            (recur (conj res (least-num p keeping)))
+            res))
+        res))))
+
