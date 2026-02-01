@@ -1,4 +1,5 @@
-(ns miner.prime-factors)
+(ns miner.prime-factors
+  (:require [clojure.math :as m]))
 
 ;; http://stackoverflow.com/questions/9556393/clojure-tail-recursion-with-prime-factors
 
@@ -103,3 +104,109 @@
              (zero? (rem n candidate)) (prime-factors5 (conj factors candidate) q candidate)
              :else (recur factors n (+ 2 candidate))))
      factors)))
+
+
+
+;;; As found on:
+;;; https://clojurecivitas.github.io/math/primes/factorization/sieve_augmented.html
+
+;;; Computes all the prime factors, from 0 up to and including for N.
+
+;;; SEM: quibble on results for 0 and 1 which should not be prime.  Also, it is unconvential
+;;; to include the N-th element in the vector result.  Probably, it would be better to give
+;;; results from 0..(N-1) (or "half-open") so the result is a vector with N elements.
+
+(defn civitas-prime-factors-vec [n]
+  (reduce
+   (fn [factors prime]
+     (if (= 1 (count (nth factors prime)))
+       (reduce
+        (fn [factors multiple]
+          (let [[composite-divisor :as divisors] (nth factors multiple)]
+            (if (< prime composite-divisor)
+              (let [remaining-divisor (/ composite-divisor prime)
+                    remaining-divisors (nth factors remaining-divisor)
+                    prime-divisors (cons prime (rest divisors))]
+                (assoc
+                 factors multiple
+                 (if (< 1 (count remaining-divisors))
+                   (concat remaining-divisors prime-divisors)
+                   (cons remaining-divisor prime-divisors))))
+              factors)))
+        factors
+        (range (* prime prime) (inc n) prime))
+       factors))
+   (mapv list (range (inc n)))
+   (range 2 (inc (m/sqrt n)))))
+
+;;; fixes 0, 1 to be nil.  Note: still return vector including N-th in last slot.
+(defn sem-pf [n]
+  (if (< n 2)
+    (vec (repeat (inc n) nil))
+    (into [nil nil] (drop 2) (civitas-prime-factors-vec n))))
+
+
+
+;;; for testing equivalence without caring about internal order of factors
+(defn set= [c1 c2]
+  (= (map set c1) (map set c2)))
+
+
+;;; works about same
+(defn civ-pf2 [n]
+  (if (< n 2)
+    (vec (repeat (inc n) nil))
+    (reduce
+     (fn [factorv prime]
+       (if (= 1 (count (nth factorv prime)))
+         (reduce
+          (fn [factorv multiple]
+            (let [[composite-divisor :as divisors] (nth factorv multiple)]
+              (if (< prime composite-divisor)
+                (let [remaining-divisor (/ composite-divisor prime)
+                      remaining-divisors (nth factorv remaining-divisor)
+                      prime-divisors (cons prime (rest divisors))]
+                  ;;(println " pf2" prime multiple factorv)
+                  (assoc factorv multiple
+                         (if (< 1 (count remaining-divisors))
+                           (concat remaining-divisors prime-divisors)
+                           (cons remaining-divisor prime-divisors))))
+                factorv)))
+          factorv
+          (range (* prime prime) (inc n) prime))
+         factorv))
+     (into [nil nil] (map list) (range 2 (inc n)))
+     (range 2 (inc (m/sqrt n))))))
+
+
+
+
+;; faster than generic `into` if you have known vector args
+(defmacro intov [v1 v2]
+  `(reduce conj ~v1 ~v2))
+
+
+;;; My new favorite, and fastest.
+(defn civ-pf [n]
+  (if (< n 2)
+    (vec (repeat (inc n) nil))
+    (reduce (fn [factorv i]
+              (if (= (count (nth factorv i)) 1)
+                ;; i is prime
+                (reduce (fn [factorv multiple]
+                          (let [divisorv (nth factorv multiple)
+                                composite-divisor (peek divisorv)]
+                            (if (< i composite-divisor)
+                              (assoc factorv multiple
+                                     (intov (conj (pop divisorv) i)
+                                            (nth factorv (quot composite-divisor i))))
+                              factorv)))
+                        factorv
+                        (range (* i i) (inc n) i))
+                factorv))
+            (into [nil nil] (map vector) (range 2 (inc n)))
+            (range 2 (long (inc (m/sqrt n)))))))
+
+
+
+;;; transient is slower for main factorv so not worth the trouble.
