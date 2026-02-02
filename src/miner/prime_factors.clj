@@ -109,12 +109,17 @@
 
 ;;; As found on:
 ;;; https://clojurecivitas.github.io/math/primes/factorization/sieve_augmented.html
+;;;
+;;; "Factorization of Eratosthenes"
 
 ;;; Computes all the prime factors, from 0 up to and including for N.
 
-;;; SEM: quibble on results for 0 and 1 which should not be prime.  Also, it is unconvential
+;;; SEM: quibble on results for 0 and 1, which should not be prime.  Also, it is unconvential
 ;;; to include the N-th element in the vector result.  Probably, it would be better to give
 ;;; results from 0..(N-1) (or "half-open") so the result is a vector with N elements.
+
+
+;;; Note: the divisors allow a composite as the first element.  Everything else is prime.
 
 (defn civitas-prime-factors-vec [n]
   (reduce
@@ -151,6 +156,9 @@
 (defn set= [c1 c2]
   (= (map set c1) (map set c2)))
 
+;;; Note:  the divisor vector is the latest factoring but might have a composite at its peek so
+;;; the replacement with the division divisors must also go last.  The new peek might still
+;;; need factoring.
 
 ;;; works about same
 (defn civ-pf2 [n]
