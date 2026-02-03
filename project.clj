@@ -40,6 +40,8 @@
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [org.clojars.quoll/tiara "0.5.1"]
                  [juji/editscript "0.7.0"]
+                 ;; [org.scicloj/glance "0.1.0-alpha2"]
+                 ;; [datalevin "0.10.3"]
                  ;; [com.github.nubank/morse "2023.10.06.02"]
                  [clj-commons/fs "1.6.312"]]
   :global-vars {*warn-on-reflection* true
