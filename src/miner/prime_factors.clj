@@ -194,27 +194,28 @@
   `(reduce conj ~v1 ~v2))
 
 
+;;; transient is slower for main factorv so not worth the trouble.
+
+;;; seems to be slightly faster to index into vectors (v i) instead (nth v i).  Not sure
+;;; about that.
+
 ;;; My new favorite, and fastest.
 (defn civ-pf [n]
   (if (< n 2)
     (vec (repeat (inc n) nil))
     (reduce (fn [factorv i]
-              (if (= (count (nth factorv i)) 1)
+              (if (= (count (factorv i)) 1)
                 ;; i is prime
                 (reduce (fn [factorv multiple]
-                          (let [divisorv (nth factorv multiple)
+                          (let [divisorv (factorv multiple)
                                 composite-divisor (peek divisorv)]
                             (if (< i composite-divisor)
                               (assoc factorv multiple
                                      (intov (conj (pop divisorv) i)
-                                            (nth factorv (quot composite-divisor i))))
+                                            (factorv (quot composite-divisor i))))
                               factorv)))
                         factorv
                         (range (* i i) (inc n) i))
                 factorv))
             (into [nil nil] (map vector) (range 2 (inc n)))
             (range 2 (long (inc (m/sqrt n)))))))
-
-
-
-;;; transient is slower for main factorv so not worth the trouble.
