@@ -36,6 +36,7 @@
     (lazy-step n 2)))
 
 
+
 ;; My version fixed
 (defn prime-factors1
   ([^long n]
@@ -199,7 +200,9 @@
 ;;; seems to be slightly faster to index into vectors (v i) instead (nth v i).  Not sure
 ;;; about that.
 
-;;; My new favorite, and fastest.
+;;; My new favorite, and fastest of this approach.  However, it's much faster to just use
+;;; prime-factors2.
+
 (defn civ-pf [n]
   (if (< n 2)
     (vec (repeat (inc n) nil))
@@ -219,3 +222,8 @@
                 factorv))
             (into [nil nil] (map vector) (range 2 (inc n)))
             (range 2 (long (inc (m/sqrt n)))))))
+
+
+;; much faster
+(defn pf-vec [n]
+  (mapv prime-factors2 (range (inc n))))
