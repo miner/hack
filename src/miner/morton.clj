@@ -14,14 +14,6 @@
 ;;; First you need to quantize the units.  We will use a long (64 bits) for the Morton Code.
 ;;; Half the bits are X, and half are Y, so they can each be int (32 bits).
 
-(defn interleave-bits [x y]
-  (loop [z 0 i 0]
-    (if (= i 32)
-      z
-      (recur (long (cond-> z
-               (bit-test x i) (bit-set (* 2 i))
-               (bit-test y i) (bit-set (inc (* 2 i)))))
-             (inc i)))))
 
 ;;; slightly faster
 (defn zbits1 [x y]
@@ -33,33 +25,7 @@
                (bit-test y i) (bit-set (inc (* 2 i)))))
              (dec i)))))
 
-
-;;; borrowed from my bitset.clj
-#_
-(defn bseq [n]
-  (loop [n n bs ()]
-    (if (zero? n)
-      bs
-      (let [h (Long/highestOneBit n)]
-        (recur (bit-xor n h) (conj bs (Long/numberOfTrailingZeros h)))))))
-
-
 ;;; much faster to hit only set bits
-(defn zbits2 [x y]
-  (let [z (loop [z 0 n x]
-            (if (zero? n)
-              z
-              (let [h (Long/highestOneBit n)]
-                (recur (long (bit-set z (* 2 (Long/numberOfTrailingZeros h)))) (bit-xor n h)))))]
-    (loop [z z n y]
-      (if (zero? n)
-        z
-        (let [h (Long/highestOneBit n)]
-          (recur (bit-set z (inc (* 2 (Long/numberOfTrailingZeros h)))) (bit-xor n h)))))))
-
-  
-
-;;; fastest so far (was zbits4)
 (defn zbits [x y]
   (loop [z 0 n x iplus 0]
     (if (zero? n)
@@ -75,80 +41,22 @@
 ;;; Faster ideas:
 ;;; https://graphics.stanford.edu/~seander/bithacks.html#InterleaveTableObvious
 
-;;; built a lookup table of 256 entries
-(defn lut256 []
-  (sort-by peek (for [x (range 16) y (range 16)]
-                  (vector x y (bit-or (bit-shift-left y 4) x)
-                          (zbits4 x y)))))
 
 
-;;; new idea, add pre-shifted balue as well
-;;; Not sure about offsets, needs thinking and testing
+(defn spread-bits [n]
+  ;; (assert (zero? (bit-and 0xFFFFFFFF n)))
+  (loop [z 0 n n]
+    (if (zero? n)
+      z
+      (let [h (Long/highestOneBit n)]
+        (recur (long (bit-set z (* 2 (Long/numberOfTrailingZeros h)))) (bit-xor n h))))))
+
+
+;;; probably better to use table of 8 bit spread bits and do lookups and shifts later
+(def morton256  (mapv spread-bits (range 256)))
+
 #_
-(defn shifted-pairs [[yx ib]]
-  (map #(vector (bit-shift-left yx (* % 4)) (bit-shift-left ib (* 8 %))) (range 8)))
-
-
-;;; try basic map for [4bits y, 4 bits x] as int, mapped into interleaved bits
-(def myxib (into {}
-                 (for [x (range 16) y (range 16)]
-                   (vector (bit-or (bit-shift-left y 4) x)
-                           (zbits4 x y)))))
-
-;;; THis should always be true as the interleaved bits should have the same count
-#_
-(assert (every? (fn [[a b]] (= (Long/bitCount a) (Long/bitCount b))) myxib))
-
-
-;;; unsigned- shouldn't matter as x and y should be 32 bit unsigned ints, but not checked
-(defn lutbits1 [x y]
-  (let [y (bit-shift-left y 4)]
-    (loop [nib 7 z 0]
-      (if (neg? nib)
-        z
-        (let [yx (bit-or (bit-and 0xF0 (unsigned-bit-shift-right y (* 4 nib)))
-                         (bit-and 0xF (unsigned-bit-shift-right x (* 4 nib))))]
-          (recur (dec nib)
-                 (bit-or z (bit-shift-left (myxib yx) (* 8 nib)))))))))
-
-
-(def vyxib (into [] (map val) (sort (seq myxib))))
-
-;;; much faster to index into vector, rather than int key of map
-;;; slightly faster than zbits but depends on data as zbits counts bits
-(defn lutbits [x y]
-  (let [y (bit-shift-left y 4)]
-    (loop [nib 7 z 0]
-      (if (neg? nib)
-        z
-        (let [yx (bit-or (bit-and 0xF0 (unsigned-bit-shift-right y (* 4 nib)))
-                         (bit-and 0xF (unsigned-bit-shift-right x (* 4 nib))))]
-          (recur (dec nib)
-                 (bit-or z (bit-shift-left (vyxib yx) (* 8 nib)))))))))
-
-
-;;; same speed as lutbits, maybe cleaner
-(defn lutbits2 [x y]
-  (let [y (bit-shift-left y 4)]
-    (loop [off 28 z 0]
-      (if (neg? off)
-        z
-        (let [yx (bit-or (bit-and 0xF0 (unsigned-bit-shift-right y off))
-                         (bit-and 0xF (unsigned-bit-shift-right x off)))]
-          (recur (- off 4)
-                 (bit-or z (bit-shift-left (vyxib yx) (* 2 off)))))))))
-
-
-
-;;; should consider byte-array ???  However, there's an issue with the bytes always being
-;;; signed so you need to check sign and convert to appropriate int/long, which kind of
-;;; complicates the code.  Not implemented.
-
-
-
-;;; probably better to use table of 8 bit spread bits and do lookups and shifts
-
-(def morton256
+(def precalc-morton256
   [ 0x0000, 0x0001, 0x0004, 0x0005, 0x0010, 0x0011, 0x0014, 0x0015, 
   0x0040, 0x0041, 0x0044, 0x0045, 0x0050, 0x0051, 0x0054, 0x0055, 
   0x0100, 0x0101, 0x0104, 0x0105, 0x0110, 0x0111, 0x0114, 0x0115, 
@@ -183,7 +91,7 @@
   0x5540, 0x5541, 0x5544, 0x5545, 0x5550, 0x5551, 0x5554, 0x5555
    ])
 
-;;; about the same speed as lutbits
+;;; fastest so far
 (defn mbits [x y]
   (bit-or (bit-shift-left (morton256 (bit-and 0xFF (bit-shift-right y 24))) 49)
           (bit-shift-left (morton256 (bit-and 0xFF (bit-shift-right x 24))) 48)
@@ -193,3 +101,108 @@
           (bit-shift-left (morton256 (bit-and 0xFF (bit-shift-right x 8))) 16)
           (bit-shift-left (morton256 (bit-and 0xFF y)) 1)
           (morton256 (bit-and 0xFF x))))
+
+
+;;; seems like a good idea but it's slower
+(defn update-mort-byte1 [z x right left]
+  (bit-or z (bit-shift-left (morton256 (bit-and 0xFF (bit-shift-right x right))) left)))
+
+(defn update-mort-byte [z x right left]
+  (let [mb  (morton256 (bit-and 0xFF (bit-shift-right x right)))]
+    (if (zero? mb)
+      z
+      (bit-or z (bit-shift-left mb left)))))
+
+;;; much slower when refactored!  Probably not so good for JIT
+(defn mbits2 [x y]
+  (-> 0
+      (update-mort-byte y 24 49)
+      (update-mort-byte x 24 48)
+      (update-mort-byte y 16 33)
+      (update-mort-byte x 16 32)
+      (update-mort-byte y 8 17)
+      (update-mort-byte x 8 16)
+      (update-mort-byte y 0 1)
+      (update-mort-byte x 0 0)))
+
+      
+      
+
+
+
+
+
+;;;; other stuff, not as good
+
+;;; built a lookup table of 256 entries
+(defn lut256 []
+  (sort-by peek (for [x (range 16) y (range 16)]
+                  (vector x y (bit-or (bit-shift-left y 4) x)
+                          (zbits x y)))))
+
+
+;;; new idea, add pre-shifted balue as well
+;;; Not sure about offsets, needs thinking and testing
+#_
+(defn shifted-pairs [[yx ib]]
+  (map #(vector (bit-shift-left yx (* % 4)) (bit-shift-left ib (* 8 %))) (range 8)))
+
+
+;;; try basic map for [4bits y, 4 bits x] as int, mapped into interleaved bits
+(def myxib (into {}
+                 (for [x (range 16) y (range 16)]
+                   (vector (bit-or (bit-shift-left y 4) x)
+                           (zbits x y)))))
+
+;;; THis should always be true as the interleaved bits should have the same count
+#_
+(assert (every? (fn [[a b]] (= (Long/bitCount a) (Long/bitCount b))) myxib))
+
+
+;;; unsigned- shouldn't matter as x and y should be 32 bit unsigned ints, but not checked
+(defn lutbits1 [x y]
+  (let [y (bit-shift-left y 4)]
+    (loop [nib 7 z 0]
+      (if (neg? nib)
+        z
+        (let [yx (bit-or (bit-and 0xF0 (unsigned-bit-shift-right y (* 4 nib)))
+                         (bit-and 0xF (unsigned-bit-shift-right x (* 4 nib))))]
+          (recur (dec nib)
+                 (bit-or z (bit-shift-left (myxib yx) (* 8 nib)))))))))
+
+
+(def vyxib (into [] (map val) (sort (seq myxib))))
+
+;;; much faster to index into vector, rather than int key of map
+;;; slightly faster than zbits but depends on data as zbits counts bits
+(defn lutbits [x y]
+  (let [y (bit-shift-left y 4)]
+    (loop [off 28 z 0]
+      (if (neg? off)
+        z
+        (let [yx (bit-or (bit-and 0xF0 (unsigned-bit-shift-right y off))
+                         (bit-and 0xF (unsigned-bit-shift-right x off)))]
+          (recur (- off 4)
+                 (bit-or z (bit-shift-left (vyxib yx) (* 2 off)))))))))
+
+
+
+;;; should consider byte-array ???  However, there's an issue with the bytes always being
+;;; signed so you need to check sign and convert to appropriate int/long, which kind of
+;;; complicates the code.  Not implemented.
+
+;;; ----------------------------------------------------------------------
+
+;;;; test and benchmark
+(defn morton-test [mbits]
+  (assert (= (mbits 0 0) 0))
+  (assert (= (mbits 0 1) 2))
+  (assert (= (mbits 1 1) 3))
+  (assert (= (mbits 0XF0F17 0X3F0F171) 3002034673888023))
+  (assert (= (mbits Integer/MAX_VALUE 0)  1537228672809129301))
+  (assert (= (mbits 0 Integer/MAX_VALUE) 3074457345618258602))
+  (assert (= (mbits Integer/MAX_VALUE Integer/MAX_VALUE) 4611686018427387903))
+  true)
+
+
+  
