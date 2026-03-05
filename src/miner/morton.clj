@@ -37,10 +37,8 @@
 
 
 
-
 ;;; Faster ideas:
 ;;; https://graphics.stanford.edu/~seander/bithacks.html#InterleaveTableObvious
-
 
 
 (defn spread-bits [n]
@@ -91,8 +89,13 @@
   0x5540, 0x5541, 0x5544, 0x5545, 0x5550, 0x5551, 0x5554, 0x5555
    ])
 
+
+;;; probably should use unsight-bit-shift-right
+;;; x and y are longs but no bits in high 32 bits, so effectively unsigned 32-bit integers.
 ;;; fastest so far
 (defn mbits [x y]
+  ;; (assert (zero? (bit-and 0xFFFFFFFF x)))
+  ;; (assert (zero? (bit-and 0xFFFFFFFF y)))
   (bit-or (bit-shift-left (morton256 (bit-and 0xFF (bit-shift-right y 24))) 49)
           (bit-shift-left (morton256 (bit-and 0xFF (bit-shift-right x 24))) 48)
           (bit-shift-left (morton256 (bit-and 0xFF (bit-shift-right y 16))) 33)
