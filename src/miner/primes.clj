@@ -143,6 +143,16 @@
   true)
 
 
+;;; sometimes probable-prime? fails for 9, 25 or 49. Not sure what the pattern is???
+(defn smoke-ppr
+  ([] (smoke-ppr 100))
+  ([trials]
+   (dotimes [n trials]
+     (let [res (filter probable-prime? (range 2 50))]
+       (when-not (= res '(2 3 5 7 11 13 17 19 23 29 31 37 41 43 47))
+         (println "failed on trial" n "; result =" res))))))
+
+
 
 ;;; See Java  BigInteger.isProbablePrime  -- but kind of slow, 3x primef? shown above, which is
 ;;; not considered fast.
@@ -284,3 +294,8 @@
                       (cond (> p rt) true
                             (zero? (rem n p)) false
                             :else (recur (inc (inc p))))))))))
+
+
+;;; slow but kind of cool that this regex works
+(defn regex-prime? [n]
+  (not (re-matches #"^.?$|^(..+?)\1+$" (apply str (repeat n "1")))))
