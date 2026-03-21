@@ -13,6 +13,13 @@
 
 ;;; First you need to quantize the units.  We will use a long (64 bits) for the Morton Code.
 ;;; Half the bits are X, and half are Y, so they can each be int (32 bits).
+;;; But really, it would be good to make them 16 bits each if it fits your domain.
+;;; Everything else will be a bit faster.
+
+
+;;; I think the best approach is a table encoding input of 8 bits into a spaced 16 bits.
+;;; Then use appropriate shifts and ORs to make the Morton code.
+
 
 
 ;;; slightly faster
