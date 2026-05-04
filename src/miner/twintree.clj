@@ -11,7 +11,7 @@
 #_
 (require '[clojure.math.combinatorics :as c])
 
-;; Knuth Christmas Tree lecture 2023
+;; Knuth Christmas Tree lecture 2022
 ;; https://www.youtube.com/watch?v=zg6YRqT4Duo
 ;; https://news.ycombinator.com/item?id=34128140
 
@@ -274,7 +274,7 @@
 ;; Knuth's algorithm always returns a Baxter permutation -- not necessarily the orginal
 ;; sequence.  (Most of my code is checking that the original matches the generated.)
 
-;; TODO Suggestion:  make a quick-check style generator of Baxter sequences.  Given an pv seed,
+;; TODO Suggestion:  make a quick-check style generator of Baxter sequences.  Given a pv seed,
 ;; Knuth will produce a Baxter sequence.  Also, see Knuth's code for some ways to make a new
 ;; Baxter sequence out of a smaller one.   Not necessarily a practical exercise but another
 ;; interesting way to use generators.  See also your talk "Generating Generators".
