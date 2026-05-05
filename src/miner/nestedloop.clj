@@ -46,3 +46,14 @@
          :when (zero? (rem n 13))]
      n)))
 
+
+;;; amalloy points out that you can increment by 7 and save a lot of effort
+;;; I'm running in reverse so I will decrement by 7.  The initial number has to be
+;;; calculated as a multiple of 7.
+(defn rdnolen4 []
+  (first
+   (for [i (range (- 999 (rem 999 7)) -1 -7)
+         j (range 999 -1 -1)
+         :let [n (* i j)] 
+         :when (zero? (rem n 13))]
+     n)))
