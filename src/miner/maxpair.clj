@@ -39,7 +39,7 @@
                         [v0 v1]))
                     (subvec v 2)))))
 
-(defonce sample (shuffle (range 100)))
+(defonce sample (shuffle (range 1000)))
 
 
 
@@ -140,8 +140,42 @@
              (subvec v 2)))
 
 
+;;; simplifying (map identity)
 
-;;; almost same as max-pair2, but slightly slower
+;;; starting with map transducer
+;;; f = identity, but that can just be the arg
+
+;;; I guess last arity is needed for (sequence xform col col2 col3)
+;;; but that won't be called for singular identity
+(def xidentity
+  (fn [rf]
+    (fn
+      ([] (rf))
+      ([result] (rf result))
+      ([result input]
+       (rf result input))
+      ([result input & inputs]
+       (apply rf result input inputs)))))
+
+
+(defn max-pair54 [v]
+  (transduce xidentity
+             (fn ([[a b :as ab] c]
+                  (cond (> c a) [c a]
+                        (> c b) [a c]
+                        :else ab))
+               ([res] (reduce + res)))
+             (let [v0 (nth v 0 0)
+                   v1 (nth v 1 0)]
+               (if (> v1 v0)
+                 [v1 v0]
+                 [v0 v1]))
+             (subvec v 2)))
+
+
+
+
+;;; faster than max-pair2 depending on sample
 (defn max-pair6 [v]
   (reduce +
           (reduce (fn [[a b :as ab] c]
@@ -153,3 +187,29 @@
                   nil
                   v)))
 
+
+;; not quite as fast with transduce so don't bother
+(defn max-pair61 [v]
+  (transduce xidentity
+             (fn ([[a b :as ab] c]
+                  (cond (nil? a) [c]
+                        (nil? b) (if (> c a) [c a] [a c])
+                        (> c a) [c a]
+                        (> c b) [a c]
+                        :else ab))
+               ([res] (reduce + res)))
+             nil
+             v))
+
+;; slightly slower
+(defn max-pair62 [v]
+  (transduce (map identity)
+             (fn ([[a b :as ab] c]
+                  (cond (nil? a) [c]
+                        (nil? b) (if (> c a) [c a] [a c])
+                        (> c a) [c a]
+                        (> c b) [a c]
+                        :else ab))
+               ([res] (reduce + res)))
+             nil
+             v))
