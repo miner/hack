@@ -57,3 +57,14 @@
          :let [n (* i j)] 
          :when (zero? (rem n 13))]
      n)))
+
+
+(defn rdnolen5
+  ([] (rdnolen5 999))
+  ([limit]
+   (first
+    (for [i (range (- limit (rem limit 7)) -1 -7)
+          j (range limit -1 -1)
+          :let [n (* i j)]
+          :when (zero? (rem n 13))]
+      n))))
