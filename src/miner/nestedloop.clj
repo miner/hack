@@ -1,4 +1,5 @@
-(ns miner.nestedloop)
+(ns miner.nestedloop
+  (:require [miner.mrfn :use mrfn]))
 
 ;;; https://stackoverflow.com/questions/9137660/how-do-you-replace-java-nested-for-loops-in-clojure
 
@@ -106,4 +107,33 @@
 ;;; SEM: the memoize cache lasts forever (runtime lifetime) which is fine for many cases but
 ;;; sometimes you want to trade off computation for memory.  You can use the technique of
 ;;; passing a "recursive call arg" to use instead of the explicit recursion.  I used this
-;;; for my mrfn.clj
+;;; for my mrfn.clj so the top level call uses the memoized recursion internally and drops
+;;; the cache after it returns.
+
+(def fact
+  "Returns n!."
+  (mrfn facto [n]
+             (if (< 1 n)
+               (* n (facto (dec n)))
+               1N)))
+
+(def bern
+  "Returns the nth Bernoulli number."
+  (mrfn berno [n]
+        (if (zero? n)
+          1
+          (let [n!    (fact n)
+                term  #(/ (* n! (berno %))
+                          (fact %)
+                          (fact (- n % -1)))
+                terms (map term (range n))]
+            (reduce - 0 terms)))))
+
+
+;;; My bern is surprisingly faster than the original bernoulli
+;;
+;; (quick-bench (reduce + (mapv bernoulli (range 20))))
+;; Execution time mean : 2.711170 µs
+;;
+;; (quick-bench (reduce + (mapv bern (range 20))))
+;; Execution time mean : 1.904833 µs
