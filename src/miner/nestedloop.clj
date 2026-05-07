@@ -68,3 +68,42 @@
           :let [n (* i j)]
           :when (zero? (rem n 13))]
       n))))
+
+
+;;; https://stackoverflow.com/questions/72172428/convert-pseudo-code-with-nested-for-loops-to-clojure
+
+;;; Steffan Westcott writes:
+
+;;; The given pseudocode computes the nth Bernoulli number. It uses all the previous
+;;; Bernoulli numbers to compute the result. Much like the factorial function, this lends
+;;; itself to a recursive algorithm which may be implemented with memoize to avoid
+;;; re-computation of earlier numbers:
+
+(def factorial
+  "Returns n!."
+  (memoize (fn [n]
+             (if (< 1 n)
+               (* n (factorial (dec n)))
+               1N))))
+
+(def bernoulli
+  "Returns the nth Bernoulli number."
+  (memoize (fn [n]
+             (if (zero? n)
+               1
+               (let [n!    (factorial n)
+                     term  #(/ (* n! (bernoulli %))
+                               (factorial %)
+                               (factorial (- n % -1)))
+                     terms (map term (range n))]
+                 (reduce - 0 terms))))))
+
+
+;; (map bernoulli (range 9))
+;; => (1 -1/2 1/6 0N -1/30 0N 1/42 0N -1/30)
+
+
+;;; SEM: the memoize cache lasts forever (runtime lifetime) which is fine for many cases but
+;;; sometimes you want to trade off computation for memory.  You can use the technique of
+;;; passing a "recursive call arg" to use instead of the explicit recursion.  I used this
+;;; for my mrfn.clj
