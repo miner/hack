@@ -2,7 +2,9 @@
 
 ;; see leven.clj for example usage
 
-;; Memoized recursive function, a mash-up of memoize and fn
+;; Memoized recursive function, a mash-up of memoize and fn.  The explicit recursive call fn
+;; arg `name` is a trick that supports memoization.
+
 (defmacro mrfn
   "Returns an anonymous function like `fn` but recursive calls to the given `name` within
   `body` use a memoized version of the function, potentially improving performance (see
@@ -26,11 +28,13 @@
 ;; See "Memoization Done Right" by Meikel Brandmeyer (2010).
 ;; https://kotka.de/blog/2010/03/memoize_done_right.html
 ;;
-;; This was the inspiration for
-;; https://github.com/clojure/core.memoize and core.cache.
+;; Good discussion about threading interactions with memoization cache. This was the
+;; inspiration for https://github.com/clojure/core.memoize and core.cache.
 
-;; My version using delays, which would be better in a multi-threaded situation
-;; This needs more testing!
+
+;; My variant using delays, which would be better than mrfn in a multi-threaded situation
+;; This needs more testing!  I think the explicit `force` is slightly better than the
+;; generic `deref` that I was originally using.
 
 (defmacro dmrfn
   "Returns an anonymous function like `fn` but recursive calls to the given `name` within
@@ -45,9 +49,8 @@
     `(let [f# (fn [~name ~@args] ~@body)
            mem# (atom {})]
        (fn mr# [~@args]
-         (if-let [e# (find @mem# ~akey)]
-           (deref (val e#))
+         (if-let [e# (find (deref mem#) ~akey)]
+           (force (val e#))
            (let [d# (delay (f# mr# ~@args))]
              (swap! mem# assoc ~akey d#)
-             @d#))))))
-
+             (force d#)))))))

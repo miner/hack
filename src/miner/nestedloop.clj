@@ -1,5 +1,5 @@
 (ns miner.nestedloop
-  (:require [miner.mrfn :use mrfn]))
+  (:use miner.mrfn))
 
 ;;; https://stackoverflow.com/questions/9137660/how-do-you-replace-java-nested-for-loops-in-clojure
 
@@ -137,3 +137,15 @@
 ;;
 ;; (quick-bench (reduce + (mapv bern (range 20))))
 ;; Execution time mean : 1.904833 µs
+
+(def bernd
+  "Returns the nth Bernoulli number."
+  (dmrfn berno [n]
+        (if (zero? n)
+          1
+          (let [n!    (fact n)
+                term  #(/ (* n! (berno %))
+                          (fact %)
+                          (fact (- n % -1)))
+                terms (map term (range n))]
+            (reduce - 0 terms)))))
