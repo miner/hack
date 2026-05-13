@@ -49,7 +49,7 @@
                 ;; *unchecked-math* :warn-on-boxed
                 }
   :profiles {:dev  {:source-paths ["src" "dev"]
-                    :dependencies [[org.clojure/clojure "1.12.5-rc1"]
+                    :dependencies [[org.clojure/clojure "1.12.5"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
              :clj18 {:dependencies [[org.clojure/clojure "1.8.0"]
