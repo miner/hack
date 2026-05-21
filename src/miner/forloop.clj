@@ -29,3 +29,32 @@
 ;;; complicated but in theory it could be turned into a macro.
 ;;; See also my baxter.clj
 
+
+
+(defn demo [n]
+  (for-loop [i 10 (< i n) (inc (inc i))]
+            (println " i =" i)
+            i))
+
+
+(defn demo1 [n]
+  (doseq [i (range 10 n 2)]
+    (println " i =" i))
+  ;; do we really need the final result?
+  (last (range 10 n 2)))
+    
+
+;;; I guess I want a way to capture all the mutable locals into loop args and have a
+;;; pseudo-set notation that would update them.
+
+;;; don't forget about `binding` and `set!`
+
+;;; http://gettingclojure.wikidot.com/cookbook:functional-programming
+
+;;; also `with-local-vars`
+;;; https://clojuredocs.org/clojure.core/with-local-vars
+
+;;; kind of ugly, but it might make porting imperative style for loops easier
+
+;;; Kyle Kingsbury "Aphyr" wrote a `loopr` macro that's very fancy:
+;;; https://aphyr.com/posts/360-loopr-a-loop-reduction-macro-for-clojure
