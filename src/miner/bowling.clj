@@ -32,7 +32,30 @@
 
 
 
-;;; Much faster
+;;; new idea:  keep half-frame count `hf`, down from 20, for cutoff.  -2 for a strike, -1
+;;; normally.  b1 is first ball of frame (before current b).  Nil b1 means incoming b
+;;; is initial ball for a frame.
+
+;;; The new champ!
+
+(defn score [game]
+  (let [bv (into [] (comp (remove #(= % \space)) (map ch->ball)) game)]
+    (peek
+     (reduce-kv (fn [[hf b1 sc] i b]
+                  (if (zero? hf)
+                    (reduced [sc])
+                    (if (nil? b1)
+                      (if (= b 10) ;strike
+                        (let [b2 (bv (+ i 2))]
+                          [(- hf 2) nil
+                           (if (= b2 :spare) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
+                        [(dec hf) b sc])
+                      [(dec hf) nil (if (= b :spare) (+ sc 10 (bv (inc i))) (+ sc b1 b))])))
+                [20 nil 0]
+                bv))))
+
+
+;;; Much faster than older, but no longer best.
 ;;; using nil as the new frame marker, otherwise the (peek fv) is the first ball of the frame.
 ;;; basically, goes to 11 frames, but always pop last nil before adding up. Only counting
 ;;; 10 frames.
@@ -43,7 +66,7 @@
 ;;; check on the frame count also protects access to later balls.  Assuming legal games.
 
 
-(defn score [game]
+(defn score2 [game]
   (let [bv (into [] (comp (remove #(= % \space)) (map ch->ball)) game)]
     (reduce + 0
             (pop
@@ -67,7 +90,8 @@
 
 
 
-(defn score13 [game]
+;; slightly faster to avoid conj/3
+(defn score3 [game]
   (let [bv (into [] (comp (remove #(= % \space)) (map ch->ball)) game)]
     (reduce + 0
             (pop
@@ -89,40 +113,9 @@
                         [nil]
                         bv)))))
 
-;; slightly faster to avoid conj/3
-(defn conj3 [coll a b]
-  (conj (conj coll a) b))
-
-
 ;; transduce with map-indexed not faster, but not bad
-(defn score15 [game]
-  (let [bv (into [] (comp (remove #(= % \space)) (map ch->ball)) game)]
-    (transduce (map-indexed vector)
-               (fn ([fv] (reduce + 0 (pop fv)))
-                 ([fv [i b]]
-                  (if (= (count fv) 11)
-                    (reduced fv)
-                    (let [fr (peek fv)
-                          pfv (pop fv)]
-                      (if (nil? fr)
-                        (if (= b 10) ;strike
-                          (let [b2 (bv (+ i 2))]
-                            (if (= b2 :spare)
-                              (conj3 pfv 20 nil)
-                              (conj3 pfv (+ 10 (bv (inc i)) b2) nil)))
-                          (conj pfv b))
-                        (if (= b :spare)
-                          (conj3 pfv (+ 10 (bv (inc i))) nil)
-                          (conj3 pfv (+ fr b) nil)))))))
-               [nil]
-               bv)))
 
-
-
-
-;;; new idea, frame marker is always neg of next ball index, -1 means current ball zero, -2
-;;; for ball 1, etc.
-
+;;; no advantage to doing the map-indexed up front into the bv.
 
 
 
@@ -201,19 +194,6 @@
             "5/5/5"
             "12 0/X"])
 
-(defn partest []
-  (doseq [g games]
-    (let [balls (ball-seq g)
-          tenfr (ten-frames balls)
-          pa31 (partition-all 3 1  balls)
-          p31 (partition 3 1 [nil nil] balls)
-          sc (score g)
-          sc3 (score g)]
-      (when (not= sc sc3)
-        (println "  " sc sc3 "  " tenfr g)
-        (println "p-all" pa31)
-        (println "p    " p31)))))
-
 
 
 (defn score5 [game]
@@ -282,8 +262,9 @@
 
 
 
-;;; SEM:  probably a good idea to do the representation of exactly the ball rolls and not
-;;; keep special encoding for spares.
+;;; SEM:  maybe a good idea to do the representation of exactly the ball rolls and not
+;;; keep special encoding for spares.  But my :spare is slightly faster than checking for 10
+;;; every frame.
 
 (defn gamestr->rolls [game]
   (let [bv (ballv game)]
@@ -334,43 +315,3 @@
                  (inc frame)
                  (long (+ score fscore)))))))
 
-
-;;; pretty good but not as fast as my score
-(defn score-fra3 [game]
-  (let [bv (rollvec game)]
-    (reduce + 0
-            (pop
-             (reduce-kv (fn [fv i b]
-                          (if (= (count fv) 11)
-                            (reduced fv)
-                            (let [fr (peek fv)]
-                              (if (nil? fr)
-                                (if (= b 10) ;strike
-                                  (conj (pop fv) (+ 10 (bv (inc i)) (bv (+ i 2))) nil)
-                                  (conj (pop fv) b))
-                                (let [b2 (+ fr b)]
-                                  (if (= b2 10) ;spare
-                                    (conj (pop fv) (+ 10 (bv (inc i))) nil)
-                                    (conj (pop fv) b2 nil)))))))
-                        [nil]
-                        bv)))))
-
-;;; NOT CHANGED YET
-(defn score-fra4 [game]
-  (let [bv (rollvec game)]
-    (reduce + 0
-            (pop
-             (reduce-kv (fn [fv i b]
-                          (if (= (count fv) 11)
-                            (reduced fv)
-                            (let [fr (peek fv)]
-                              (if (nil? fr)
-                                (if (= b 10) ;strike
-                                  (conj (pop fv) (+ 10 (bv (inc i)) (bv (+ i 2))) nil)
-                                  (conj (pop fv) b))
-                                (let [b2 (+ fr b)]
-                                  (if (= b2 10) ;spare
-                                    (conj (pop fv) (+ 10 (bv (inc i))) nil)
-                                    (conj (pop fv) b2 nil)))))))
-                        [nil]
-                        bv)))))
