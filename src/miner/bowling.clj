@@ -31,26 +31,35 @@
     (- (long ch) (long \0))))
 
 
-
-;;; new idea:  keep frame count `fc`, down from 10, for cutoff.  b1 is first ball of
-;;; frame (before current b).  Nil b1 means incoming b is initial ball for a frame.
+;;; Main idea: use a vector to hold all the balls rolled so it's convenient to access the
+;;; next two balls for scoring spares and strikes.  Using reduce-kv gives us the index i of
+;;; the current ball b.  (That's faster than using map-indexed.)  Keep frame count `fc`,
+;;; counting down from 20 half-frames to 0.  When fc is even, the ball is the first of a
+;;; frame.  We score the frame only after the second ball, except for a strike which counts
+;;; as a full frame (-2).  Counting down is slightly faster than counting up.  The odd/even
+;;; scheme eliminates the need for a frame marker (nil in some of my other implementations)
+;;; or keeping a vector of frames which is a bit slower than doing the running total score.
 
 ;;; The new champ!
 
 (defn score [game]
   (let [bv (into [] (comp (remove #(= % \space)) (map ch->ball)) game)]
     (peek
-     (reduce-kv (fn [[fc b1 sc] i b]
+     (reduce-kv (fn [[fc sc] i b]
                   (if (zero? fc)
                     (reduced [sc])
-                    (if (nil? b1)
+                    (if (even? fc)
+                      ;; first ball of frame
                       (if (= b 10) ;strike
                         (let [b2 (bv (+ i 2))]
-                          [(dec fc) nil
+                          [(- fc 2)
                            (if (= b2 :spare) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
-                        [fc b sc])
-                      [(dec fc) nil (if (= b :spare) (+ sc 10 (bv (inc i))) (+ sc b1 b))])))
-                [10 nil 0]
+                        ;; don't score first ball, we will account for it on second ball
+                        [(dec fc) sc])
+                      ;; second ball of frame
+                      [(dec fc)
+                       (if (= b :spare) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
+                [20 0]
                 bv))))
 
 
