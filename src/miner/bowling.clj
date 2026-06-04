@@ -32,27 +32,27 @@
 
 
 
-;;; new idea:  keep half-frame count `hf`, down from 20, for cutoff.  -2 for a strike, -1
-;;; normally.  b1 is first ball of frame (before current b).  Nil b1 means incoming b
-;;; is initial ball for a frame.
+;;; new idea:  keep frame count `fc`, down from 10, for cutoff.  b1 is first ball of
+;;; frame (before current b).  Nil b1 means incoming b is initial ball for a frame.
 
 ;;; The new champ!
 
 (defn score [game]
   (let [bv (into [] (comp (remove #(= % \space)) (map ch->ball)) game)]
     (peek
-     (reduce-kv (fn [[hf b1 sc] i b]
-                  (if (zero? hf)
+     (reduce-kv (fn [[fc b1 sc] i b]
+                  (if (zero? fc)
                     (reduced [sc])
                     (if (nil? b1)
                       (if (= b 10) ;strike
                         (let [b2 (bv (+ i 2))]
-                          [(- hf 2) nil
+                          [(dec fc) nil
                            (if (= b2 :spare) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
-                        [(dec hf) b sc])
-                      [(dec hf) nil (if (= b :spare) (+ sc 10 (bv (inc i))) (+ sc b1 b))])))
-                [20 nil 0]
+                        [fc b sc])
+                      [(dec fc) nil (if (= b :spare) (+ sc 10 (bv (inc i))) (+ sc b1 b))])))
+                [10 nil 0]
                 bv))))
+
 
 
 ;;; Much faster than older, but no longer best.
