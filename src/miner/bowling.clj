@@ -56,13 +56,15 @@
                            (if (= b2 :spare) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
                         ;; don't score first ball, we will account for it on second ball
                         [(dec fc) sc])
-                      ;; second ball of frame
+                      ;; second ball of frame, recover the previous ball if necessary
                       [(dec fc)
                        (if (= b :spare) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
+                ;; init at 20 half-frames, and zero score
                 [20 0]
                 bv))))
 
 
+;;; The transducer version has to use map-indexed to get i which is a bit slower.
 
 ;;; Much faster than older, but no longer best.
 ;;; using nil as the new frame marker, otherwise the (peek fv) is the first ball of the frame.
