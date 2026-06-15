@@ -6,9 +6,13 @@
 ;;; My final score is much faster and simpler than my previous efforts.  I spent too much
 ;;; effort trying to get the triplet style scoring to work as in score1 and friends.
 
+;;; There's no particular advantage to being lazy for a small program like this so I think
+;;; it makes sense to be eager -- using into and reduce-kv.
+
+
 ;;; SEE ALSO my transmuters project for a variation (but not really better).
 
-;; http://codingdojo.org/cgi-bin/index.pl?KataBowling
+;; https://codingdojo.org/kata/Bowling/
 ;; https://www.javacodegeeks.com/2016/05/bowling-kata-clojure-f-scala.html
 
 ;; game is a string, encoding balls rolled
