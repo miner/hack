@@ -68,6 +68,77 @@
                 bv))))
 
 
+(defn score9 [game]
+  (let [chb (fn [ch] (case ch \X 10 \/ :spare \- 0 (- (long ch) (long \0))))
+        bv (into [] (comp (remove #(= % \space)) (map chb)) game)]
+    (peek
+     (reduce-kv (fn [[fc sc] i b]
+                  (if (zero? fc)
+                    (reduced [sc])
+                    (if (even? fc)
+                      ;; first ball of frame
+                      (if (= b 10) ;strike
+                        (let [b2 (bv (+ i 2))]
+                          [(- fc 2)
+                           (if (= b2 :spare) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
+                        ;; don't score first ball, we will account for it on second ball
+                        [(dec fc) sc])
+                      ;; second ball of frame, recover the previous ball if necessary
+                      [(dec fc)
+                       (if (= b :spare) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
+                ;; init at 20 half-frames, and zero score
+                [20 0]
+                bv))))
+
+;;; try using -10 to mark spare instead of keyword, hoping for performance
+(defn score92 [game]
+  (let [chb (fn [ch] (case ch \X 10 \/ -10 \- 0 (- (long ch) (long \0))))
+        bv (into [] (comp (remove #(= % \space)) (map chb)) game)]
+    (peek
+     (reduce-kv (fn [[fc sc] i b]
+                  (if (zero? fc)
+                    (reduced [sc])
+                    (if (even? fc)
+                      ;; first ball of frame
+                      (if (= b 10) ;strike
+                        (let [b2 (bv (+ i 2))]
+                          [(- fc 2)
+                           (if (= b2 -10) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
+                        ;; don't score first ball, we will account for it on second ball
+                        [(dec fc) sc])
+                      ;; second ball of frame, recover the previous ball if necessary
+                      [(dec fc)
+                       (if (= b -10) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
+                ;; init at 20 half-frames, and zero score
+                [20 0]
+                bv))))
+
+;;; making spare map to -1 is tricky.  It just happens that \/ is that offset from \0
+(defn score94 [game]
+  (let [chb (fn [ch] (let [x (- (long ch) (long \0))]
+                       (case x 40 10 -3 0 x)))
+        bv (into [] (comp (remove #(= % \space)) (map chb)) game)]
+    (peek
+     (reduce-kv (fn [[fc sc] i b]
+                  (if (zero? fc)
+                    (reduced [sc])
+                    (if (even? fc)
+                      ;; first ball of frame
+                      (if (= b 10) ;strike
+                        (let [b2 (bv (+ i 2))]
+                          [(- fc 2)
+                           (if (= b2 -1) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
+                        ;; don't score first ball, we will account for it on second ball
+                        [(dec fc) sc])
+                      ;; second ball of frame, recover the previous ball if necessary
+                      [(dec fc)
+                       (if (= b -1) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
+                ;; init at 20 half-frames, and zero score
+                [20 0]
+                bv))))
+
+
+
 ;;; The transducer version has to use map-indexed to get i which is a bit slower.
 
 ;;; Much faster than older, but no longer best.
