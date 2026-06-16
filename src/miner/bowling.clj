@@ -1,4 +1,5 @@
-(ns miner.bowling)
+(ns miner.bowling
+  (:require [clojure.string :as str]))
 
 ;;; Years later, I discovered that Uncle Bob and Stuart Halloway worked this problem.
 ;;; https://github.com/stuarthalloway/clojure-bowling
@@ -24,15 +25,6 @@
 
 ;; If last frame is a strike or spare, the extra balls only accrue to that frame.
 
-;; A "ball" re-encodes the character as 0 to 10 or :spare.  This is for readability and
-;; more convenient scoring.
-
-(defn ch->ball [ch]
-  (case ch
-    \X 10
-    \/ :spare
-    \- 0
-    (- (long ch) (long \0))))
 
 
 ;;; Main idea: use a vector to hold all the balls rolled so it's convenient to access the
@@ -43,10 +35,56 @@
 ;;; as a full frame (-2).  Counting down is slightly faster than counting up.  The odd/even
 ;;; scheme eliminates the need for a frame marker (nil in some of my other implementations)
 ;;; or keeping a vector of frames which is a bit slower than doing the running total score.
+;;;
+;;; Note: str/replace is much faster than (remove #{\space}).
+;;; We convert the characters to the appropriate numbers for convenient scoring.  It is a
+;;; happy accident that \ (spare) maps into -1 so we can test for a spare mark with neg?.
+;;; Strikes are simply encoded as a 10.
 
 ;;; The new champ!
 
 (defn score [game]
+  (let [bv (mapv (fn [c] (let [x (- (long c) (long \0))] (case x 40 10 -3 0 x)))
+                 (str/replace game " " ""))]
+    ;; note X 40, \ -1, - -3.  The test for a spare mark is neg?
+    (peek
+     (reduce-kv (fn [[fc sc] i b]
+                  (if (zero? fc)
+                    (reduced [sc])
+                    (if (even? fc)
+                      ;; first ball of frame
+                      (if (= b 10) ;strike
+                        (let [b2 (bv (+ i 2))]
+                          [(- fc 2)
+                           (if (neg? b2) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
+                        ;; don't score first ball, we will account for it on second ball
+                        [(dec fc) sc])
+                      ;; second ball of frame, recover the previous ball if necessary
+                      [(dec fc)
+                       (if (neg? b) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
+                ;; init at 20 half-frames, and zero score
+                [20 0]
+                bv))))
+
+
+
+;;; ----------------------------------------------------------------------
+
+
+
+;; A "ball" re-encodes the character as 0 to 10 or :spare.  This is for readability and
+;; more convenient scoring.  (BTW, my final best approach switched to -1 for the spare mark.)
+
+(defn ch->ball [ch]
+  (case ch
+    \X 10
+    \/ :spare
+    \- 0
+    (- (long ch) (long \0))))
+
+
+;;; this was pretty good
+(defn score11 [game]
   (let [bv (into [] (comp (remove #(= % \space)) (map ch->ball)) game)]
     (peek
      (reduce-kv (fn [[fc sc] i b]
@@ -66,77 +104,6 @@
                 ;; init at 20 half-frames, and zero score
                 [20 0]
                 bv))))
-
-
-(defn score9 [game]
-  (let [chb (fn [ch] (case ch \X 10 \/ :spare \- 0 (- (long ch) (long \0))))
-        bv (into [] (comp (remove #(= % \space)) (map chb)) game)]
-    (peek
-     (reduce-kv (fn [[fc sc] i b]
-                  (if (zero? fc)
-                    (reduced [sc])
-                    (if (even? fc)
-                      ;; first ball of frame
-                      (if (= b 10) ;strike
-                        (let [b2 (bv (+ i 2))]
-                          [(- fc 2)
-                           (if (= b2 :spare) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
-                        ;; don't score first ball, we will account for it on second ball
-                        [(dec fc) sc])
-                      ;; second ball of frame, recover the previous ball if necessary
-                      [(dec fc)
-                       (if (= b :spare) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
-                ;; init at 20 half-frames, and zero score
-                [20 0]
-                bv))))
-
-;;; try using -10 to mark spare instead of keyword, hoping for performance
-(defn score92 [game]
-  (let [chb (fn [ch] (case ch \X 10 \/ -10 \- 0 (- (long ch) (long \0))))
-        bv (into [] (comp (remove #(= % \space)) (map chb)) game)]
-    (peek
-     (reduce-kv (fn [[fc sc] i b]
-                  (if (zero? fc)
-                    (reduced [sc])
-                    (if (even? fc)
-                      ;; first ball of frame
-                      (if (= b 10) ;strike
-                        (let [b2 (bv (+ i 2))]
-                          [(- fc 2)
-                           (if (= b2 -10) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
-                        ;; don't score first ball, we will account for it on second ball
-                        [(dec fc) sc])
-                      ;; second ball of frame, recover the previous ball if necessary
-                      [(dec fc)
-                       (if (= b -10) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
-                ;; init at 20 half-frames, and zero score
-                [20 0]
-                bv))))
-
-;;; making spare map to -1 is tricky.  It just happens that \/ is that offset from \0
-(defn score94 [game]
-  (let [chb (fn [ch] (let [x (- (long ch) (long \0))]
-                       (case x 40 10 -3 0 x)))
-        bv (into [] (comp (remove #(= % \space)) (map chb)) game)]
-    (peek
-     (reduce-kv (fn [[fc sc] i b]
-                  (if (zero? fc)
-                    (reduced [sc])
-                    (if (even? fc)
-                      ;; first ball of frame
-                      (if (= b 10) ;strike
-                        (let [b2 (bv (+ i 2))]
-                          [(- fc 2)
-                           (if (= b2 -1) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])
-                        ;; don't score first ball, we will account for it on second ball
-                        [(dec fc) sc])
-                      ;; second ball of frame, recover the previous ball if necessary
-                      [(dec fc)
-                       (if (= b -1) (+ sc 10 (bv (inc i))) (+ sc (bv (dec i)) b))])))
-                ;; init at 20 half-frames, and zero score
-                [20 0]
-                bv))))
-
 
 
 ;;; The transducer version has to use map-indexed to get i which is a bit slower.
@@ -362,22 +329,11 @@
                []
                bv)))
 
-;;; all numbers, no :spare, / translated to appropriate roll
-(defn rollvec [game]
-  (reduce (fn [r ch]
-            (case ch
-              \space r
-              \X (conj r 10)
-              \/ (conj r (- 10 (peek r)))
-              \- (conj r 0)
-              (conj r (- (long ch) (long \0)))))
-          []
-          game))
 
 ;;; found this one on the internet.  Different game rep so we had to adjust that.
 ;;; https://softnoise.wordpress.com/2010/02/07/the-bowling-kata-in-clojure/
 
-;;; about half speed of my score but not bad.  Maybe could do better conversion of gamestr
+;;; about half speed of my score but not bad.
 (defn score-fra [game]
   (let [rolls (gamestr->rolls game)]
     (loop [rolls (seq rolls) frame 1 score 0]
@@ -391,7 +347,22 @@
 
 
 ;;; SEM variations below
-(defn score-fra2 [game]
+
+;;; Better conversion of game string.
+;;; returns all rolls as numbers, no special spare marker.
+
+(defn rollvec [game]
+  (reduce (fn [r ch]
+            (let [x (- (long ch) (long \0))]
+              (case x
+                40 (conj r 10)
+                -1 (conj r (- 10 (peek r)))
+                -3 (conj r 0)
+                (conj r x))))
+          []
+          (str/replace game " " "")))
+
+(defn score-fra3 [game]
     (loop [rolls (seq (rollvec game)) frame 1 score 0]
       (if (> frame 10)
         score
