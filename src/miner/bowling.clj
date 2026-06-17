@@ -8,7 +8,7 @@
 ;;; effort trying to get the triplet style scoring to work as in score1 and friends.
 
 ;;; There's no particular advantage to being lazy for a small program like this so I think
-;;; it makes sense to be eager -- using into and reduce-kv.
+;;; it makes sense to be eager -- using reduce-kv.
 
 
 ;;; SEE ALSO my transmuters project for a variation (but not really better).
@@ -23,18 +23,19 @@
 ;; 1-9 for that many pins
 ;; spaces are ignored
 
-;; If last frame is a strike or spare, the extra balls only accrue to that frame.
+;; If last frame is a strike or spare, the extra balls accrue only to that frame.
 
 
 
-;;; Main idea: use a vector to hold all the balls rolled so it's convenient to access the
+;;; Main idea: use a vector to hold all the balls rolled so it is convenient to access the
 ;;; next two balls for scoring spares and strikes.  Using reduce-kv gives us the index i of
 ;;; the current ball b.  (That's faster than using map-indexed.)  Keep frame count `fc`,
 ;;; counting down from 20 half-frames to 0.  When fc is even, the ball is the first of a
 ;;; frame.  We score the frame only after the second ball, except for a strike which counts
-;;; as a full frame (-2).  Counting down is slightly faster than counting up.  The odd/even
-;;; scheme eliminates the need for a frame marker (nil in some of my other implementations)
-;;; or keeping a vector of frames which is a bit slower than doing the running total score.
+;;; as a full frame (fc-2).  Counting down is slightly faster than counting up.  The
+;;; odd/even scheme eliminates the need for a frame marker (nil in some of my other
+;;; implementations) or keeping a vector of frames which is a bit slower than doing the
+;;; running total score.
 ;;;
 ;;; Note: str/replace is much faster than (remove #{\space}).
 ;;; We convert the characters to the appropriate numbers for convenient scoring.  It is a
