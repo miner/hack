@@ -14,7 +14,6 @@
 ;;; SEE ALSO my transmuters project for a variation (but not really better).
 
 ;; https://codingdojo.org/kata/Bowling/
-;; https://www.javacodegeeks.com/2016/05/bowling-kata-clojure-f-scala.html
 
 ;; game is a string, encoding balls rolled
 ;; X for strike
