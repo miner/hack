@@ -67,6 +67,67 @@
                 bv))))
 
 
+;;; with built-in verificaton of input
+;;; lots of extra code but not much of a performance hit
+(defn veriscore [game]
+  (let [bv (mapv (fn [c] (let [x (- (long c) (long \0))]
+                           (case x 40 10 -3 0 (-1 0 1 2 3 4 5 6 7 8 9) x
+                                 (throw (ex-info (str "Bad input " c) {:bad-game game
+                                                                       :bad-char c})))))
+                 (str/replace game " " ""))
+        bcnt (count bv)]
+    ;; note X 40, \ -1, - -3.  The test for a spare mark is neg?
+    (let [[fc sc] (reduce-kv (fn [[fc sc] i b]
+                               (if (zero? fc)
+                                 (if (or (and (= (bv (dec i)) 10) (= (+ i 2) bcnt))
+                                         (and (= (bv (dec i)) -1) (= (inc i) bcnt)))
+                                   (reduced [0 sc])
+                                   (throw (ex-info (str "Extra rolls in " game)
+                                                   {:bad-game game :fc fc :i i :b b})))
+                                 (if (even? fc)
+                                   ;; first ball of frame
+                                   (if (= b 10) ;strike
+                                     (if-not (> bcnt (+ i 2))
+                                       (throw (ex-info (str "Insufficient balls in " game)
+                                                       {:bad-game game
+                                                        :b b
+                                                        :i i}))
+                                       (let [b2 (bv (+ i 2))]
+                                         [(- fc 2)
+                                          (if (neg? b2) (+ sc 20) (+ sc 10 (bv (inc i)) b2))]))
+                                     ;; don't score first ball,
+                                     ;; we will account for it on second ball
+                                     (if (neg? b)
+                                       (throw (ex-info (str "Illegal spare in " game)
+                                                       {:bad-game game
+                                                        :b b
+                                                        :i i}))
+                                       [(dec fc) sc]))
+                                   ;; second ball of frame, recover the previous ball if necessary
+                                   [(dec fc)
+                                    (if (neg? b)
+                                      (if-not (> bcnt (inc i))
+                                        (throw (ex-info (str "Insufficient balls in " game)
+                                                        {:bad-game game
+                                                         :b b
+                                                         :i i}))
+                                        (+ sc 10 (bv (inc i))))
+                                      (let [frame (+ (bv (dec i)) b)]
+                                        (if (< frame 10)
+                                          (+ sc frame)
+                                          (throw (ex-info (str "Bad frame " (bv (dec i)) b
+                                                               " in game " game)
+                                                          {:bad-game game
+                                                           :bad-frame  [(bv (dec i)) b]})))))])))
+                             ;; init at 20 half-frames, and zero score
+                             [20 0]
+                             bv)]
+      (if (zero? fc)
+        sc
+        (throw (ex-info (str "Frame error, " fc " remaining")
+                        {:bad-game game :bad-frame-count fc}))))))
+
+
 
 ;;; ----------------------------------------------------------------------
 
