@@ -72,6 +72,7 @@
 
 ;;; maybe simpler but a little bit slower
 ;;; probably better set up for input error checking
+
 (defn score7 [game]
   (let [bv (reduce (fn [r c]
                      (let [x (- (long c) (long \0))
@@ -89,7 +90,7 @@
                    (if (= b 10) ;strike
                      ;; skip nil padding
                      (let [b1 (bv (+ i 2))
-                           b2 (if (= b1 10) (bv (+ i 4)) (bv (+ i 3)))]
+                           b2 (bv (if (= b1 10) (+ i 4) (+ i 3)))]
                        (if (neg? b2) (+ sc 20) (+ sc 10 b1 b2)))
                      ;; don't score first ball, we will account for it on second ball
                      sc)
@@ -99,8 +100,6 @@
                          :else (+ sc (bv (dec i)) b))))
                0
                (subvec bv 0 20))))
-
-
 
 
 
