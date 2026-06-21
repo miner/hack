@@ -80,7 +80,7 @@
     (let [[fc sc] (reduce-kv (fn [[fc sc] i b]
                                (if (zero? fc)
                                  (if (or (and (= (bv (dec i)) 10) (= (+ i 2) bcnt))
-                                         (and (= (bv (dec i)) -1) (= (inc i) bcnt)))
+                                         (and (neg? (bv (dec i))) (= (inc i) bcnt)))
                                    (reduced [0 sc])
                                    (throw (ex-info (str "Extra rolls in " game)
                                                    {:bad-game game :fc fc :i i :b b})))
@@ -92,9 +92,14 @@
                                                        {:bad-game game
                                                         :b b
                                                         :i i}))
-                                       (let [b2 (bv (+ i 2))]
-                                         [(- fc 2)
-                                          (if (neg? b2) (+ sc 20) (+ sc 10 (bv (inc i)) b2))]))
+                                       (if (neg? (bv (inc i)))
+                                         (throw (ex-info (str "Illegal spare in " game)
+                                                         {:bad-game game
+                                                          :b b
+                                                          :i i}))
+                                         (let [b2 (bv (+ i 2))]
+                                           [(- fc 2)
+                                            (if (neg? b2) (+ sc 20) (+ sc 10 (bv (inc i)) b2))])))
                                      ;; don't score first ball,
                                      ;; we will account for it on second ball
                                      (if (neg? b)
