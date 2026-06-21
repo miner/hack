@@ -67,6 +67,43 @@
                 bv))))
 
 
+;;; new idea -- encode strike as 10 nil so frame count is synced and you don't have to count
+;;; it manually.
+
+;;; maybe simpler but a little bit slower
+;;; probably better set up for input error checking
+(defn score7 [game]
+  (let [bv (reduce (fn [r c]
+                     (let [x (- (long c) (long \0))
+                           b (case x 40 10 -3 0 x)]
+                       (if (= b 10)
+                         (conj (conj r 10) nil)
+                         (conj r b))))
+                   []
+                   (str/replace game " " ""))]
+    ;;(println "score7 bv " bv)
+    ;; note X 40, \ -1, - -3.  The test for a spare mark is neg?
+    (reduce-kv (fn [sc i b]
+                 (if (even? i)
+                   ;; first ball of frame
+                   (if (= b 10) ;strike
+                     ;; skip nil padding
+                     (let [b1 (bv (+ i 2))
+                           b2 (if (= b1 10) (bv (+ i 4)) (bv (+ i 3)))]
+                       (if (neg? b2) (+ sc 20) (+ sc 10 b1 b2)))
+                     ;; don't score first ball, we will account for it on second ball
+                     sc)
+                   ;; second ball of frame, recover the previous ball if necessary
+                   (cond (nil? b) sc
+                         (neg? b) (+ sc 10 (bv (inc i)))
+                         :else (+ sc (bv (dec i)) b))))
+               0
+               (subvec bv 0 20))))
+
+
+
+
+
 ;;; with built-in verificaton of input
 ;;; lots of extra code but not much of a performance hit
 (defn veriscore [game]
