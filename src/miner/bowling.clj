@@ -70,7 +70,7 @@
 ;;; new idea -- encode strike as 10 nil so frame count is synced and you don't have to count
 ;;; it manually.
 
-;;; maybe simpler but a little bit slower
+;;; simpler but a little bit slower
 ;;; probably better set up for input error checking
 
 (defn score7 [game]
@@ -100,6 +100,128 @@
                          :else (+ sc (bv (dec i)) b))))
                0
                (subvec bv 0 20))))
+
+
+
+(defn score7v [game]
+  ;; note x maps X 40, \ -1, - -3.  The test for a spare mark is neg?
+  (let [bv (reduce (fn [r c]
+                     (let [i (count r)
+                           x (- (long c) (long \0))
+                           b (case x 40 10 -3 0 (-1 0 1 2 3 4 5 6 7 8 9) x
+                                   (throw (ex-info (str "Bad input " c)
+                                                   {:bad-game game :bad-char c})))]
+                       (when (and (= b 10) (odd? i))
+                         (throw (ex-info (str "Illegal strike in " game)
+                                         {:bad-game game :ball i})))
+                       (when (and (neg? b) (even? i))
+                         (throw (ex-info (str "Illegal spare in " game)
+                                         {:bad-game game :ball i})))
+                       (when (and (odd? i) (< (count r) 20) (not (neg? b)) (>= (+ (peek r) b) 10))
+                         (throw (ex-info (str "Bad frame [" (peek r) b "] in game " game)
+                                                          {:bad-game game
+                                                           :bad-frame  [(peek r) b]})))
+                       (if (= b 10)
+                         (conj (conj r 10) nil)
+                         (conj r b))))
+                   []
+                   (str/replace game " " ""))
+        bcnt (count bv)]
+    ;; error checking section
+    (cond
+     (< bcnt 20) (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
+     (> bcnt 24) (throw (ex-info (str "Too many balls in " game) {:bad-game game}))
+     )
+    ;; strikes at end need to count nil pad
+    (let [xcnt (cond (and (= (bv 18) 10) (= (nth bv 20 nil) 10) (= (nth bv 22 nil) 10)) 24
+                     (and (= (bv 18) 10) (= (nth bv 20 nil) 10)) 23
+                     (= (bv 18) 10) 22
+                     (and (neg? (bv 19)) (= (nth bv 20 nil) 10)) 22
+                     (neg? (bv 19)) 21
+                     :else 20)]
+      (cond (< bcnt xcnt)
+                (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
+            (> bcnt xcnt)
+                (throw (ex-info (str "Too many balls in " game) {:bad-game game}))
+            ))
+    
+    (reduce-kv (fn [sc i b]
+                 (if (even? i)
+                   ;; first ball of frame
+                   (if (= b 10) ;strike
+                     ;; skip nil padding
+                     (let [b1 (bv (+ i 2))
+                           b2 (bv (if (= b1 10) (+ i 4) (+ i 3)))]
+                       (if (neg? b2) (+ sc 20) (+ sc 10 b1 b2)))
+                     ;; don't score first ball, we will account for it on second ball
+                     sc)
+                   ;; second ball of frame, recover the previous ball if necessary
+                   (cond (nil? b) sc
+                         (neg? b) (+ sc 10 (bv (inc i)))
+                         :else (+ sc (bv (dec i)) b))))
+               0
+               (subvec bv 0 20))))
+
+
+(defn score7v1 [game]
+  ;; note x maps X 40, \ -1, - -3.  The test for a spare mark is neg?
+  (let [bv (reduce (fn [r c]
+                     (let [i (count r)
+                           x (- (long c) (long \0))
+                           b (case x 40 10 -3 0 (-1 0 1 2 3 4 5 6 7 8 9) x
+                                   (throw (ex-info (str "Bad input " c)
+                                                   {:bad-game game :bad-char c})))]
+                       (when (and (= b 10) (odd? i))
+                         (throw (ex-info (str "Illegal strike in " game)
+                                         {:bad-game game :ball i})))
+                       (when (and (neg? b) (even? i))
+                         (throw (ex-info (str "Illegal spare in " game)
+                                         {:bad-game game :ball i})))
+                       (when (and (odd? i) (< (count r) 20) (not (neg? b)) (>= (+ (peek r) b) 10))
+                         (throw (ex-info (str "Bad frame [" (peek r) b "] in game " game)
+                                                          {:bad-game game
+                                                           :bad-frame  [(peek r) b]})))
+                       (if (= b 10)
+                         (conj (conj r 10) nil)
+                         (conj r b))))
+                   []
+                   (str/replace game " " ""))
+        bcnt (count bv)]
+    ;; error checking section
+    (cond
+     (< bcnt 20) (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
+     (> bcnt 24) (throw (ex-info (str "Too many balls in " game) {:bad-game game}))
+     )
+    ;; strikes at end need to count nil pad
+    (let [xcnt (cond (and (= (bv 18) 10) (= (nth bv 20 nil) 10) (= (nth bv 22 nil) 10)) 24
+                     (and (= (bv 18) 10) (= (nth bv 20 nil) 10)) 23
+                     (= (bv 18) 10) 22
+                     (and (neg? (bv 19)) (= (nth bv 20 nil) 10)) 22
+                     (neg? (bv 19)) 21
+                     :else 20)]
+      (cond (< bcnt xcnt)
+                (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
+            (> bcnt xcnt)
+                (throw (ex-info (str "Too many balls in " game) {:bad-game game}))
+            ))
+    
+    (reduce-kv (fn [sc i b]
+                 (if (even? i)
+                   ;; first ball of frame
+                   (if (= b 10) ;strike
+                     ;; skip nil padding
+                     (let [b1 (bv (+ i 2))
+                           b2 (bv (if (= b1 10) (+ i 4) (+ i 3)))]
+                       (if (neg? b2) (+ sc 20) (+ sc 10 b1 b2)))
+                     ;; don't score first ball, we will account for it on second ball
+                     sc)
+                   ;; second ball of frame, recover the previous ball if necessary
+                   (cond (nil? b) sc
+                         (neg? b) (+ sc 10 (bv (inc i)))
+                         :else (+ sc (bv (dec i)) b))))
+               0
+               (subvec bv 0 20))))
+
 
 
 
