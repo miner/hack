@@ -113,11 +113,11 @@
                                                    {:bad-game game :bad-char c})))]
                        (when (and (= b 10) (odd? i))
                          (throw (ex-info (str "Illegal strike in " game)
-                                         {:bad-game game :ball i})))
+                                         {:bad-game game :index i})))
                        (when (and (neg? b) (even? i))
                          (throw (ex-info (str "Illegal spare in " game)
-                                         {:bad-game game :ball i})))
-                       (when (and (odd? i) (< (count r) 20) (not (neg? b)) (>= (+ (peek r) b) 10))
+                                         {:bad-game game :index i})))
+                       (when (and (odd? i) #_ (not (neg? b)) (>= (+ (peek r) b) 10))
                          (throw (ex-info (str "Bad frame [" (peek r) b "] in game " game)
                                                           {:bad-game game
                                                            :bad-frame  [(peek r) b]})))
@@ -127,23 +127,20 @@
                    []
                    (str/replace game " " ""))
         bcnt (count bv)]
-    ;; error checking section
-    (cond
-     (< bcnt 20) (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
-     (> bcnt 24) (throw (ex-info (str "Too many balls in " game) {:bad-game game}))
-     )
-    ;; strikes at end need to count nil pad
-    (let [xcnt (cond (and (= (bv 18) 10) (= (nth bv 20 nil) 10) (= (nth bv 22 nil) 10)) 24
+    
+    ;; error checking length
+    ;; strikes at end need to account for nil padding
+    (let [xcnt (cond (< bcnt 20) 20
+                     (not (or (= (bv 18) 10) (neg? (bv 19)))) 20
+                     (and (= (bv 18) 10) (= (nth bv 20 nil) 10) (= (nth bv 22 nil) 10)) 24
                      (and (= (bv 18) 10) (= (nth bv 20 nil) 10)) 23
                      (= (bv 18) 10) 22
                      (and (neg? (bv 19)) (= (nth bv 20 nil) 10)) 22
                      (neg? (bv 19)) 21
                      :else 20)]
-      (cond (< bcnt xcnt)
-                (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
-            (> bcnt xcnt)
-                (throw (ex-info (str "Too many balls in " game) {:bad-game game}))
-            ))
+      (cond
+       (< bcnt xcnt) (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
+       (> bcnt xcnt) (throw (ex-info (str "Too many balls in " game) {:bad-game game}))))
     
     (reduce-kv (fn [sc i b]
                  (if (even? i)
@@ -177,7 +174,7 @@
                        (when (and (neg? b) (even? i))
                          (throw (ex-info (str "Illegal spare in " game)
                                          {:bad-game game :ball i})))
-                       (when (and (odd? i) (< (count r) 20) (not (neg? b)) (>= (+ (peek r) b) 10))
+                       (when (and (odd? i) #_ (not (neg? b)) (>= (+ (peek r) b) 10))
                          (throw (ex-info (str "Bad frame [" (peek r) b "] in game " game)
                                                           {:bad-game game
                                                            :bad-frame  [(peek r) b]})))
@@ -450,7 +447,7 @@
    (assert (= (score "5/5/5/5/5/5/5/5/5/5/5") 150))
    (assert (= (score "12 12 12 12 12 12 12 12 12 0/X") 47))
    (assert (= (score "XX 3/ 4/ X 54 7/ X X X 3/")  198))
-   (assert (= (score "XX 3/ 4/ X 54 7/ X X X 37")  198))
+   ;;; illegal (assert (= (score "XX 3/ 4/ X 54 7/ X X X 37")  198))
    true))
 
 
