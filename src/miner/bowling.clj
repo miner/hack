@@ -1,5 +1,7 @@
 (ns miner.bowling
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str])
+  (:require [clojure.test :refer [is are deftest]]))
+
 
 ;;; Years later, I discovered that Uncle Bob and Stuart Halloway worked this problem.
 ;;; https://github.com/stuarthalloway/clojure-bowling
@@ -70,7 +72,7 @@
 ;;; new idea -- encode strike as 10 nil so frame count is synced and you don't have to count
 ;;; it manually.
 
-;;; simpler but a little bit slower
+;;; simpler and a little bit faster than score on some test runs
 ;;; probably better set up for input error checking
 
 (defn score7 [game]
@@ -102,6 +104,7 @@
                (subvec bv 0 20))))
 
 
+;;; slower than veriscore
 
 (defn score7v [game]
   ;; note x maps X 40, \ -1, - -3.  The test for a spare mark is neg?
@@ -111,16 +114,21 @@
                            b (case x 40 10 -3 0 (-1 0 1 2 3 4 5 6 7 8 9) x
                                    (throw (ex-info (str "Bad input " c)
                                                    {:bad-game game :bad-char c})))]
-                       (when (and (= b 10) (odd? i))
-                         (throw (ex-info (str "Illegal strike in " game)
-                                         {:bad-game game :index i})))
-                       (when (and (neg? b) (even? i))
-                         (throw (ex-info (str "Illegal spare in " game)
-                                         {:bad-game game :index i})))
-                       (when (and (odd? i) #_ (not (neg? b)) (>= (+ (peek r) b) 10))
-                         (throw (ex-info (str "Bad frame [" (peek r) b "] in game " game)
-                                                          {:bad-game game
-                                                           :bad-frame  [(peek r) b]})))
+                       ;; odd, second ball
+                       (if (odd? i)
+                         (if (= b 10)
+                           (throw (ex-info (str "Illegal strike in " game)
+                                           {:bad-game game :index i}))
+                           (when-not (neg? b)
+                             (when (>= (+ (peek r) b) 10)
+                               (throw (ex-info (str "Bad frame [" (peek r) b "] in game " game)
+                                               {:bad-game game
+                                                :bad-frame  [(peek r) b]})))))
+                         ;; even, first ball
+                         (when (neg? b)
+                           (throw (ex-info (str "Illegal spare in " game)
+                                           {:bad-game game :index i}))))
+
                        (if (= b 10)
                          (conj (conj r 10) nil)
                          (conj r b))))
@@ -131,13 +139,17 @@
     ;; error checking length
     ;; strikes at end need to account for nil padding
     (let [xcnt (cond (< bcnt 20) 20
-                     (not (or (= (bv 18) 10) (neg? (bv 19)))) 20
-                     (and (= (bv 18) 10) (= (nth bv 20 nil) 10) (= (nth bv 22 nil) 10)) 24
-                     (and (= (bv 18) 10) (= (nth bv 20 nil) 10)) 23
-                     (= (bv 18) 10) 22
-                     (and (neg? (bv 19)) (= (nth bv 20 nil) 10)) 22
-                     (neg? (bv 19)) 21
-                     :else 20)]
+                     (> bcnt 24) 24
+                     :else (let [strike10? (= (bv 18) 10)
+                                 spare10? (when-not strike10? (neg? (bv 19)))]
+                             (cond (not (or strike10? spare10?)) 20
+                                   (and strike10? (= (nth bv 20 nil) 10)
+                                        (= (nth bv 22 nil) 10)) 24
+                                   (and strike10? (= (nth bv 20 nil) 10)) 23
+                                   strike10? 22
+                                   (and spare10? (= (nth bv 20 nil) 10)) 22
+                                   spare10? 21
+                                   :else 20)))]
       (cond
        (< bcnt xcnt) (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
        (> bcnt xcnt) (throw (ex-info (str "Too many balls in " game) {:bad-game game}))))
@@ -160,64 +172,131 @@
                (subvec bv 0 20))))
 
 
-(defn score7v1 [game]
+(defn throw-on-invalid-game1 [game]
   ;; note x maps X 40, \ -1, - -3.  The test for a spare mark is neg?
-  (let [bv (reduce (fn [r c]
+  ;; 0 is not a valid char.  Use - for gutter ball.
+  (if-not (string? game)
+    (throw (ex-info "Invalid bowling game" {:bad-game game}))
+    (let [game (str/replace game " " "")
+          bv (reduce (fn [r c]
                      (let [i (count r)
                            x (- (long c) (long \0))
-                           b (case x 40 10 -3 0 (-1 0 1 2 3 4 5 6 7 8 9) x
+                           b (case x 40 10 -3 0 (-1 1 2 3 4 5 6 7 8 9) x
                                    (throw (ex-info (str "Bad input " c)
                                                    {:bad-game game :bad-char c})))]
-                       (when (and (= b 10) (odd? i))
-                         (throw (ex-info (str "Illegal strike in " game)
-                                         {:bad-game game :ball i})))
-                       (when (and (neg? b) (even? i))
-                         (throw (ex-info (str "Illegal spare in " game)
-                                         {:bad-game game :ball i})))
-                       (when (and (odd? i) #_ (not (neg? b)) (>= (+ (peek r) b) 10))
-                         (throw (ex-info (str "Bad frame [" (peek r) b "] in game " game)
-                                                          {:bad-game game
-                                                           :bad-frame  [(peek r) b]})))
+                       ;; odd, second ball
+                       (if (odd? i)
+                         (if (= b 10)
+                           (throw (ex-info (str "Illegal strike in " game)
+                                           {:bad-game game :index i}))
+                           (when-not (neg? b)
+                             (when (>= (+ (peek r) b) 10)
+                               (throw (ex-info (str "Bad frame [" (peek r) b "] in game " game)
+                                               {:bad-game game
+                                                :bad-frame  [(peek r) b]})))))
+                         ;; even, first ball
+                         (when (neg? b)
+                           (throw (ex-info (str "Illegal spare in " game)
+                                           {:bad-game game :index i}))))
+
                        (if (= b 10)
                          (conj (conj r 10) nil)
                          (conj r b))))
                    []
-                   (str/replace game " " ""))
-        bcnt (count bv)]
-    ;; error checking section
-    (cond
-     (< bcnt 20) (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
-     (> bcnt 24) (throw (ex-info (str "Too many balls in " game) {:bad-game game}))
-     )
-    ;; strikes at end need to count nil pad
-    (let [xcnt (cond (and (= (bv 18) 10) (= (nth bv 20 nil) 10) (= (nth bv 22 nil) 10)) 24
-                     (and (= (bv 18) 10) (= (nth bv 20 nil) 10)) 23
-                     (= (bv 18) 10) 22
-                     (and (neg? (bv 19)) (= (nth bv 20 nil) 10)) 22
-                     (neg? (bv 19)) 21
-                     :else 20)]
-      (cond (< bcnt xcnt)
-                (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
-            (> bcnt xcnt)
-                (throw (ex-info (str "Too many balls in " game) {:bad-game game}))
-            ))
-    
-    (reduce-kv (fn [sc i b]
-                 (if (even? i)
-                   ;; first ball of frame
-                   (if (= b 10) ;strike
-                     ;; skip nil padding
-                     (let [b1 (bv (+ i 2))
-                           b2 (bv (if (= b1 10) (+ i 4) (+ i 3)))]
-                       (if (neg? b2) (+ sc 20) (+ sc 10 b1 b2)))
-                     ;; don't score first ball, we will account for it on second ball
-                     sc)
-                   ;; second ball of frame, recover the previous ball if necessary
-                   (cond (nil? b) sc
-                         (neg? b) (+ sc 10 (bv (inc i)))
-                         :else (+ sc (bv (dec i)) b))))
-               0
-               (subvec bv 0 20))))
+                   game)
+          bcnt (count bv)
+          ;; error checking length
+          ;; strikes at end need to account for nil padding
+          xcnt (cond (< bcnt 20) 20
+                     (> bcnt 24) 24
+                     :else (let [strike10? (= (bv 18) 10)
+                                 spare10? (when-not strike10? (neg? (bv 19)))]
+                             (cond (not (or strike10? spare10?)) 20
+                                   (and strike10? (= (nth bv 20 nil) 10)
+                                        (= (nth bv 22 nil) 10)) 24
+                                   (and strike10? (= (nth bv 20 nil) 10)) 23
+                                   strike10? 22
+                                   (and spare10? (= (nth bv 20 nil) 10)) 22
+                                   spare10? 21
+                                   :else 20)))]
+      (cond
+       (< bcnt xcnt) (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
+       (> bcnt xcnt) (throw (ex-info (str "Too many balls in " game) {:bad-game game}))))
+    ))
+
+
+
+;; state [p r]
+;; peek at end, r=0 is good
+;; if X on 18 r=-2
+;; neg r, inc r --> extra balls working backwards to 0 again
+;; check / X odd/even, add to 10, etc using prev p
+
+
+(defn throw-on-invalid-game [game]
+  ;; note x maps X 40, \ -1, - -3.  The test for a spare mark is neg?
+  ;; 0 is not a valid char.  Use - for gutter ball.
+  (if-not (string? game)
+    (throw (ex-info "Invalid bowling game" {:bad-game game}))
+    (let [game (str/replace game " " "")
+          r (peek (reduce
+                   (fn [[p r] c]
+                     (let [x (- (long c) (long \0))
+                           b (case x 40 10 -3 0 (-1 1 2 3 4 5 6 7 8 9) x
+                                   (throw (ex-info (str "Bad input " c " in game " game)
+                                                   {:bad-game game :bad-char c})))]
+
+                       ;; r "remaining" is neg for extra balls, inc back towards zero
+                       ;; -2 for extra strike, -1 for extra spare
+                       (cond
+                        (and (= r 2) (= b 10)) [nil -2]
+                        (and (= r 1) (neg? b)) [nil -1]
+                        (pos? r) (if (even? r)
+                                   ;; first ball
+                                   (if (= b 10)
+                                     [nil (- r 2)]
+                                     (if (neg? b)
+                                       (throw (ex-info (str "Illegal spare in " game)
+                                                       {:bad-game game :index r}))
+                                       [b (dec r)]))
+                                   ;; second ball
+                                   (if (= b 10)
+                                     (throw (ex-info (str "Illegal strike in " game)
+                                                     {:bad-game game :index r}))
+
+                                     (if (>= (+ p b) 10)
+                                       (throw (ex-info (str "Bad frame [" p b "] in game " game)
+                                                       {:bad-game game
+                                                        :bad-frame  [p b]}))
+                                       [nil (dec r)])))
+                        (zero? r) (throw (ex-info (str "Too many balls in " game)
+                                                  {:bad-game game}))
+                        (neg? r) (cond (nil? p) [(when (not= b 10) b) (inc r)]
+                                       (and (even? r) (neg? b))
+                                           (throw (ex-info (str "Illegal spare in " game)
+                                                           {:bad-game game :index r}))
+                                       (>= (+ p b) 10)
+                                           (throw (ex-info (str "Bad frame [" p b "] in game " 
+                                                                game)
+                                                           {:bad-game game
+                                                            :bad-frame  [p b]}))
+                                       :else [b (inc r)]))))
+                   [nil 20]
+                   game))]
+      (when-not (zero? r)
+        (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))))))
+
+
+(defn valid-game? [game]
+  (try (throw-on-invalid-game game)
+       true
+       (catch Throwable e #_ (println (ex-message e)) false)))
+
+
+(defn vscore [game]
+  (throw-on-invalid-game game)
+  (score game))
+
 
 
 
@@ -445,7 +524,7 @@
    (assert (= (score "XXXXXXXXXXXX") 300))
    (assert (= (score "9-9-9-9-9-9-9-9-9-9-") 90))
    (assert (= (score "5/5/5/5/5/5/5/5/5/5/5") 150))
-   (assert (= (score "12 12 12 12 12 12 12 12 12 0/X") 47))
+   (assert (= (score "12 12 12 12 12 12 12 12 12 -/X") 47))
    (assert (= (score "XX 3/ 4/ X 54 7/ X X X 3/")  198))
    ;;; illegal (assert (= (score "XX 3/ 4/ X 54 7/ X X X 37")  198))
    true))
@@ -593,3 +672,28 @@
                  (inc frame)
                  (long (+ score fscore)))))))
 
+
+
+(deftest scoring
+  (is 223 (score "35 6/ 7/ X 45 X X X XXXX"))
+  (is 30 (score "11 11 11 11 11 11 11 11 X 11"))
+  (is 30 (score "11 11 11 11 11 11 11 11 11 X 11"))
+  (is 300 (score "XXXXXXXXXXXX"))
+  (is 90 (score "9-9-9-9-9-9-9-9-9-9-"))
+  (is 150 (score "5/5/5/5/5/5/5/5/5/5/5"))
+  (is 47 (score "12 12 12 12 12 12 12 12 12 0/X"))
+  (is 198 (score "XX 3/ 4/ X 54 7/ X X X 3/"))
+  )
+
+(defn validating-score [score]
+  (is (thrown? clojure.lang.ExceptionInfo (score "11 11 11 /1 11 11 11 11 11 X 11")))
+  (is (thrown? clojure.lang.ExceptionInfo (score "11 56 11 11 11 11 11 11 X 11")))
+  (is (thrown? clojure.lang.ExceptionInfo (score "XX 3/ 4/ X 54 7/ X X 37")))
+  (is (thrown? clojure.lang.ExceptionInfo (score "XXX")))
+  true)
+
+(deftest validating
+  (validating-score score7v))
+
+(deftest validating2
+  (validating-score veriscore))
