@@ -173,31 +173,9 @@
 
 
 
-;; state [p r]
-;; peek at end, r=0 is good
-;; if X on 18 r=-2
-;; neg r, inc r --> extra balls working backwards to 0 again
-;; check / X odd/even, add to 10, etc using prev p
+;;; Use logic of throw-on-invalid but return the vector of balls as used by score7, then do
+;;; sum as in score7.  Note validation is all up front
 
-
-
-;;; previous nil for don't care, use 10 for any mark
-
-
-;;; BUG -- need to fix previous to allow multiple strikes
-;;; use 0-9 for regular ball (no mark)
-;;; -2 for strike, -1 for spare  (dec for multiple marks)
-;;; score 10 immediately for strike
-;;; double next two balls
-
-;; NOT QUITE RIGHT  -- go back to holding all balls and scoring later
-
-
-
-
-
-
-;;; using previous p nil to mean no restriction, but could use p 10 for same thing?
 
 (defn throw-on-invalid-game [game]
   ;; note x maps X 40, \ -1, - -3.  The test for a spare mark is neg?
@@ -251,6 +229,77 @@
                    game))]
       (when-not (zero? r)
         (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))))))
+
+;;; with nil padding strikes for count < 20, but extra balls do not pad
+(defn vvscore [game]
+  ;; note x maps X 40, \ -1, - -3.  The test for a spare mark is neg?
+  ;; 0 is not a valid char.  Use - for gutter ball.
+  (if-not (string? game)
+    (throw (ex-info "Invalid bowling game" {:bad-game game}))
+    (let [game (str/replace game " " "")
+          bv (reduce
+              (fn [rv c]
+                (let [x (- (long c) (long \0))
+                      b (case x 40 10 -3 0 (-1 1 2 3 4 5 6 7 8 9) x
+                              (throw (ex-info (str "Bad input " c " in game " game)
+                                              {:bad-game game :bad-char c})))
+                      cnt (count rv)]
+                  (cond
+                   (even? cnt)
+                       ;; first ball of frame
+                       (if (neg? b)
+                         (throw (ex-info (str "Illegal spare in " game)
+                                         {:bad-game game :index cnt}))
+                         (if (and (= b 10) (< cnt 20))
+                           ;; nil pad after strikes, but not for "extra" balls
+                           (conj (conj rv 10) nil)
+                           (conj rv b)))
+                   
+                   ;; odd cnt, second ball of frame
+                   :else
+                       (if (and (= b 10) (< cnt 20))
+                         (throw (ex-info (str "Illegal strike in " game)
+                                         {:bad-game game :index cnt}))
+                         (let [p (peek rv)]
+                           (if (and (= b 10) (>= cnt 20))
+                             (conj rv b)
+                             (if (>= (+ p b) 10)
+                               (throw (ex-info (str "Bad frame [" p b "] in game " game)
+                                               {:bad-game game
+                                                :bad-frame  [p b]}))
+                               (conj rv b))))))))
+
+              []
+              game)
+          cnt (count bv)
+          exp-cnt (cond (< cnt 20) 20
+                        (= (bv 18) 10) 22
+                        (neg? (bv 19)) 21
+                        :else 20)]
+      ;; check expected ball count
+      (when (not= cnt exp-cnt)
+        (if (< cnt exp-cnt)
+          (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))
+          (throw (ex-info (str "Too many balls in " game) {:bad-game game}))))
+      (reduce-kv (fn [sc i b]
+                   (if (even? i)
+                     ;; first ball of frame
+                     (if (= b 10) ;strike
+                       ;; skip nil padding
+                       (let [b1 (bv (+ i 2))
+                             b2 (or (bv (+ i 3)) (bv (+ i 4)))]
+                         (if (neg? b2) (+ sc 20) (+ sc 10 b1 b2)))
+                       ;; don't score first ball, we will account for it on second ball
+                       sc)
+                     ;; second ball of frame, recover the previous ball if necessary
+                     (cond (nil? b) sc
+                           (neg? b) (+ sc 10 (bv (inc i)))
+                           :else (+ sc (bv (dec i)) b))))
+                 0
+                 (subvec bv 0 20)))))
+
+
+
 
 
 
