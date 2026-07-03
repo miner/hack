@@ -230,6 +230,8 @@
       (when-not (zero? r)
         (throw (ex-info (str "Insufficient balls in " game) {:bad-game game}))))))
 
+
+;;; this is pretty good.  I like the separation of validation from the scoring summation
 ;;; with nil padding strikes for count < 20, but extra balls do not pad
 (defn vvscore [game]
   ;; note x maps X 40, \ -1, - -3.  The test for a spare mark is neg?
@@ -254,7 +256,6 @@
                            ;; nil pad after strikes, but not for "extra" balls
                            (conj (conj rv 10) nil)
                            (conj rv b)))
-                   
                    ;; odd cnt, second ball of frame
                    :else
                        (if (and (= b 10) (< cnt 20))
@@ -268,7 +269,6 @@
                                                {:bad-game game
                                                 :bad-frame  [p b]}))
                                (conj rv b))))))))
-
               []
               game)
           cnt (count bv)
@@ -308,7 +308,7 @@
        true
        (catch Throwable e #_ (println (ex-message e)) false)))
 
-
+;; slower than other verifications
 (defn vscore [game]
   (throw-on-invalid-game game)
   (score game))
