@@ -3,6 +3,13 @@
   (:require [clojure.math :as m]
             [clojure.string :as str]))
 
+;;; Probably a good idea to look at Medley or Useful libraries before using any of my
+;;; implementations.
+;;;
+;;; https://github.com/weavejester/medley
+;;; https://github.com/clj-commons/useful
+
+
 ;; I use this all the time for testing and benchmarking.  Intentionally returns true if
 ;; everything succeeds.  Otherwise, will throw like `assert`.
 (defmacro assert=
@@ -11,7 +18,9 @@
    `(do (assert (= ~form ~result))
         (assert= ~@more))))
 
-;;; Many semi-useful things moved into the halfbaked lib (now on clojars)
+;;; Some semi-useful things moved into the halfbaked.clj file.  It used to be on clojars as
+;;; a lib, but halfbaked has not been maintained so don't use the lib.  Just copy the useful
+;;; bits you want.
 
 (defn at-least? [cnt coll]
   (>= (bounded-count cnt coll) cnt))
@@ -38,6 +47,7 @@
 ;;; "In accordance with", useful with some-> or testing a result without have to wrap in a let.
 (defn per
   "Returns `x` when x is truthy and `(pred x)` returns truthy for all preds."
+  ([x] x)
   ([x pred] (when (and x (pred x)) x))
   ([x pred & preds] (when (and x (every? #(% x) preds)) x)))
 
@@ -163,4 +173,17 @@
   ([pred coll] (first-when pred coll nil))
   ([pred coll not-found]
    (reduce (fn [_ x] (if (pred x) (reduced x) not-found)) not-found coll)))
+
+
+;;; suggested
+;;; https://ask.clojure.org/index.php/15184/add-assoc-some-for-constructing-maps-while-skipping-values
+(defn assoc-some1 [m k v]
+  (cond-> m
+    (some? v) (assoc k v)))
+
+;;; I think I would like to dissoc existing k if v is nil.
+(defn assoc-some [m k v]
+  (if (nil? v)
+    (dissoc m k)
+    (assoc m k v)))
 
