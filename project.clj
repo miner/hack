@@ -1,8 +1,8 @@
 (defproject hack "0.4.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.66.0"]
-                 [dom-top "1.0.10"]
-                 [com.datomic/local "1.0.291"]
+  :dependencies [[djblue/portal "0.67.0"]
+                 [dom-top "1.0.11"]
+                 [com.datomic/local "1.0.301"]
                  [com.taoensso/telemere "1.2.1"]
                  ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
@@ -31,7 +31,7 @@
                  [backtick "0.4.0"]
                  [com.velisco/halfbaked "0.2.3"]
                  [com.velisco/clj-ftp "1.2.0"]
-                 [com.clojure-goes-fast/clj-memory-meter "0.4.0"]
+                 [com.clojure-goes-fast/clj-memory-meter "0.5.0"]
                  [com.clojure-goes-fast/clj-java-decompiler "0.3.7"]
                  [metrics-clojure "2.10.0"]
                  [net.cgrand/xforms "0.19.6"]
@@ -49,8 +49,8 @@
                 ;; *unchecked-math* :warn-on-boxed
                 }
   :profiles {:dev  {:source-paths ["src" "dev"]
-                    :dependencies [[org.clojure/clojure "1.13.0-alpha4"]
-                                   [org.clojure/core.specs.alpha "0.6.113-alpha6"]
+                    :dependencies [[org.clojure/clojure "1.13.0-alpha5"]
+                                   [org.clojure/core.specs.alpha "0.6.118-alpha7"]
                                    [org.clojure/spec.alpha "0.6.249"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
