@@ -241,27 +241,45 @@
 ;;; SEM:  I suspect it would be faster to just eliminate the nils from the original.  I'm
 ;;; assuming that nil vals are not common.  On the other hand, Rich would have already
 ;;; thought of this so maybe it's not such a good idea!
+
+;;; My initial versions all could return an empty map, but the doc says should be nil so I have to
+;;; call not-empty.  I'm actually OK with the empty-map but I'm trying to do a fair
+;;; comparison.
+
 (defn some-vals2
   "Returns a map with only the non-nil values of map m. Returns nil if
   m has no non-nil vals."
   {:static true}
   [m]
+  (not-empty
   (reduce-kv (fn [m k v] (if (nil? v) (dissoc m k) m))
              m
-             m))
+             m)))
 
 
-;;; transient never worth it, always slower
+;;; transient never worth it for building, always slower
 (defn some-vals3
   "Returns a map with only the non-nil values of map m. Returns nil if
   m has no non-nil vals."
   {:static true}
   [m]
+  (not-empty
   (persistent!
   (reduce-kv (fn [m k v] (if (nil? v) m (assoc! m k v)))
              (transient {})
-             m)))
+             m))))
 
+;; pretty good, slight benefit of transient for dissoc!
+(defn some-vals4
+  "Returns a map with only the non-nil values of map m. Returns nil if
+  m has no non-nil vals."
+  {:static true}
+  [m]
+  (not-empty
+   (persistent!
+    (reduce-kv (fn [m k v] (if (nil? v) (dissoc! m k) m))
+               (transient m)
+               m))))
 
 
 ;;; need to test with kw maps as that's the common case
