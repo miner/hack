@@ -238,14 +238,13 @@
    (fn [m k v] (if (some? v) (assoc m k v) m))
    nil m))
 
-;;; SEM:  I suspect it would be faster to just eliminate the nils from the original
-;;; (assuming they are not common).  But Rich would have already thought of this if it were
-;;; a good idea!
+;;; SEM:  I suspect it would be faster to just eliminate the nils from the original.  I'm
+;;; assuming that nil vals are not common.  On the other hand, Rich would have already
+;;; thought of this so maybe it's not such a good idea!
 (defn some-vals2
   "Returns a map with only the non-nil values of map m. Returns nil if
   m has no non-nil vals."
-  {:added "1.13"
-   :static true}
+  {:static true}
   [m]
   (reduce-kv (fn [m k v] (if (nil? v) (dissoc m k) m))
              m
@@ -256,31 +255,13 @@
 (defn some-vals3
   "Returns a map with only the non-nil values of map m. Returns nil if
   m has no non-nil vals."
-  {:added "1.13"
-   :static true}
+  {:static true}
   [m]
   (persistent!
   (reduce-kv (fn [m k v] (if (nil? v) m (assoc! m k v)))
              (transient {})
              m)))
 
-;;; not good
-(defn some-vals4
-  "Returns a map with only the non-nil values of map m. Returns nil if
-  m has no non-nil vals."
-  {:added "1.13"
-   :static true}
-  [m]
-  (let [cnt (count m)
-        threshold (- cnt 3)]
-    (if (< cnt 3)
-      (some-vals m)
-      (reduce-kv (fn [m k v]
-                   (cond (<= (count m) threshold) (reduced (some-vals m))
-                         (nil? v) (dissoc m k)
-                         :else m))
-               m
-               m))))
 
 
 ;;; need to test with kw maps as that's the common case
