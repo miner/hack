@@ -296,3 +296,48 @@
 (def k1 {:a 1 :b nil :c nil :d nil :e nil})
 
 (def k7 {:a 1 :b 2 :c 3 :d 4 :e nil :f nil :g nil})
+
+
+
+;;; borkdude on Slack, testing alpha5
+#_
+(let [{:keys [a b] :or {b (str "default-for-" a)}} {:a "x"}] b)
+
+;=> Syntax error... Unable to resolve symbol: a in this context
+
+
+;;; The point is that the scope of :or doesn't include the immediate key bindings.  The
+;;; bindindgs will perhaps depend on the :or defaults.  However, it looks like adding an
+;;; intermediate binding would work. In this case, using the same name, a.  I made it
+;;; required, but it doesn't have to be.
+#_
+(let [ax {:a "x"}
+      {:keys! [a]} ax
+      {:keys [b] :or {b (str "default-" a)}} ax]
+  (list a b))
+
+;;; macroexpanding
+#_
+(let* [ax  {:a "x"}
+       map__3035  ax
+       map__3035  (if   (clojure.core/seq? map__3035)
+                    (if    (clojure.core/next map__3035)
+                      (clojure.lang.PersistentArrayMap/createAsIfByAssoc
+                       (clojure.core/to-array map__3035))
+                      (if     (clojure.core/seq map__3035)
+                        (clojure.core/first map__3035)
+                        clojure.lang.PersistentArrayMap/EMPTY))
+                    map__3035)
+       a  (clojure.core/req! map__3035 :a)
+       default__3039  (str "default-" a)
+       map__3037  ax
+       map__3037  (if   (clojure.core/seq? map__3037)
+                    (if    (clojure.core/next map__3037)
+                      (clojure.lang.PersistentArrayMap/createAsIfByAssoc
+                       (clojure.core/to-array map__3037))
+                      (if     (clojure.core/seq map__3037)
+                        (clojure.core/first map__3037)
+                        clojure.lang.PersistentArrayMap/EMPTY))
+                    map__3037)
+       b  (clojure.core/get map__3037 :b default__3039)]
+      (list a b))
