@@ -1,9 +1,9 @@
 (defproject hack "0.4.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.67.0"]
+  :dependencies [[djblue/portal "0.67.1"]
                  [dom-top "1.0.11"]
                  [com.datomic/local "1.0.301"]
-                 [com.taoensso/telemere "1.2.1"]
+                 [com.taoensso/telemere "1.4.0"]
                  ;;[com.datomic/client-api "1.0.67"]
                  [racehub/om-bootstrap "0.6.1" :exclusions [org.clojure/clojure]]
                  [com.velisco/wilkins "0.2.1"]
