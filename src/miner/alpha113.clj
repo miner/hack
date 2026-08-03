@@ -341,3 +341,100 @@
                     map__3037)
        b  (clojure.core/get map__3037 :b default__3039)]
       (list a b))
+
+
+
+
+;;; example from Rich with new :rest destructuring to capture "unused" keys, potentially
+;;; nested, that exists in the target value, but are not mentioned in the destructuring
+;;; specification.  Coming soon, maybe alpha7.  :rest key may change to :diff as in "set
+;;; difference".  My bike-shedding (non-)suggestions that I kept to myself:
+;;;   :leftovers, :unselected, :remainders, :complement,
+;;;   :residua, :orts (archaic, scraps from a meal), :bikeshedding
+
+
+#_
+(pprint
+ (let [{{:keys [p q r] :or {r 99}} :nested
+        a :a
+        :keys! [b c & :d :e :f]
+        :as m
+        :or {a 42 }
+        :defaults defs
+        :select sel
+        :all all
+        :rest extra}
+       
+       {:aa 1 :b 2 :c 3 :d 4 :e 5 :f 6 :x 42
+        :nested {:q 2 :zz :top}}]
+   
+   {:a a :b b :c c :select sel :as m :defs defs :all all :rest extra}))
+
+
+;;; SEM: I wanted to add :defaults nested-defs to the nested destructure to capture that so
+;;; I can rebuild the original
+
+
+#_
+{:a 42,
+ :b 2,
+ :c 3,
+ :select {:nested {:q 2, :r 99}, :e 5, :c 3, :b 2, :d 4, :f 6, :a 42},
+ :as
+ {:aa 1,
+  :b 2,
+  :c 3,
+  :d 4,
+  :e 5,
+  :f 6,
+  :x 42,
+  :nested {:q 2, :zz :top}},
+ :defs {:a 42},
+ :all
+ {:a 42,
+  :aa 1,
+  :b 2,
+  :c 3,
+  :d 4,
+  :e 5,
+  :f 6,
+  :x 42,
+  :nested {:r 99, :q 2, :zz :top}},
+ :rest {:aa 1, :x 42, :nested {:zz :top}}}
+
+(def abc {:aa 1 :b 2 :c 3 :d 4 :e 5 :f 6 :x 42 :nested {:q 2 :zz :top}})
+(def aaa {:aa 1, :b 2, :c 3, :d 4, :e 5, :f 6, :x 42, :nested {:q 2, :zz :top}})
+(def sss {:nested {:q 2, :r 99}, :e 5, :c 3, :b 2, :d 4, :f 6, :a 42})
+(def rrr {:aa 1, :x 42, :nested {:zz :top}})
+(def ddd {:a 42})
+
+(defn deep-merge
+  ([] nil)
+  ([mp] mp)
+  ([mp mp2]
+   (reduce-kv (fn [m k v]
+                (cond (nil? v) m
+                      (map? v) (update m k deep-merge v)
+                      :else (assoc m k v)))
+              mp
+              mp2))
+  ([mp mp2 & more]
+   (reduce deep-merge (deep-merge mp mp2) more)))
+
+
+
+;; from cgrand
+(defn cg-deep-merge
+  [a b]
+  (if (map? a)
+    (into a (for [[k v] b] [k (cg-deep-merge (a k) v)]))
+    b))
+
+;;; nice but my deep-merge is faster
+(defn x-deep-merge
+  ([] nil)
+  ([a] a)
+  ([a b] (if (map? a)
+           (into a (for [[k v] b] [k (x-deep-merge (a k) v)]))
+           b))
+  ([a b & more] (reduce x-deep-merge (x-deep-merge a b) more)))
