@@ -344,6 +344,54 @@
 
 
 
+#_
+(clojure.pprint/pprint (macroexpand
+'(let [ax {:a "x"}
+       {:keys! [a]} ax
+       {:keys [a] :or {:a (expensive 100)}} ax
+       {:keys [b] :or {:b (str "default-" a)}} ax]
+  (list a b))))
+
+
+
+#_
+(let*
+ [ax  {:a "x"}
+  map__3935  ax
+  map__3935  (if   (clojure.core/seq? map__3935)
+               (if    (clojure.core/next map__3935)
+                 (clojure.lang.PersistentArrayMap/createAsIfByAssoc     (clojure.core/to-array map__3935))
+                 (if     (clojure.core/seq map__3935)
+                   (clojure.core/first map__3935)
+                   clojure.lang.PersistentArrayMap/EMPTY))
+               map__3935)
+  a  (clojure.core/req! map__3935 :a)
+  default__3939  (expensive 100)
+  map__3937  ax
+  map__3937  (if   (clojure.core/seq? map__3937)
+               (if    (clojure.core/next map__3937)
+                 (clojure.lang.PersistentArrayMap/createAsIfByAssoc
+                  (clojure.core/to-array map__3937))
+                 (if     (clojure.core/seq map__3937)
+                   (clojure.core/first map__3937)
+                   clojure.lang.PersistentArrayMap/EMPTY))
+               map__3937)
+  a  (clojure.core/get map__3937 :a default__3939)
+  default__3943  (str "default-" a)
+  map__3941  ax
+  map__3941  (if   (clojure.core/seq? map__3941)
+               (if    (clojure.core/next map__3941)
+                 (clojure.lang.PersistentArrayMap/createAsIfByAssoc     (clojure.core/to-array map__3941))
+                 (if     (clojure.core/seq map__3941)
+                   (clojure.core/first map__3941)
+                   clojure.lang.PersistentArrayMap/EMPTY))
+               map__3941)
+  b  (clojure.core/get map__3941 :b default__3943)]
+ (list a b))
+
+
+
+
 
 ;;; example from Rich with new :rest destructuring to capture "unused" keys, potentially
 ;;; nested, that exists in the target value, but are not mentioned in the destructuring
@@ -408,6 +456,12 @@
 (def rrr {:aa 1, :x 42, :nested {:zz :top}})
 (def ddd {:a 42})
 
+
+;;; Not fully backed on the deep-merge.  Just thinking about reconstructing the original
+;;; values from the destructuring results.
+
+;;; my preference (twist?) is that a nil value never clobbers an existing value
+;;; might want to conj collection values
 (defn deep-merge
   ([] nil)
   ([mp] mp)
@@ -438,3 +492,34 @@
            (into a (for [[k v] b] [k (x-deep-merge (a k) v)]))
            b))
   ([a b & more] (reduce x-deep-merge (x-deep-merge a b) more)))
+
+
+;;; current doc:   https://clojure.org/guides/destructuring
+;;; not all new stuff but some 1.13 references
+
+
+;;; SEM:  Big idea -- drop the destructuring & for :keys!.  It's good enough to bind for
+;;; symbols and check for keywords.  Need to consider :strs! and :syms! but I think it works
+;;; there too.
+
+;;; SEM:  notice that :or defaults are always evaluated in the macroexpanded let.  That's fine
+;;; for constants, but could be expensive for some expressions.  OK, valid concern, but it's
+;;; just what you get with (get m k default) -- normal evaluation.  So why would
+;;; destructuring do something smarter?
+
+;;; I would prefer that the default expression only evaluates when actually needed.  Take a
+;;; look at the macroexpansion and think about how to make it better.  Make an example
+;;; with (boom) and (expensive) expr in defaults.  I guess something like this:
+
+#_ (cond-> m (not (contains? m :a)) (assoc :a 11) ...)
+
+;;; could use (when-not (contains? m :k) (boom))
+
+
+(defn boom [& {:as m}]
+  (throw (ex-info "Boom!" m)))
+
+(defn expensive [cost]
+  (println "; Warning: You spent" cost "tokens!")
+  cost)
+
