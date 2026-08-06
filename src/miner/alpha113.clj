@@ -502,6 +502,9 @@
 ;;; symbols and check for keywords.  Need to consider :strs! and :syms! but I think it works
 ;;; there too.
 
+;;; Possible problem with namespace keywords.  Strangely, you can bind to ::p/name
+;;; (namespaced keyword, not a symbol?)
+
 ;;; SEM:  notice that :or defaults are always evaluated in the macroexpanded let.  That's fine
 ;;; for constants, but could be expensive for some expressions.  OK, valid concern, but it's
 ;;; just what you get with (get m k default) -- normal evaluation.  So why would
