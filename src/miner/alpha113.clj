@@ -244,8 +244,10 @@
 
 ;;; My initial versions all could return an empty map, but the doc says should be nil so I have to
 ;;; call not-empty.  I'm actually OK with the empty-map but I'm trying to do a fair
-;;; comparison.
+;;; comparison.  The official Clojure implementation insists on nil rather than empty map so
+;;; that it's convenient to test result with `if-let` or `when-let`, etc.
 
+;;; fastest for small map
 (defn some-vals2
   "Returns a map with only the non-nil values of map m. Returns nil if
   m has no non-nil vals."
@@ -269,7 +271,7 @@
              (transient {})
              m))))
 
-;; pretty good, slight benefit of transient for dissoc!
+;; pretty good, slight benefit of transient for dissoc!  best for big maps
 (defn some-vals4
   "Returns a map with only the non-nil values of map m. Returns nil if
   m has no non-nil vals."
