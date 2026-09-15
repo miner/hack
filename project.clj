@@ -1,6 +1,6 @@
 (defproject hack "0.4.0-SNAPSHOT" 
   :min-lein-version "2.0.0"
-  :dependencies [[djblue/portal "0.67.1"]
+  :dependencies [[djblue/portal "0.67.2"]
                  [dom-top "1.0.11"]
                  [com.datomic/local "1.0.301"]
                  [com.taoensso/telemere "1.4.0"]
@@ -39,7 +39,7 @@
                  ;; [org.clojure/spec.alpha "0.3.214"]
                  ;; [it.unimi.dsi/sux4j "3.0.10"] ;perfect-hashing
                  [org.clojars.quoll/tiara "0.5.2"]
-                 [juji/editscript "0.7.0"]
+                 [juji/editscript "0.8.0"]
                  [com.github.igrishaev/alike "0.1.0"]
                  ;; [org.scicloj/glance "0.1.0-alpha2"]
                  ;; [datalevin "0.10.3"]
@@ -49,8 +49,8 @@
                 ;; *unchecked-math* :warn-on-boxed
                 }
   :profiles {:dev  {:source-paths ["src" "dev"]
-                    :dependencies [[org.clojure/clojure "1.13.0-alpha6"]
-                                   [org.clojure/core.specs.alpha "0.6.122-alpha8"]
+                    :dependencies [[org.clojure/clojure "1.13.0-alpha7"]
+                                   [org.clojure/core.specs.alpha "0.6.133-alpha10"]
                                    [org.clojure/spec.alpha "0.6.249"]
                                    ;;[clj-ns-browser "1.3.0" ]
                                    [criterium "0.4.6"]]}
