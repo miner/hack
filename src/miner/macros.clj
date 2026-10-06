@@ -105,3 +105,43 @@
   (defmacro decl-fch6 [arg]
     `(defn ~'fch6 [~arg]
        (~chat  ~arg))))
+
+
+
+
+;;; example from Slack clojure channel, user "emccue".  He wants the map to be a runtime
+;;; literal.  All args must be symbols.
+
+#_ (defmacro m
+  "Expands out a series of variables to a map where
+  the name of the variable is the key under which the variable
+  goes
+  Ex. (m a b c) => {:a a, :b b, :c c}
+      (m) => {}"
+  [& vars]
+  ;;; SEM: not enough source provided as it depends on several macros.
+     )
+
+;;; My take on this
+
+(defn kmap [syms]
+  (assert (every? symbol? syms) (str "Not a symbol: " (pr-str (remove symbol? syms))))
+  (reduce (fn [m sym] (assoc m (keyword sym) sym))
+          {}
+          syms))
+
+;;; using quasiquote (tricky but canonical for macro maestros)
+(defmacro km [& syms]
+  `'~(kmap syms))
+
+
+;;; putting it all together.
+(defmacro kmz [& syms]
+  (assert (every? symbol? syms) (str "Not a symbol: " (pr-str (remove symbol? syms))))
+  (assert (apply distinct? syms) (str "Illegal duplicate symbols in " (pr-str syms)))
+  (let [m (reduce (fn [m sym] (assoc m (keyword sym) sym))
+                  {}
+                  syms)]
+    `'~m))
+
+;; last line could be:   (list 'quote m)
