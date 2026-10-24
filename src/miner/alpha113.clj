@@ -8,6 +8,15 @@
 
 ;;; I'm trying Clojure 1.13.0-alpha4. I have a problem with :keys! and :or. The first example works as expected with the old :keys. The second example gives me a syntax error when I switch to the new :keys!. The thirds example works when I avoid the required key in the defaults.
 
+
+;;; 10/22/26  15:23 by miner -- changes in alpha10.  More "directives" :missing, :select,
+;;; :req!, :all, :excess etc.
+
+;; :keys/:syms/:strs     -- :keys [a b c & :d]  -- after & is just marker, not binding
+;; :keys!/:syms!/:strs!  -- required keys
+;; :req!  -- just required (perhaps nested), not binding  (invokes req!)
+
+
 (comment
  (let [{:keys [a] :or {:a 1}} {:a 2}] a)
  ;;=> 2
@@ -40,6 +49,11 @@
 ;;; smart compiler could do "dead default optimization" and ignore the superfluous defaults.
 ;;; No need to generate code for the default.  Maybe it's worth a warning or a case for a
 ;;; linter like clj-kondo.
+
+;;; But of course, Rich knows all this and wants the error.  His fix in a later alpha is to
+;;; provide a :missing directive to collect the missing requested keys.  If :missing is
+;;; provided, it's not an error to be missing, it's just collected so user code can deal
+;;; with it later.
 
 
 
